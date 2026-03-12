@@ -1,0 +1,345 @@
+:root{
+	--grid-min-col: 190px;
+
+	/* Visible sizes after transform (JS sets pre-scale so these are true on screen) */
+	--time-col-w: 65px;
+	--hdr-group-h: 26px;
+	--hdr-station-h: 34px;
+	--row-h: 120px;        /* per-slot height; set in JS to fill height */
+	--row-extra: 0px;      /* remainder goes to the last slot row */
+
+	/* Typography (visible). JS sets --font-comp = 1/scale so these stay constant. */
+	--fz-gh: 16px;   /* group header */
+	--fz-sh: 13px;   /* station header */
+	--fz-time: 12px; /* time column numbers + “Tid” */
+	--fz-kind: 10px; /* “Arbete”/“Rast” */
+	--fz-max: 11px;  /* “max x” */
+	--fz-btn: 13px;  /* + button */
+	--font-comp: 1;
+	
+	/* Single-angle stripes for “both” (alternating warn/invalid) */
+	--stripe-w:12px;
+	
+	/* image tokens that exactly match your base visuals */
+	--img-none: linear-gradient(transparent; transparent);
+	--img-warn: linear-gradient(rgba(var(--bs-warning-rgb); .30); rgba(var(--bs-warning-rgb); .30));
+	--img-invalid: linear-gradient(rgba(var(--bs-danger-rgb); .30); rgba(var(--bs-danger-rgb); .30));
+	--img-both: repeating-linear-gradient(
+		45deg;
+		rgba(var(--bs-danger-rgb); .30) 0 var(--stripe-w);
+		rgba(var(--bs-warning-rgb); .30) var(--stripe-w) calc(2*var(--stripe-w))
+	);
+}
+
+/* Layout shell */
+html,body{ height:100%; }
+body{ overflow:hidden; }
+#app{ height:93vh; display:flex; flex-direction:column; }
+#gridArea{ flex:1; min-height:0; padding:.25rem; }
+.grid-shell{
+	height:100%;
+	border:1px solid var(--bs-border-color);
+	border-radius:.5rem;
+	overflow:hidden;
+	position:relative;
+	background:var(--bs-body-bg);
+	box-shadow:0 .25rem .75rem rgba(0,0,0,.05);
+}
+#gridScroller{ position:absolute; inset:0; overflow:hidden; }
+#gridScaler{ transform-origin: top left; display:inline-block; }
+
+/* Grid */
+.schedule-grid{
+	display:grid;
+	position:relative;
+}
+.schedule-grid::after{
+	content:"";
+	position:absolute;
+	left:0;right:0;bottom:0;
+	height:2px;                 /* covers the inset 1px bottom line */
+	background:var(--bs-body-bg);
+	pointer-events:none;        /* never blocks clicks */
+	z-index:2;                  /* above cell backgrounds */
+}
+
+/* Use inset “borders” so border width never affects layout math */
+.cell,
+.group-header,
+.station-header{
+	border:0 !important;
+	box-shadow:inset 0 0 0 1px var(--bs-border-color);
+	background:var(--bs-body-bg);
+}
+/* Resurs column tint (keeps Rast rows grey) */
+.group-header.resurs-col{ background:rgba(var(--bs-secondary-rgb),.18); }
+.station-header.resurs-col{ background:rgba(var(--bs-secondary-rgb),.18); }
+.cell.resurs-col:not(.break){ background:rgba(var(--bs-secondary-rgb),.06); }
+
+/* No bottom border for the last data row */
+.cell.last-row,
+.time-cell.last-row{
+	box-shadow:
+		inset 0 1px 0 0 var(--bs-border-color),   /* top */
+		inset 1px 0 0 0 var(--bs-border-color),   /* left */
+		inset -1px 0 0 0 var(--bs-border-color);  /* right */
+}
+
+/* Cells */
+.cell{ padding:.2rem .3rem 1.1rem .3rem; position:relative; }
+.cell.break{ background:rgba(127,127,127,.10); }
+.cell.warn{ background:rgba(var(--bs-warning-rgb), .30) !important; }
+.cell.invalid{ background:rgba(var(--bs-danger-rgb), .30) !important; }
+
+/* Group header (row 1) — fixed 36 px */
+.group-header{
+	height:var(--hdr-group-h);
+	display:flex; align-items:center; justify-content:space-between;
+	gap:.5rem; padding:0 1rem; margin:0;
+	border-top-left-radius:.4rem; border-top-right-radius:.4rem;
+	white-space:nowrap; overflow:hidden;
+	font-size:calc(var(--fz-gh) * var(--font-comp));
+	font-weight: 500;
+}
+.gh-title, .gh-coord {
+	opacity:70% !important;
+}
+.group-header .gh-title,
+.group-header .gh-coord{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.group-header .gh-coord{ opacity:.9; }
+
+/* Top-left “Tid”: fixed, centered, bottom-aligned, exact 36+34 visible px */
+.group-header.header-row[data-role="time-header"]{
+	display:flex;
+	align-items:flex-end;
+	justify-content:center;
+	padding:0 4px 6px 4px;
+	font-weight:600;
+	font-size:calc(var(--fz-time) * var(--font-comp));
+}
+
+
+/* Station header (row 2) — fixed 34 px */
+.station-header{
+	height:var(--hdr-station-h);
+	display:flex; align-items:center; justify-content:center;
+	padding:0 .35rem; margin-top:0;
+	overflow-wrap: break-word;
+	text-align: center;
+	font-size:calc(var(--fz-sh) * var(--font-comp));
+	line-height: 1;
+}
+
+/* Time column */
+.time-cell{
+	position:relative;
+	width:var(--time-col-w);
+	text-align:center;
+	font-size:calc(var(--fz-time) * var(--font-comp));
+}
+.time-cell .slot-time{
+	position:absolute; left:0; right:0;
+	top:50%; transform:translateY(-50%);   /* vertical center */
+	font-weight:600; line-height:1.05;
+}
+.time-cell .slot-kind{
+	position:absolute; left:.25rem; bottom:.25rem;
+	font-size:calc(var(--fz-kind) * var(--font-comp));
+	opacity:.4;
+}
+
+/* Person list inside planning cells */
+.person-list{
+	display:flex; flex-wrap:wrap; gap:.35rem;
+	height:calc(var(--row-h) - 32px);
+	overflow:auto; align-content:flex-start;
+}
+
+/* Marker when picker is open */
+.cell.picker-target{
+	outline:2px solid var(--bs-primary); outline-offset:-3px;
+	box-shadow:inset 0 0 0 4px rgba(13,110,253,.12), inset 0 0 0 1px var(--bs-border-color);
+}
+
+/* Footer tools: “max” and + button — constant visual size */
+.cell-cap{
+	position:absolute; right:.35rem; bottom:.15rem;
+	font-size:calc(var(--fz-kind) * var(--font-comp));
+	opacity:.4;
+}
+.cell-tools{ position:absolute; left:.3rem; bottom:.15rem; display:flex; gap:.2rem; padding:.3rem; }
+.cell .add-btn{
+	padding:calc(2px * var(--font-comp)) calc(7px * var(--font-comp));
+	font-size:calc(var(--fz-btn) * var(--font-comp));
+	line-height:1.1;
+}
+
+/* Person picker */
+.person-picker{
+	z-index:1050; left:4px; top:4px;
+	width:auto; min-width:unset; max-width:90vw;
+	height:auto; max-height:90vh;
+	font-size:calc(8px * var(--font-comp));
+	line-height:1.35;
+}
+.person-picker option:disabled{ opacity:.5; }
+.person-picker option.is-assigned{ text-decoration:line-through; opacity:.6; }
+.picker-overlay{ position:fixed; z-index:3000; left:0; top:0; }
+.picker-card{ background:var(--bs-body-bg); border:0; border-radius:.5rem; box-shadow:0 .5rem 1.25rem rgba(0,0,0,.25); padding: 0 !important;}
+
+/* Person picker states */
+.person-picker option{
+	background:var(--bs-body-bg);
+	color:var(--bs-body-color);
+}
+.person-picker option:hover:not(:disabled){
+	background:var(--bs-primary-bg-subtle);
+	color:var(--bs-primary-text-emphasis);
+}
+.person-picker:focus option:checked{
+	background:var(--bs-primary) !important;
+	color:#fff !important;
+}
+
+/* Person pills slightly larger */
+.person-pill{
+	display:inline-flex; align-items:center;
+	max-width:100%; min-width:0;
+	white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+	font-size:calc(11px*var(--font-comp));
+	line-height:1.15; padding:3px 8px; border-radius:.55rem;
+	color:var(--bs-gray-900) !important;
+}
+
+
+/* Drag & drop */
+.cell.drop-ok{ outline:2px dashed var(--bs-success); outline-offset:-3px; }
+.cell.drop-bad{ outline:2px dashed var(--bs-danger); outline-offset:-3px; }
+.cell.drop-training{ outline:2px dashed var(--bs-orange); outline-offset:-3px; }
+.drag-handle{ cursor:grab; opacity:.6; }
+.drag-over{ outline:2px dashed var(--bs-primary); outline-offset:-4px; }
+
+/* Credits */
+.credits .list-group-item{ padding:.75rem 0; border:0; }
+.credits .list-group-item + .list-group-item{ border-top:1px solid var(--bs-border-color); }
+.credits .badge{ font-weight:600; }
+
+/* Randomizer modal polish */
+#randomizeModal .modal-body{padding-top:.75rem;}
+.rand-group-header{
+	display:flex; align-items:center; gap:.5rem;
+	font-weight:600; margin-top:.25rem; margin-bottom:.25rem;
+}
+.rand-station-group{
+	border:1px solid var(--bs-border-color);
+	border-radius:.5rem; padding:.5rem .75rem; margin-bottom:.5rem;
+	background:var(--bs-body-bg);
+}
+#randStations .form-check{ margin-bottom:.25rem; }
+#randGroups .form-check{ margin-bottom:.25rem; }
+
+/* Hide edit-only controls in viewer mode */
+html[data-mode="viewer"] .hide-in-viewer{
+	display:none !important;
+}
+
+
+/* Multiline tooltip (join messages with "\n" from JS) */
+.tooltip .tooltip-inner{ white-space: pre-line; }
+
+/* Diagonal stripes when a cell has both warning colors */
+.cell.warn.invalid:not(.break){
+	background-image: repeating-linear-gradient(
+		45deg,
+		rgba(var(--bs-danger-rgb), .3) 0 calc(var(--stripe-w)),      /* existing INVALID red */
+		rgba(var(--bs-warning-rgb), .3) calc(var(--stripe-w)) calc(2 * var(--stripe-w))   /* existing WARN amber */
+	) !important;
+	background-color: transparent !important; /* override solid bg */
+}
+
+/* Person is under training on this station */
+.person-pill.under-training{
+	border:2px dashed var(--bs-orange) !important;
+}
+
+/* Untrained (selectable) items appear grey */
+.person-picker option.not-trained{
+	opacity:.5;
+}
+
+
+/* App toasts */
+.app-toast.toast{
+	border:0;
+	background:var(--bs-body-bg);
+	color:var(--bs-body-color);
+	box-shadow:0 .5rem 1.25rem rgba(0,0,0,.25), 0 0 0 1px var(--bs-border-color);
+	border-radius:.3rem;
+	overflow:hidden;
+}
+.app-toast .toast-header{
+	background:transparent;
+	border:0;
+	font-weight:600;
+	padding-bottom: 0 !important;
+}
+.app-toast .toast-body{ font-size:.9rem; padding-top: 0 !important; }
+
+/* Variant accents (left stripe via inset shadow) */
+.app-toast.toast-danger{ box-shadow:inset 3px 0 0 var(--bs-danger), 0 .5rem 1.25rem rgba(0,0,0,.25), 0 0 0 1px var(--bs-border-color); }
+.app-toast.toast-warning{ box-shadow:inset 3px 0 0 var(--bs-warning), 0 .5rem 1.25rem rgba(0,0,0,.25), 0 0 0 1px var(--bs-border-color); }
+.app-toast.toast-info{ box-shadow:inset 3px 0 0 var(--bs-info), 0 .5rem 1.25rem rgba(0,0,0,.25), 0 0 0 1px var(--bs-border-color); }
+
+@keyframes modalShake{
+	0%{transform:translateX(0)}
+	20%{transform:translateX(-8px)}
+	40%{transform:translateX(8px)}
+	60%{transform:translateX(-6px)}
+	80%{transform:translateX(6px)}
+	100%{transform:translateX(0)}
+}
+.modal-dialog.shake{
+	animation: modalShake .35s ease;
+}
+
+
+/* When a modal opens over another, make the underlay look inactive */
+.modal.underlay .modal-content{
+	filter: blur(1px) brightness(.8) saturate(.9);
+	transition: filter .15s ease-in-out;
+}
+
+/* Top-most training modal: offset from top + stronger “float” shadow */
+.training-modal .modal-dialog{
+	margin-top: clamp(52px, 2vh, 20px) !important;
+}
+
+.training-modal .modal-content{
+	border:0;
+	box-shadow:
+		0 1.25rem 2.5rem rgba(0,0,0,.35),
+		0 .25rem .75rem rgba(0,0,0,.2),
+		0 0 0 1px var(--bs-border-color) !important; /* subtle outline for light theme */
+}
+
+/* animate the mix % reliably */
+@property --mix{
+	syntax: '<percentage>';
+	inherits: false;
+	initial-value: 0%;
+}
+
+/* overlay sits under pills; above cell bg */
+.cell [data-role="person-list"]{ position:relative; z-index:2; }
+.cell > .cell-fx{
+	position:absolute;
+	inset:0;
+	z-index:1;
+	pointer-events:none;
+	border-radius:inherit;
+
+	/* cross-fade between two images */
+	background-image: cross-fade(var(--from); var(--to); var(--mix));
+	transition: --mix .18s ease;
+	will-change: --mix;
+}
