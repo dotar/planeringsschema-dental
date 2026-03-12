@@ -618,7 +618,75 @@ function eligibleStationsFor(person, stations, slot, opts = {}, takenThisSlot, r
 buildDefaultSlots();
 function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of DB.factories.map(f=>f.id)){add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
 
-(function init(){const qs=new URLSearchParams(location.search);mode=qs.get('mode')==='edit'?'edit':'viewer';document.documentElement.dataset.mode = mode;currentFactoryId=parseFactoryId(qs.get('factory')||'1');if(mode==='edit')showCoordLogin();document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';document.body.classList.toggle('viewer',mode!=='edit');const facSel=document.getElementById('factorySel');DB.factories.forEach(f=>{const opt=document.createElement('option');opt.value=f.id;opt.textContent=f.title;facSel.appendChild(opt);});facSel.value=String(currentFactoryId);facSel.addEventListener('change',()=>{currentFactoryId=parseFactoryId(facSel.value);rebuildAll();});const todayStr=(new Date()).toISOString().slice(0,10);document.getElementById('dateInput').value=todayStr;currentDate=new Date(todayStr+'T00:00:00');document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('tabEvening').addEventListener('click',()=>{currentContext='evening';setActiveContext();rebuildAll();});document.getElementById('tabNight').addEventListener('click',()=>{currentContext='night';setActiveContext();rebuildAll();});document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);document.getElementById('saveBtn').addEventListener('click',saveAll);renderSettings();suggestAndApplyTemplates();rebuildAll();window.addEventListener('resize',fitToViewport);document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});})();
+(function init(){
+	const qs=new URLSearchParams(location.search);
+	mode=qs.get('mode')==='edit'?'edit':'viewer';
+	document.documentElement.dataset.mode = mode;
+	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
+	if(mode==='edit')showCoordLogin();
+	document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';
+	document.body.classList.toggle('viewer',mode!=='edit');
+
+	const facSel=document.getElementById('factorySel');
+	const settingsFacSel=document.getElementById('settingsFactorySel');
+
+	function populateFactorySelect(sel){
+		if(!sel) return;
+		sel.innerHTML='';
+		DB.factories.forEach(f=>{
+			const opt=document.createElement('option');
+			opt.value=f.id;
+			opt.textContent=f.title;
+			sel.appendChild(opt);
+		});
+	}
+	populateFactorySelect(facSel);
+	populateFactorySelect(settingsFacSel);
+
+	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
+		currentFactoryId=parseFactoryId(v);
+		const value=String(currentFactoryId);
+		if(facSel) facSel.value=value;
+		if(settingsFacSel) settingsFacSel.value=value;
+
+		if(updateUrl){
+			const nextQs = new URLSearchParams(window.location.search);
+			nextQs.set('factory', value);
+			const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
+			window.history.replaceState(null, '', nextUrl);
+		}
+
+		if(rerenderSettings) renderSettings();
+		rebuildAll();
+	}
+
+	if(facSel){
+		facSel.value=String(currentFactoryId);
+		facSel.addEventListener('change',()=>applyFactoryChange(facSel.value,{rerenderSettings:true}));
+	}
+	if(settingsFacSel){
+		settingsFacSel.value=String(currentFactoryId);
+		settingsFacSel.addEventListener('change',()=>applyFactoryChange(settingsFacSel.value,{rerenderSettings:true}));
+	}
+
+	const todayStr=(new Date()).toISOString().slice(0,10);
+	document.getElementById('dateInput').value=todayStr;
+	currentDate=new Date(todayStr+'T00:00:00');
+	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('tabEvening').addEventListener('click',()=>{currentContext='evening';setActiveContext();rebuildAll();});
+	document.getElementById('tabNight').addEventListener('click',()=>{currentContext='night';setActiveContext();rebuildAll();});
+	document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
+	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
+	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
+	document.getElementById('saveBtn').addEventListener('click',saveAll);
+	renderSettings();
+	suggestAndApplyTemplates();
+	rebuildAll();
+	window.addEventListener('resize',fitToViewport);
+	document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});
+})();
 
 (function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
 
@@ -632,7 +700,41 @@ function fillTemplateOptions(dayTypes){const sel=document.getElementById('templa
 function labelFor(dt){switch(dt){case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (dag)';case DayType.Night:return'Natt';default:return dt;}}
 function formatDate(d){return d.toISOString().slice(0,10);} 
 
-function orderedColumns(){const order=DB.groupDisplayOrder[currentFactoryId]||['resurs',...DB.groups.filter(g=>g.factoryId===currentFactoryId).map(g=>g.id)];const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
+function getNormalizedGroupOrder(factoryId){
+	const groupIds = DB.groups.filter(g=>g.factoryId===factoryId).map(g=>g.id);
+	const groupIdSet = new Set(groupIds);
+	const hasResursStation = DB.stations.some(s=>s.factoryId===factoryId && s.isResurs);
+	const rawOrder = Array.isArray(DB.groupDisplayOrder[factoryId]) ? DB.groupDisplayOrder[factoryId] : [];
+
+	const order = [];
+	const seen = new Set();
+	for(const tok of rawOrder){
+		if(tok === 'resurs'){
+			if(hasResursStation && !seen.has('resurs')){
+				order.push('resurs');
+				seen.add('resurs');
+			}
+			continue;
+		}
+		if(groupIdSet.has(tok) && !seen.has(tok)){
+			order.push(tok);
+			seen.add(tok);
+		}
+	}
+
+	for(const id of groupIds){
+		if(!seen.has(id)){
+			order.push(id);
+			seen.add(id);
+		}
+	}
+
+	if(hasResursStation && !seen.has('resurs')) order.push('resurs');
+	DB.groupDisplayOrder[factoryId] = order;
+	return order;
+}
+
+function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
 
 function rebuildAll(){buildGrid();setupTooltips();fitToViewport();window.addEventListener('resize', fitToViewport);}
 
@@ -1535,7 +1637,7 @@ function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
 	wrap.innerHTML = '';
 
-	const order = DB.groupDisplayOrder[currentFactoryId]||[];
+	const order = getNormalizedGroupOrder(currentFactoryId);
 	const groupsOrdered = order.filter(tok=>tok!=='resurs').map(id=>DB.groups.find(x=>x.id===id));
 
 	for(const g of groupsOrdered){
@@ -1673,7 +1775,7 @@ function renderPersonGroups(){
 
 
 function groupSelect(val,bindId){
-	const order=DB.groupDisplayOrder[currentFactoryId]||[];
+	const order=getNormalizedGroupOrder(currentFactoryId);
 	const opts=order.filter(tok=>tok!=='resurs').map(id=>DB.groups.find(x=>x.id===id)).map(g=>`<option value="${g.id}" ${g.id===val?'selected':''}>${escapeHtml(g.title)}</option>`).join('');
 	return `<select class="form-select form-select-sm" data-bind="groupId" data-id="${bindId}">${opts}</select>`;
 }
@@ -1681,7 +1783,7 @@ function groupSelect(val,bindId){
 function renderGroupTable(){
 	const tb=document.getElementById('groupTable');
 	tb.innerHTML='';
-	const order=DB.groupDisplayOrder[currentFactoryId]||[];
+	const order=getNormalizedGroupOrder(currentFactoryId);
 	for(const tok of order){
 		if(tok==='resurs'){
 			const tr=document.createElement('tr');tr.draggable=true;tr.dataset.key='resurs';
