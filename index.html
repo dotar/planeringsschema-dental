@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="sv" data-bs-theme="auto">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Planeringsschema Dental</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css" rel="stylesheet">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2210 0 100 100%22><text y=%22.90em%22 font-size=%2290%22>📅</text></svg>"></link>
+
+		<script>
+			// DEV ONLY: new URL every reload
+			const bust = Date.now();
+			document.write('<link rel="stylesheet" href="test.css?v=' + bust + '">');
+			// If you also want JS fresh each reload:
+			//document.write('<script src="/js/app.js?v=' + bust + '" defer><\/script>');
+		</script>
+
+		<noscript>
+			<link rel="stylesheet" href="test.css">
+		</noscript>
+		
+	</head>
+	<body class="viewer">
+		<nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body">
+			<div class="container-fluid">
+				<a class="navbar-brand fw-bold" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
+				<div class="d-flex align-items-center gap-2 ms-auto">
+					<select id="factorySel" class="form-select form-select-sm" style="width:170px"></select>
+					<div class="btn-group btn-group-sm" role="group">
+						<button id="tabEvening" class="btn btn-outline-primary active"><i class="bi bi-moon-stars"></i> Kväll</button>
+						<button id="tabNight" class="btn btn-outline-primary"><i class="bi bi-moon"></i> Natt</button>
+					</div>
+					<div class="input-group input-group-sm hide-in-viewer" style="width:220px">
+						<span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+						<input id="dateInput" type="date" class="form-control">
+					</div>
+					<div class="btn-group btn-group-sm hide-in-viewer" role="group" aria-label="Day pick">
+						<button id="btnToday" class="btn btn-outline-secondary active">Idag</button>
+						<button id="btnTomorrow" class="btn btn-outline-secondary">Imorgon</button>
+					</div>
+					<select id="templateSel" class="form-select form-select-sm hide-in-viewer" style="width:220px"></select>
+					<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Randomisera</button>
+					<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
+					<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
+					<button id="themeBtn" class="btn btn-sm btn-outline-secondary" title="Tema"><i class="bi bi-circle-half"></i></button>
+					<span id="modeBadge" class="badge text-bg-secondary mode-badge">COORDINATOR</span>
+				</div>
+			</div>
+		</nav>
+
+		<div id="app" class="container-fluid">
+			<div id="suggestionAlert" class="alert alert-info py-2 my-2 d-none"></div>
+			<div id="warnAlert" class="alert alert-warning py-2 my-2 d-none"></div>
+			<div id="gridArea">
+				<div class="grid-shell">
+					<div id="gridScroller">
+						<div id="gridScaler"><!-- scaled grid injected here --></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Randomizer Modal -->
+		<div class="modal fade" id="randomizeModal" tabindex="-1">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-shuffle"></i> Randomisera</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<div class="row g-3">
+							<div class="col-md-4">
+								<label class="form-label">Grupp(er)</label>
+								<div id="randGroups" class="vstack gap-2"></div>
+							</div>
+							<div class="col-md-8">
+								<label class="form-label">Stationer (operativa idag)</label>
+								<div id="randStations" class="row row-cols-2 g-2"></div>
+								<div class="form-text">Resurs fylls <em>sist</em> automatiskt.</div>
+							</div>
+							<div class="col-12">
+								<div class="form-check">
+									<input id="avoidConsecutive" class="form-check-input" type="checkbox" checked>
+									<label class="form-check-label" for="avoidConsecutive">Undvik samma person två pass i rad på samma station</label>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Stäng</button>
+						<button id="runRandomizeBtn" class="btn btn-primary"><i class="bi bi-play-fill"></i> Kör</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Settings Modal -->
+		<div class="modal fade" id="settingsModal" tabindex="-1">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-gear"></i> Inställningar</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+							<li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPersonnel" type="button" role="tab">Personal</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabGroups" type="button" role="tab">Grupper</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabStations" type="button" role="tab">Stationer</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabSlots" type="button" role="tab">Tidsintervall</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConstraints" type="button" role="tab">Samarbetsregler</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCredits" type="button" role="tab">Credits</button></li>
+						</ul>
+						<div class="tab-content pt-3">
+							<!-- Personnel -->
+							<div class="tab-pane fade show active" id="tabPersonnel" role="tabpanel">
+								<div id="personGroupsWrap" class="vstack gap-4"></div>
+							</div>
+							<!-- Groups (incl. Resurs) -->
+							<div class="tab-pane fade" id="tabGroups" role="tabpanel">
+								<div class="d-flex justify-content-between align-items-center mb-2">
+									<div class="alert alert-info">Dra för att ändra kolumnordningenför grupper</div>
+									<button id="addGroupBtn" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Lägg till grupp</button>
+								</div>
+								<table class="table table-sm align-middle">
+									<thead><tr><th style="width:32px"></th><th>Namn</th><th>Färg</th><th>Samordnare</th><th style="width:68px"></th></tr></thead>
+									<tbody id="groupTable"></tbody>
+								</table>
+								<div class="small text-muted">Tips: använd drag-ikonen för att ändra ordningen.</div>
+							</div>
+							<!-- Stations by group (order follows Groups) -->
+							<div class="tab-pane fade" id="tabStations" role="tabpanel">
+								<div class="alert alert-info">Dra för att ändra kolumnordningen för stationer inom en grupp</div>
+								<div id="stationsByGroup" class="vstack gap-4"></div>
+							</div>
+							<!-- Time slots (drag to sort; no Sort column) -->
+							<div class="tab-pane fade" id="tabSlots" role="tabpanel">
+								<div class="alert alert-info">Dra rader för att sortera. Använd format <strong>HH:MM</strong>.</div>
+								<div id="slotEditor"></div>
+							</div>
+							<!-- Constraints -->
+							<div class="tab-pane fade" id="tabConstraints" role="tabpanel">
+								<div class="d-flex justify-content-between align-items-center mb-2">
+									<div class="alert alert-info">Samarbetsregler - undvik att jobba ihop i samma station och pass</div>
+									<button id="addConstraintBtn" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Lägg till regel</button>
+								</div>
+								<table class="table table-sm align-middle">
+									<thead><tr><th>Person A</th><th>Person B</th><th></th></tr></thead>
+									<tbody id="constraintTable"></tbody>
+								</table>
+							</div>
+							<!-- Credits -->
+							<div class="tab-pane fade" id="tabCredits" role="tabpanel">
+								<div class="d-flex justify-content-between align-items-center mb-2">
+									<div class="credits">
+										<ul class="list-group list-group-flush credits-list">
+											<li class="list-group-item d-flex justify-content-between align-items-center">
+												<span><i class="bi bi-box-seam me-2"></i><strong>Produkt</strong></span>
+												<span>Planeringsschema Dental</span>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-upc-scan me-2"></i>Version</div>
+												<ul class="list-unstyled d-flex flex-wrap gap-2 mb-0">
+													<li><span class="badge bg-primary-subtle text-primary-emphasis">v0.1</span></li>
+													<li><span class="badge bg-info-subtle text-info-emphasis">Datum: 2025-08-18</span></li>
+													<li><span class="badge bg-success-subtle text-success-emphasis">Miljö: Test</span></li>
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-people me-2"></i>Team</div>
+												<ul class="list-unstyled small mb-0">
+													<li><strong>Utveckling:</strong> Torsten Augustsson, Dentsply Sirona</li>
+													<li><strong>Design/UX:</strong> Torsten Augustsson</li>
+													<li><strong>Kontakt/support:</strong> <a href="mailto:torsten.augustsson@dentsplysirona.com?subject=Planeringsschema"><i class="bi bi-envelope-fill"></i></a> • <a href="https://teams.microsoft.com/l/chat/0/0?users=Torsten.Augustsson@dentsplysirona.com" target="_blank"><i class="bi bi-microsoft-teams"></i></a></li>
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-stack me-2"></i>Teknik &amp; ramverk</div>
+												<ul class="small mb-0">
+													<li>Bootstrap 5.3.7 • Bootstrap Icons 1.13.1</li>
+													<li>jQuery 3.7.1 • Vanilla JS • CSS Grid</li>
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-shield-check me-2"></i>Data &amp; integritet</div>
+												<ul class="list-unstyled small mb-0">
+													<li>Lagrar planering, stationer, tider, förnamn & utbildningar. Åtkomst styrs av lösenord.</li>
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-hand-thumbs-up me-2"></i>Tack</div>
+												<ul class="list-unstyled small mb-0">
+													<li>Samordnare och operatörer i Dental produktion för värdefull feedback.</li>
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-journal-text me-2"></i>Licenser</div>
+												<ul class="list-unstyled small mb-0">
+													<li>Öppna komponenter (Bootstrap, Bootstrap Icons, jQuery m.fl.).</li>
+													<!--<li>Fullständiga licenstexter: <em>Inställningar → Licenser</em>.</li>-->
+												</ul>
+											</li>
+
+											<li class="list-group-item">
+												<div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-2"></i>Kända begränsningar</div>
+												<ul class="small mb-0">
+													<li>Utskrift följer aktuell vy och kan avvika vid hög zoom.</li>
+													<li>Webbläsarzoom &gt;125&nbsp;% kan påverka pixelperfekta linjer.</li>
+												</ul>
+											</li>
+											<!--
+											<li class="list-group-item">
+												<div class="fw-semibold"><i class="bi bi-clock-history me-2"></i>Versionshistorik</div>
+												<div class="small">Se <em>Inställningar → Versionslogg</em> för ändringar per release.</div>
+											</li>
+											-->
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Stäng</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Coordinator Login Modal -->
+		<div class="modal fade" id="coordModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-shield-lock"></i> Koordinatorläge</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label class="form-label">Lösenord</label>
+							<input id="coordPwd" type="password" class="form-control" autocomplete="current-password">
+							<div id="coordPwdFeedback" class="invalid-feedback">Fel lösenord</div>
+						</div>
+						<div class="text-muted small">Hash jämförs mot värde i <code>PlanningAppSettings.CoordinatorPasswordHash</code> (mock i denna prototyp).</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+						<button id="coordLoginBtn" class="btn btn-primary">Logga in</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Confirm Modal (reusable) -->
+		<div class="modal fade confirm-modal" id="confirmModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content modal-confirm">
+					<div class="modal-header">
+						<h5 class="modal-title"><i class="bi bi-question-circle me-2"></i><span data-role="ttl">Bekräfta</span></h5>
+						<button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body">
+						<div class="d-flex">
+							<i class="bi bi-exclamation-triangle flex-shrink-0 me-3 fs-3 text-warning"></i>
+							<div>
+								<div class="fw-semibold" data-role="msg">Är du säker?</div>
+								<div class="small text-muted mt-1" data-role="sub"></div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
+						<button class="btn btn-danger" id="confirmOkBtn">Ta bort</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		
+		<!-- Toasts -->
+		<div id="toastArea" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:5000"></div>
+		
+
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+
+		<script>
+			// DEV ONLY: new URL every reload
+			// If you also want JS fresh each reload:
+			document.write('<script src="test-mockdata.js?v=' + bust + '" defer><\/script>');
+			document.write('<script src="test.js?v=' + bust + '" defer><\/script>');
+		</script>
+		
+	</body>
+</html>
