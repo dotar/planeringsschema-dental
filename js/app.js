@@ -643,11 +643,19 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	populateFactorySelect(facSel);
 	populateFactorySelect(settingsFacSel);
 
-	function applyFactoryChange(v,{rerenderSettings=false}={}){
+	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
 		currentFactoryId=parseFactoryId(v);
 		const value=String(currentFactoryId);
 		if(facSel) facSel.value=value;
 		if(settingsFacSel) settingsFacSel.value=value;
+
+		if(updateUrl){
+			const nextQs = new URLSearchParams(window.location.search);
+			nextQs.set('factory', value);
+			const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
+			window.history.replaceState(null, '', nextUrl);
+		}
+
 		if(rerenderSettings) renderSettings();
 		rebuildAll();
 	}
