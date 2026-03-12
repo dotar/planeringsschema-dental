@@ -12,17 +12,27 @@ function cloneDeep(v){
 }
 
 function initShiftData(){
-	if(DB.shiftData) return;
-	const base={
-		persons:cloneDeep(DB.persons||[]),
-		groups:cloneDeep(DB.groups||[]),
-		timeSlots:cloneDeep(DB.timeSlots||[]),
-		compatibility:cloneDeep(DB.compatibility||[]),
-		training:cloneDeep(DB.training||[]),
-		assignments:cloneDeep(DB.assignments||[]),
-		groupDisplayOrder:cloneDeep(DB.groupDisplayOrder||{})
-	};
-	DB.shiftData={day:cloneDeep(base),evening:cloneDeep(base),night:cloneDeep(base)};
+	if(!DB.shiftData){
+		const base={
+			persons:cloneDeep(DB.persons||[]),
+			groups:cloneDeep(DB.groups||[]),
+			timeSlots:cloneDeep(DB.timeSlots||[]),
+			compatibility:cloneDeep(DB.compatibility||[]),
+			training:cloneDeep(DB.training||[]),
+			assignments:cloneDeep(DB.assignments||[]),
+			groupDisplayOrder:cloneDeep(DB.groupDisplayOrder||{})
+		};
+		DB.shiftData={day:cloneDeep(base),evening:cloneDeep(base),night:cloneDeep(base)};
+	}
+
+	const fallbackTimeSlots=cloneDeep(DB.timeSlots||[]);
+	for(const shift of ['day','evening','night']){
+		if(!DB.shiftData[shift]) DB.shiftData[shift]={};
+		if(!Array.isArray(DB.shiftData[shift].timeSlots) || DB.shiftData[shift].timeSlots.length===0){
+			DB.shiftData[shift].timeSlots=cloneDeep(fallbackTimeSlots);
+		}
+	}
+
 	setShift('evening',{updateUrl:false});
 }
 
