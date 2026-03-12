@@ -1255,3 +1255,59 @@ const DB={
 	timeSlots:[],
 	assignments:[]
 };
+(function initShiftMockData(){
+	const clone=v=>JSON.parse(JSON.stringify(v));
+	const shifts=['day','evening','night'];
+	const shiftMeta={day:{idBase:10000,label:'Dag',night:false},evening:{idBase:20000,label:'Kväll',night:false},night:{idBase:30000,label:'Natt',night:true}};
+	const stationsByFactory=new Map();
+	for(const f of DB.factories.map(x=>x.id)){
+		stationsByFactory.set(f, DB.stations.filter(s=>s.factoryId===f).map(s=>s.id));
+	}
+
+	function pickStationIds(factoryId, personId, count){
+		const all=stationsByFactory.get(factoryId)||[];
+		if(!all.length) return [];
+		const out=[];
+		let seed=(personId*1103515245+12345)>>>0;
+		while(out.length<count && out.length<all.length){
+			seed=(seed*1664525+1013904223)>>>0;
+			const idx=seed%all.length;
+			const sid=all[idx];
+			if(!out.includes(sid)) out.push(sid);
+		}
+		return out;
+	}
+
+	const shiftData={};
+	for(const shift of shifts){
+		const meta=shiftMeta[shift];
+		const persons=DB.persons.map((p,i)=>({
+			...clone(p),
+			id:meta.idBase+i+1,
+			name:`${p.name} (${meta.label})`,
+			isNight:meta.night
+		}));
+		const training=[];
+		for(const person of persons){
+			const count=2+((person.id+7)%4); // 2..5 stations
+			for(const stationId of pickStationIds(person.factoryId, person.id, count)){
+				training.push({personId:person.id,stationId});
+			}
+		}
+		shiftData[shift]={
+			persons,
+			groups:clone(DB.groups),
+			timeSlots:clone(DB.timeSlots),
+			compatibility:[],
+			training,
+			assignments:[],
+			groupDisplayOrder:clone(DB.groupDisplayOrder)
+		};
+	}
+
+	DB.shiftData=shiftData;
+	DB.persons=clone(shiftData.evening.persons);
+	DB.training=clone(shiftData.evening.training);
+	DB.assignments=[];
+	DB.compatibility=[];
+})();

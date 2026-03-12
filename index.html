@@ -26,11 +26,12 @@
 			<div class="container-fluid">
 				<a class="navbar-brand fw-bold" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
 				<div class="d-flex align-items-center gap-2 ms-auto">
+					<select id="shiftSel" class="form-select form-select-sm" style="width:140px">
+						<option value="day">Dag</option>
+						<option value="evening">Kväll</option>
+						<option value="night">Natt</option>
+					</select>
 					<select id="factorySel" class="form-select form-select-sm" style="width:170px"></select>
-					<div class="btn-group btn-group-sm" role="group">
-						<button id="tabEvening" class="btn btn-outline-primary active"><i class="bi bi-moon-stars"></i> Kväll</button>
-						<button id="tabNight" class="btn btn-outline-primary"><i class="bi bi-moon"></i> Natt</button>
-					</div>
 					<div class="input-group input-group-sm hide-in-viewer" style="width:220px">
 						<span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
 						<input id="dateInput" type="date" class="form-control">
@@ -101,6 +102,14 @@
 							<div class="d-flex align-items-center gap-3">
 								<h5 class="modal-title mb-0"><i class="bi bi-gear"></i> Inställningar</h5>
 								<div class="input-group input-group-sm" style="width:220px">
+									<span class="input-group-text">Skift</span>
+									<select id="settingsShiftSel" class="form-select">
+										<option value="day">Dag</option>
+										<option value="evening">Kväll</option>
+										<option value="night">Natt</option>
+									</select>
+								</div>
+								<div class="input-group input-group-sm" style="width:220px">
 									<span class="input-group-text">Fabrik</span>
 									<select id="settingsFactorySel" class="form-select"></select>
 								</div>
@@ -134,6 +143,7 @@
 							<!-- Stations by group (order follows Groups) -->
 							<div class="tab-pane fade" id="tabStations" role="tabpanel">
 								<div class="alert alert-info">Dra för att ändra kolumnordningen för stationer inom en grupp</div>
+								<div class="alert alert-warning py-2">Stationsnamn och Operativ delas mellan Dag/Natt.</div>
 								<div id="stationsByGroup" class="vstack gap-4"></div>
 							</div>
 							<!-- Time slots (drag to sort; no Sort column) -->

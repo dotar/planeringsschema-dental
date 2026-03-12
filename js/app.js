@@ -1,9 +1,115 @@
-const DayType={EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentContext='evening',currentDayType=DayType.EveningMonThu,draggingPersonId=null;
+const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
 	return /^\d+$/.test(s) ? parseInt(s,10) : s;
+}
+
+
+function cloneDeep(v){
+	return JSON.parse(JSON.stringify(v));
+}
+
+function initShiftData(){
+	if(!DB.shiftData){
+		const base={
+			persons:cloneDeep(DB.persons||[]),
+			groups:cloneDeep(DB.groups||[]),
+			timeSlots:cloneDeep(DB.timeSlots||[]),
+			compatibility:cloneDeep(DB.compatibility||[]),
+			training:cloneDeep(DB.training||[]),
+			assignments:cloneDeep(DB.assignments||[]),
+			groupDisplayOrder:cloneDeep(DB.groupDisplayOrder||{})
+		};
+		DB.shiftData={day:cloneDeep(base),evening:cloneDeep(base),night:cloneDeep(base)};
+	}
+
+	const fallbackTimeSlots=cloneDeep(DB.timeSlots||[]);
+	for(const shift of ['day','evening','night']){
+		if(!DB.shiftData[shift]) DB.shiftData[shift]={};
+		if(!Array.isArray(DB.shiftData[shift].timeSlots) || DB.shiftData[shift].timeSlots.length===0){
+			DB.shiftData[shift].timeSlots=cloneDeep(fallbackTimeSlots);
+		}
+	}
+
+	setShift('evening',{updateUrl:false});
+}
+
+function getActiveShiftData(){
+	return DB.shiftData[currentShift];
+}
+
+function setShift(shift,{updateUrl=true}={}){
+	currentShift=(shift==='day'||shift==='evening'||shift==='night')?shift:'evening';
+	const data=getActiveShiftData();
+	DB.persons=data.persons;
+	DB.groups=data.groups;
+	DB.timeSlots=data.timeSlots;
+	DB.compatibility=data.compatibility;
+	DB.training=data.training;
+	DB.assignments=data.assignments;
+	DB.groupDisplayOrder=data.groupDisplayOrder;
+	if(updateUrl){
+		const nextQs = new URLSearchParams(window.location.search);
+		nextQs.set('shift', currentShift);
+		nextQs.set('factory', String(currentFactoryId));
+		const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
+		window.history.replaceState(null, '', nextUrl);
+	}
+}
+
+
+function getShiftPersonsFor(shift, factoryId=currentFactoryId){
+	const rows = DB.shiftData?.[shift]?.persons || [];
+	return rows.filter(p=>p.factoryId===factoryId);
+}
+
+function getPlanningPersons(factoryId=currentFactoryId){
+	if(currentDayType!==DayType.OvertimeDay || !DB.shiftData){
+		return DB.persons.filter(p=>p.factoryId===factoryId);
+	}
+	const byId = new Map();
+	for(const shift of ['day','evening','night']){
+		for(const p of getShiftPersonsFor(shift, factoryId)){
+			if(!byId.has(p.id)) byId.set(p.id,p);
+		}
+	}
+	return [...byId.values()];
+}
+
+function getPlanningPersonById(personId, factoryId=currentFactoryId){
+	return getPlanningPersons(factoryId).find(p=>p.id===personId) || DB.persons.find(p=>p.id===personId) || (DB.shiftData ? ['day','evening','night'].flatMap(k=>DB.shiftData[k]?.persons||[]).find(p=>p.id===personId) : null);
+}
+
+function isPersonTrainedForStation(personId, stationId){
+	if(!DB.shiftData){
+		return DB.training.some(t=>t.personId===personId && t.stationId===stationId);
+	}
+	if(currentDayType===DayType.OvertimeDay){
+		for(const shift of ['day','evening','night']){
+			if((DB.shiftData[shift]?.training||[]).some(t=>t.personId===personId && t.stationId===stationId)) return true;
+		}
+		return false;
+	}
+	if(DB.training.some(t=>t.personId===personId && t.stationId===stationId)) return true;
+	if(currentShift==='evening' && (DB.shiftData.night?.persons||[]).some(p=>p.id===personId)){
+		return (DB.shiftData.night?.training||[]).some(t=>t.personId===personId && t.stationId===stationId);
+	}
+	return false;
+}
+
+function isLastEveningWorkSlot(slot){
+	if(currentShift!=='evening') return false;
+	const workSlots=DB.timeSlots
+		.filter(ts=>ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
+		.sort((a,b)=>a.sort-b.sort);
+	return workSlots.length>0 && workSlots[workSlots.length-1].id===slot.id;
+}
+
+function getEveningSupplementalPersons(slot){
+	if(!isLastEveningWorkSlot(slot)) return [];
+	return getShiftPersonsFor('night', currentFactoryId);
 }
 
 let _pickerOpenCell=null;
@@ -459,7 +565,7 @@ function placeOneRandom(station, slot, opts={}){
 	const takenThisSlot = opts.takenThisSlot || new Set();
 
 	// base pool: present, in selected groups, trained/allowed for this station+slot
-	let candidates = DB.persons.filter(p =>
+	let candidates = getPlanningPersons(currentFactoryId).filter(p =>
 		p.factoryId===currentFactoryId &&
 		p.present &&
 		(!candidateGroups || candidateGroups.has(p.groupId)) &&
@@ -522,7 +628,7 @@ function roundRobinFill(stations, slot, opts = {}){
 	});
 	if(!remaining.size) return;
 
-	let allCandidates = DB.persons.filter(p =>
+	let allCandidates = getPlanningPersons(currentFactoryId).filter(p =>
 		p.factoryId===currentFactoryId &&
 		p.present &&
 		(!opts.candidateGroupIds || opts.candidateGroupIds.has(p.groupId))
@@ -616,7 +722,7 @@ function eligibleStationsFor(person, stations, slot, opts = {}, takenThisSlot, r
 
 
 buildDefaultSlots();
-function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of DB.factories.map(f=>f.id)){add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
+function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const dayMonFri=[["06:55","07:55",work],["07:55","08:55",work],["08:55","09:15",br],["09:15","10:30",work],["10:30","11:35",work],["11:35","12:10",br],["12:10","13:45",work],["13:45","14:00",br],["14:00","14:57",work]];const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of DB.factories.map(f=>f.id)){add(f,DayType.Day,dayMonFri);add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
 
 (function init(){
 	const qs=new URLSearchParams(location.search);
@@ -629,6 +735,11 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 
 	const facSel=document.getElementById('factorySel');
 	const settingsFacSel=document.getElementById('settingsFactorySel');
+	const shiftSel=document.getElementById('shiftSel');
+	const settingsShiftSel=document.getElementById('settingsShiftSel');
+
+	initShiftData();
+	setShift(qs.get('shift')||'evening',{updateUrl:false});
 
 	function populateFactorySelect(sel){
 		if(!sel) return;
@@ -643,6 +754,11 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	populateFactorySelect(facSel);
 	populateFactorySelect(settingsFacSel);
 
+	function syncShiftSelectors(){
+		if(shiftSel) shiftSel.value=currentShift;
+		if(settingsShiftSel) settingsShiftSel.value=currentShift;
+	}
+
 	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
 		currentFactoryId=parseFactoryId(v);
 		const value=String(currentFactoryId);
@@ -652,10 +768,19 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 		if(updateUrl){
 			const nextQs = new URLSearchParams(window.location.search);
 			nextQs.set('factory', value);
+			nextQs.set('shift', currentShift);
 			const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
 			window.history.replaceState(null, '', nextUrl);
 		}
 
+		if(rerenderSettings) renderSettings();
+		rebuildAll();
+	}
+
+	function applyShiftChange(v,{rerenderSettings=false,updateUrl=true}={}){
+		setShift(v,{updateUrl});
+		syncShiftSelectors();
+		suggestAndApplyTemplates();
 		if(rerenderSettings) renderSettings();
 		rebuildAll();
 	}
@@ -669,19 +794,29 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 		settingsFacSel.addEventListener('change',()=>applyFactoryChange(settingsFacSel.value,{rerenderSettings:true}));
 	}
 
+	syncShiftSelectors();
+	if(shiftSel){
+		shiftSel.addEventListener('change',()=>applyShiftChange(shiftSel.value,{rerenderSettings:true}));
+	}
+	if(settingsShiftSel){
+		settingsShiftSel.addEventListener('change',()=>applyShiftChange(settingsShiftSel.value,{rerenderSettings:true}));
+	}
+
 	const todayStr=(new Date()).toISOString().slice(0,10);
 	document.getElementById('dateInput').value=todayStr;
 	currentDate=new Date(todayStr+'T00:00:00');
-	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
-	document.getElementById('tabEvening').addEventListener('click',()=>{currentContext='evening';setActiveContext();rebuildAll();});
-	document.getElementById('tabNight').addEventListener('click',()=>{currentContext='night';setActiveContext();rebuildAll();});
-	document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
+	const templateSel=document.getElementById('templateSel');
+	templateSel.classList.add('d-none');
+	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
 	renderSettings();
+	syncDayChoiceFromDate();
+	toggleDayButtons();
 	suggestAndApplyTemplates();
 	rebuildAll();
 	window.addEventListener('resize',fitToViewport);
@@ -691,13 +826,12 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 (function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
 
 function setDateToOffset(days){const base=new Date();base.setDate(base.getDate()+days);const s=base.toISOString().slice(0,10);document.getElementById('dateInput').value=s;currentDate=new Date(s+'T00:00:00');}
+function syncDayChoiceFromDate(){const start=(d)=>new Date(d.getFullYear(),d.getMonth(),d.getDate());const today=start(new Date());const sel=start(currentDate);const diff=Math.round((sel-today)/86400000);dayChoice=(diff===0)?'today':((diff===1)?'tomorrow':'custom');}
 function toggleDayButtons(){document.getElementById('btnToday').classList.toggle('active',dayChoice==='today');document.getElementById('btnTomorrow').classList.toggle('active',dayChoice==='tomorrow');}
-function setActiveContext(){document.getElementById('tabEvening').classList.toggle('active',currentContext==='evening');document.getElementById('tabNight').classList.toggle('active',currentContext==='night');suggestAndApplyTemplates();}
-
-function suggestTemplatesFor(date){const wd=date.getDay();const isMonToWed=wd>=1&&wd<=3;const isThu=wd===4;const isFri=wd===5;return{evening:(isMonToWed||isThu)?DayType.EveningMonThu:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night,nextEvening:isMonToWed?DayType.EveningMonThu:(isThu?DayType.EveningFri:'ChooseMonThuOrOvertime')};}
-function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);const alert=document.getElementById('suggestionAlert');if(currentContext==='evening'){const choice=(dayChoice==='today')?sug.evening:sug.nextEvening;if(choice==='ChooseMonThuOrOvertime'){fillTemplateOptions([DayType.EveningMonThu,DayType.OvertimeDay]);currentDayType=document.getElementById('templateSel').value;}else{fillTemplateOptions([choice]);currentDayType=choice;}}else{fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;}document.getElementById('templateSel').value=currentDayType;}
+function suggestTemplatesFor(date){const wd=date.getDay();const isFri=wd===5;const isWeekend=wd===0||wd===6;const isWeekday=wd>=1&&wd<=5;return{day:isWeekday?DayType.Day:DayType.OvertimeDay,evening:isWeekend?DayType.OvertimeDay:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night};}
+function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;return;}fillTemplateOptions([sug.evening]);currentDayType=sug.evening;document.getElementById('templateSel').value=currentDayType;}
 function fillTemplateOptions(dayTypes){const sel=document.getElementById('templateSel');sel.innerHTML='';dayTypes.forEach(dt=>{const opt=document.createElement('option');opt.value=dt;opt.textContent=labelFor(dt);sel.appendChild(opt);});}
-function labelFor(dt){switch(dt){case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (dag)';case DayType.Night:return'Natt';default:return dt;}}
+function labelFor(dt){switch(dt){case DayType.Day:return'Dag mån–fre';case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (lör/sön)';case DayType.Night:return'Natt';default:return dt;}}
 function formatDate(d){return d.toISOString().slice(0,10);} 
 
 function getNormalizedGroupOrder(factoryId){
@@ -971,12 +1105,20 @@ function openAssignDropdownOverlay(cell, station, slot){
 	);
 
 	// grouped options by team
+	const planningPeople = getPlanningPersons(currentFactoryId);
+	const supplemental = getEveningSupplementalPersons(slot);
+	const supplementalIds = new Set(supplemental.map(p=>p.id));
+	const pickerPeople = currentShift==='evening' ? [...planningPeople, ...supplemental.filter(sp=>!planningPeople.some(p=>p.id===sp.id))] : planningPeople;
 	const groups=DB.groups.filter(g=>g.factoryId===currentFactoryId);
-	for(const g of groups){
+	const groupsMap=new Map(groups.map(g=>[g.id,g]));
+	for(const person of pickerPeople){
+		if(!groupsMap.has(person.groupId)) groupsMap.set(person.groupId,{id:person.groupId,title:'Övrigt (andra skiftet)'});
+	}
+	for(const g of groupsMap.values()){
 		const og=document.createElement('optgroup');
 		og.label=g.title;
-		for(const p of DB.persons.filter(x => x.factoryId===currentFactoryId && x.groupId===g.id)){
-			const trained = DB.training.some(t => t.personId===p.id && t.stationId===station.id);
+		for(const p of pickerPeople.filter(x => x.groupId===g.id)){
+			const trained = isPersonTrainedForStation(p.id, station.id);
 
 			// Allow selection when other rules pass, but ignore training here
 			const okManual = isPersonAllowedFor(p, station, slot, {
@@ -986,7 +1128,7 @@ function openAssignDropdownOverlay(cell, station, slot){
 
 			const opt = document.createElement('option');
 			opt.value = p.id;
-			opt.textContent = p.name + (p.isNight ? '🌙' : '');
+			opt.textContent = p.name + ((currentShift==='night' || supplementalIds.has(p.id)) ? '🌙' : '');
 			opt.disabled = !okManual;
 
 			// Visuals: grey out if not trained (still selectable)
@@ -1080,10 +1222,10 @@ function openAssignDropdownOverlay(cell, station, slot){
 
 
 function isPersonAllowedFor(person, station, slot, opts = {}){
-	if(!person.present) return false;
+	if(!person || !person.present) return false;
 
 	// Night cutoff (evening context): night staff may not work before cutoff
-	if(currentDayType!==DayType.OvertimeDay && currentDayType!==DayType.Night && person.isNight){
+	if(currentShift==='night' && currentDayType!==DayType.OvertimeDay && currentDayType!==DayType.Night && person.isNight){
 		const cutoff=getNightCutoffFor(currentFactoryId, currentDate);
 		if(timeLess(slot.start, cutoff)) return false;
 	}
@@ -1091,7 +1233,7 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 	// Training requirement (can be ignored for manual placement/picker)
 	const ignoreTraining = !!opts.ignoreTraining;
 	if(!station.isResurs && !ignoreTraining){
-		const trained = DB.training.some(t => t.personId===person.id && t.stationId===station.id);
+		const trained = isPersonTrainedForStation(person.id, station.id);
 		if(!trained) return false;
 	}
 
@@ -1123,7 +1265,8 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 
 function movePersonTo(cell, station, slot, personId){
 	const dateStr = getSelectedDateStr();
-	const person = DB.persons.find(p => p.id === personId);
+	const person = getPlanningPersonById(personId);
+	if(!person) return;
 
 	// 1) Strict check (training required)
 	const strictOk = isPersonAllowedFor(person, station, slot, { ignoreConflictForPersonId: personId });
@@ -1172,7 +1315,7 @@ function movePersonTo(cell, station, slot, personId){
 function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});if(mode==='edit')validateBoard();}
 
 function addPersonPill(cell, personId){
-	const p = DB.persons.find(x=>x.id===personId);
+	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
 	const pill = document.createElement('span');
 	pill.className = 'person-pill';
 	pill.draggable = true;
@@ -1189,7 +1332,7 @@ function addPersonPill(cell, personId){
 
 	// If placed at a station where p is NOT trained, mark + tooltip
 	const stationId = parseInt(cell.dataset.stationId, 10);
-	const trainedHere = DB.training.some(t => t.personId===personId && t.stationId===stationId);
+	const trainedHere = isPersonTrainedForStation(personId, stationId);
 	if(!trainedHere){
 
 		pill.classList.add('under-training');
@@ -1314,8 +1457,8 @@ function validateBoard(){
 			const slot=DB.timeSlots.find(ts=>String(ts.id)===c.dataset.slotId);
 			if(timeLess(slot.start,cutoff)){
 				c.querySelectorAll('.person-pill').forEach(pp=>{
-					const p=DB.persons.find(x=>x.id===parseInt(pp.dataset.personId,10));
-					if(p.isNight) markCellInvalid(parseInt(c.dataset.stationId,10),c.dataset.slotId,'Nattpersonal får ej bokas före cutoff.', 'Ej tillåten tid');
+					const p=getPlanningPersonById(parseInt(pp.dataset.personId,10));
+					if(p && currentShift==='night' && p.isNight) markCellInvalid(parseInt(c.dataset.stationId,10),c.dataset.slotId,'Nattpersonal får ej bokas före cutoff.', 'Ej tillåten tid');
 				});
 			}
 		});
@@ -1587,7 +1730,7 @@ function fillCellByRandom(station,slot,opts={}){
 	const avoidConsecutive=(opts.avoidConsecutive!==false); // default true
 
 	// base candidates: present, allowed, and (if set) in included groups
-	let candidates=DB.persons.filter(p=>
+	let candidates=getPlanningPersons(currentFactoryId).filter(p=>
 		p.factoryId===currentFactoryId &&
 		p.present &&
 		(!candidateGroups || candidateGroups.has(p.groupId)) &&
@@ -1636,7 +1779,6 @@ function renderSettings(){renderPersonGroups();renderGroupTable();renderStations
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
 	wrap.innerHTML = '';
-
 	const order = getNormalizedGroupOrder(currentFactoryId);
 	const groupsOrdered = order.filter(tok=>tok!=='resurs').map(id=>DB.groups.find(x=>x.id===id));
 
@@ -1660,7 +1802,6 @@ function renderPersonGroups(){
 							<th style="width:22%">Namn</th>
 							<th style="width:18%">Grupp</th>
 							<th style="width:12%">Närvarande</th>
-							<th style="width:10%">Natt</th>
 							<th style="width:12%">Utbildning</th>
 							<th style="width:10%"></th>
 						</tr>
@@ -1694,7 +1835,6 @@ function renderPersonGroups(){
 				<td><input class="form-control form-control-sm" value="${escapeHtml(p.name)}" data-bind="name" data-id="${p.id}"></td>
 				<td>${groupSelect(p.groupId, p.id)}</td>
 				<td><input type="checkbox" ${p.present?'checked':''} data-bind="present" data-id="${p.id}"></td>
-				<td><input type="checkbox" ${p.isNight?'checked':''} data-bind="isNight" data-id="${p.id}"></td>
 				<td><button class="btn btn-sm btn-outline-secondary" data-action="training" data-id="${p.id}"><i class="bi bi-1-circle"></i></button></td>
 				<td><button class="btn btn-sm btn-outline-danger" data-action="del" data-id="${p.id}"><i class="bi bi-trash"></i></button></td>
 			`;
@@ -1733,7 +1873,6 @@ function renderPersonGroups(){
 			const p = DB.persons.find(x=>x.id===id);
 			if(!p) return;
 			if(el.dataset.bind==='name') p.name = el.value.trim();
-			if(el.dataset.bind==='isNight') p.isNight = el.checked;
 			if(el.dataset.bind==='present') p.present = el.checked;
 			if(el.dataset.bind==='groupId'){
 				const newG = parseInt(el.value,10);
@@ -1765,7 +1904,7 @@ function renderPersonGroups(){
 			const maxSort = Math.max(0, ...DB.persons
 				.filter(x=>x.factoryId===currentFactoryId && x.groupId===gid && typeof x.sort==='number')
 				.map(x=>x.sort||0));
-			DB.persons.push({ id, name:'Ny', factoryId:currentFactoryId, groupId:gid, isNight:false, present:true, sort:maxSort+1 });
+			DB.persons.push({ id, name:'Ny', factoryId:currentFactoryId, groupId:gid, isNight:(currentShift==='night'), present:true, sort:maxSort+1 });
 			renderPersonGroups();
 			const inp = document.querySelector(`input[data-bind="name"][data-id="${id}"]`);
 			if(inp){ inp.focus(); inp.select(); }
@@ -1950,7 +2089,7 @@ function renderStationsByGroup(){
 function renderSlotEditor(){
 	const wrap=document.getElementById('slotEditor');
 	wrap.innerHTML='';
-	const dayTypes=[DayType.EveningMonThu,DayType.EveningFri,DayType.Night,DayType.OvertimeDay];
+	const dayTypes=currentShift==='day'?[DayType.Day,DayType.OvertimeDay]:(currentShift==='evening'?[DayType.EveningMonThu,DayType.EveningFri,DayType.OvertimeDay]:[DayType.Night,DayType.OvertimeDay]);
 	dayTypes.forEach(dt=>{
 		const div=document.createElement('div');
 		div.className='mb-3';
@@ -2475,13 +2614,14 @@ function showToast(kind, title, msg, opts={}){
 // Explain *why* a placement is blocked (mirror of isPersonAllowedFor)
 function explainNotAllowed(person, station, slot, opts={}){
 	const reasons=[];
+	if(!person){ reasons.push('Personen finns inte i aktivt personalurval.'); return reasons; }
 	if(!person.present) reasons.push('Personen är frånvarande.');
-	if(currentDayType!==DayType.OvertimeDay && currentDayType!==DayType.Night && person.isNight){
+	if(currentShift==='night' && currentDayType!==DayType.OvertimeDay && currentDayType!==DayType.Night && person.isNight){
 		const cutoff=getNightCutoffFor(currentFactoryId,currentDate);
 		if(timeLess(slot.start,cutoff)) reasons.push('Nattpersonal före arbetsstart.');
 	}
 	if(!station.isResurs){
-		const trained=DB.training.some(t=>t.personId===person.id && t.stationId===station.id);
+		const trained=isPersonTrainedForStation(person.id, station.id);
 		if(!trained) reasons.push('Ej utbildad för stationen.');
 	}
 	const dateStr=getSelectedDateStr();
