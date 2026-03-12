@@ -97,7 +97,14 @@
 		<div class="modal fade" id="settingsModal" tabindex="-1">
 			<div class="modal-dialog modal-xl modal-dialog-scrollable">
 				<div class="modal-content">
-					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-gear"></i> Inställningar</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-header">
+							<div class="d-flex align-items-center gap-3">
+								<h5 class="modal-title mb-0"><i class="bi bi-gear"></i> Inställningar</h5>
+								<div class="input-group input-group-sm" style="width:220px">
+									<span class="input-group-text">Fabrik</span>
+									<select id="settingsFactorySel" class="form-select"></select>
+								</div>
+							</div><button class="btn-close" data-bs-dismiss="modal"></button></div>
 					<div class="modal-body">
 						<ul class="nav nav-tabs" id="settingsTabs" role="tablist">
 							<li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPersonnel" type="button" role="tab">Personal</button></li>
