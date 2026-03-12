@@ -1,0 +1,1226 @@
+const DB={
+	appSettings:{CoordinatorPasswordHash:'9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'},
+	factories:[{id:1,title:'Fabrik 1'},{id:2,title:'Fabrik 2'},{id:3,title:'Expedition'}],
+	groups:[
+		{id:101,factoryId:2,title:'Grön',color:'#6fbf73',coordinator:'Matilda Ferm'},
+		{id:102,factoryId:2,title:'Gul',color:'#f3c54b',coordinator:'Matilda Nilsson'},
+		{id:201,factoryId:1,title:'Orange',color:'#f6b26b',coordinator:'Sajma Olevic'},
+		{id:202,factoryId:1,title:'Grå',color:'#cccccc',coordinator:'Henrik Sandberg'},
+		{id:301,factoryId:3,title:'Blå',color:'#4AA1F2',coordinator:'Loredana Tiganila'}
+	],
+	/* visual order per factory: tokens are 'resurs' or group ids */
+	groupDisplayOrder:{1:[201,'resurs',202],2:[101,'resurs',102],3:[301]},
+	stations:[
+		{id:501,factoryId:2,groupId:101,title:'EQ-P-0626',defaultCapacity:2,operational:true,sort:1},
+		{id:502,factoryId:2,groupId:101,title:'EQ-P-0627',defaultCapacity:2,operational:true,sort:2},
+		{id:503,factoryId:2,groupId:101,title:'Montering Renrum',defaultCapacity:2,operational:true,sort:3},
+		{id:504,factoryId:2,groupId:101,title:'Packa sterillåda',defaultCapacity:2,operational:true,sort:4},
+		{id:505,factoryId:2,groupId:101,title:'EQ-P-0887',defaultCapacity:2,operational:true,sort:5},
+		{id:506,factoryId:2,groupId:101,title:'EQ-P-0794',defaultCapacity:2,operational:true,sort:6},
+		{id:507,factoryId:2,groupId:101,title:'EV halvfabrikat',defaultCapacity:2,operational:true,sort:7},
+		{id:508,factoryId:2,groupId:101,title:'Multibase',defaultCapacity:2,operational:true,sort:8},
+		{id:509,factoryId:2,groupId:101,title:'EQ-P-0550',defaultCapacity:2,operational:true,sort:9},
+		{id:521,factoryId:2,groupId:102,title:'EQ-P-0581A',defaultCapacity:2,operational:true,sort:1},
+		{id:522,factoryId:2,groupId:102,title:'EQ-P-0581B',defaultCapacity:2,operational:true,sort:2},
+		{id:523,factoryId:2,groupId:102,title:'TX LAF',defaultCapacity:1,operational:true,sort:3},
+		{id:524,factoryId:2,groupId:102,title:'EQ-P-1400 / EQ-P-0099',defaultCapacity:1,operational:true,sort:4},
+		{id:525,factoryId:2,groupId:102,title:'Packa sterillåda',defaultCapacity:1,operational:true,sort:5},
+		{id:526,factoryId:2,groupId:102,title:'TX halvfabrikat',defaultCapacity:1,operational:true,sort:6},
+		{id:527,factoryId:2,groupId:102,title:'Montera UNI',defaultCapacity:1,operational:true,sort:7},
+		{id:528,factoryId:2,groupId:102,title:'Cochlear LAF',defaultCapacity:1,operational:true,sort:8},
+		{id:529,factoryId:2,groupId:102,title:'Cochlear svets',defaultCapacity:1,operational:true,sort:9},
+		
+		{id:601,factoryId:1,groupId:201,title:'Förbereda disk',defaultCapacity:1,operational:true,sort:1},
+		{id:602,factoryId:1,groupId:201,title:'Processmaskiner',defaultCapacity:1,operational:true,sort:2},
+		{id:603,factoryId:1,groupId:201,title:'Blästra EQ-P-1100',defaultCapacity:1,operational:true,sort:3},
+		{id:604,factoryId:1,groupId:201,title:'Blästra EQ-P-0044',defaultCapacity:1,operational:true,sort:4},
+		{id:605,factoryId:1,groupId:201,title:'Montera carrier',defaultCapacity:1,operational:true,sort:5},
+		{id:606,factoryId:1,groupId:201,title:'Bas/syra dragskåp',defaultCapacity:1,operational:true,sort:6},
+		{id:607,factoryId:1,groupId:201,title:'EQ-P-0794',defaultCapacity:1,operational:true,sort:7},
+		{id:621,factoryId:1,groupId:202,title:'Anodisering',defaultCapacity:1,operational:true,sort:1},
+		{id:622,factoryId:1,groupId:202,title:'Diska',defaultCapacity:1,operational:true,sort:2},
+		{id:623,factoryId:1,groupId:202,title:'Blästra EQ-P-0802',defaultCapacity:1,operational:true,sort:3},
+		{id:624,factoryId:1,groupId:202,title:'Etsa Plus',defaultCapacity:1,operational:true,sort:4},
+		{id:625,factoryId:1,groupId:202,title:'Montera / demontera',defaultCapacity:1,operational:true,sort:5},
+		{id:626,factoryId:1,groupId:202,title:'Montera innerförpackning',defaultCapacity:1,operational:true,sort:6},
+		{id:627,factoryId:1,groupId:202,title:'Blister A EQ-P-0809',defaultCapacity:1,operational:true,sort:7},
+		
+		{id:700,factoryId:1,groupId:null,title:'Resurs',defaultCapacity:2,operational:true,sort:0,isResurs:true},
+		{id:701,factoryId:2,groupId:null,title:'Resurs',defaultCapacity:2,operational:true,sort:0,isResurs:true},
+		
+		{id:801,factoryId:3,groupId:301,title:'Manuell pack',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:802,factoryId:3,groupId:301,title:'Artemis',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:803,factoryId:3,groupId:301,title:'Påsmaskin',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:804,factoryId:3,groupId:301,title:'Boxpackare EQ-P-0006',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:805,factoryId:3,groupId:301,title:'Packa kit',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:806,factoryId:3,groupId:301,title:'Avsyna och justera Sleeve',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:807,factoryId:3,groupId:301,title:'Cochlear',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:808,factoryId:3,groupId:301,title:'Skicka till sterilisering',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:809,factoryId:3,groupId:301,title:'Boxpackaren EQ-P-0792',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:810,factoryId:3,groupId:301,title:'Batcha',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:811,factoryId:3,groupId:301,title:'Packa sterillåda A/X',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+		{id:812,factoryId:3,groupId:301,title:'Orderavslut',defaultCapacity:2,operational:true,sort:0,isResurs:false},
+	],
+	persons:[
+		{"id": 105, "name": "Matilda N", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 106, "name": "Nuvia", "factoryId": 2, "groupId": 102, "isNight": true, "present": true},
+		{"id": 107, "name": "Thomas E", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 108, "name": "Elvedina", "factoryId": 2, "groupId": 102, "isNight": true, "present": true},
+		{"id": 109, "name": "Fatime", "factoryId": 2, "groupId": 102, "isNight": true, "present": true},
+		{"id": 110, "name": "David", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 111, "name": "Yahye", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 112, "name": "Mohammed", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 113, "name": "Dyena", "factoryId": 2, "groupId": 102, "isNight": false, "present": true},
+		{"id": 114, "name": "Matilda F", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 115, "name": "Markus", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 116, "name": "Anders", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 117, "name": "Milica", "factoryId": 2, "groupId": 101, "isNight": true, "present": true},
+		{"id": 118, "name": "Kemal", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 119, "name": "Liridon", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 120, "name": "Erma", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 121, "name": "Thomas O", "factoryId": 2, "groupId": 101, "isNight": false, "present": true},
+		{"id": 122, "name": "Veronika", "factoryId": 2, "groupId": 101, "isNight": true, "present": true},
+		{"id": 123, "name": "Loredana", "factoryId": 'Expedition', "groupId": 301, "isNight": true, "present": true},
+	],
+	training:[
+	  {
+		"personId": 105,
+		"stationId": 527
+	  },
+	  {
+		"personId": 105,
+		"stationId": 521
+	  },
+	  {
+		"personId": 105,
+		"stationId": 522
+	  },
+	  {
+		"personId": 105,
+		"stationId": 524
+	  },
+	  {
+		"personId": 105,
+		"stationId": 526
+	  },
+	  {
+		"personId": 105,
+		"stationId": 528
+	  },
+	  {
+		"personId": 105,
+		"stationId": 525
+	  },
+	  {
+		"personId": 105,
+		"stationId": 507
+	  },
+	  {
+		"personId": 105,
+		"stationId": 503
+	  },
+	  {
+		"personId": 105,
+		"stationId": 501
+	  },
+	  {
+		"personId": 105,
+		"stationId": 502
+	  },
+	  {
+		"personId": 105,
+		"stationId": 508
+	  },
+	  {
+		"personId": 105,
+		"stationId": 509
+	  },
+	  {
+		"personId": 105,
+		"stationId": 505
+	  },
+	  {
+		"personId": 4,
+		"stationId": 527
+	  },
+	  {
+		"personId": 4,
+		"stationId": 521
+	  },
+	  {
+		"personId": 4,
+		"stationId": 522
+	  },
+	  {
+		"personId": 4,
+		"stationId": 524
+	  },
+	  {
+		"personId": 4,
+		"stationId": 528
+	  },
+	  {
+		"personId": 4,
+		"stationId": 507
+	  },
+	  {
+		"personId": 4,
+		"stationId": 503
+	  },
+	  {
+		"personId": 4,
+		"stationId": 501
+	  },
+	  {
+		"personId": 4,
+		"stationId": 502
+	  },
+	  {
+		"personId": 4,
+		"stationId": 508
+	  },
+	  {
+		"personId": 4,
+		"stationId": 509
+	  },
+	  {
+		"personId": 4,
+		"stationId": 505
+	  },
+	  {
+		"personId": 12,
+		"stationId": 527
+	  },
+	  {
+		"personId": 12,
+		"stationId": 521
+	  },
+	  {
+		"personId": 12,
+		"stationId": 522
+	  },
+	  {
+		"personId": 12,
+		"stationId": 524
+	  },
+	  {
+		"personId": 12,
+		"stationId": 526
+	  },
+	  {
+		"personId": 12,
+		"stationId": 528
+	  },
+	  {
+		"personId": 12,
+		"stationId": 507
+	  },
+	  {
+		"personId": 12,
+		"stationId": 503
+	  },
+	  {
+		"personId": 12,
+		"stationId": 501
+	  },
+	  {
+		"personId": 12,
+		"stationId": 502
+	  },
+	  {
+		"personId": 12,
+		"stationId": 508
+	  },
+	  {
+		"personId": 106,
+		"stationId": 523
+	  },
+	  {
+		"personId": 106,
+		"stationId": 521
+	  },
+	  {
+		"personId": 106,
+		"stationId": 522
+	  },
+	  {
+		"personId": 106,
+		"stationId": 524
+	  },
+	  {
+		"personId": 106,
+		"stationId": 526
+	  },
+	  {
+		"personId": 106,
+		"stationId": 525
+	  },
+	  {
+		"personId": 106,
+		"stationId": 507
+	  },
+	  {
+		"personId": 106,
+		"stationId": 503
+	  },
+	  {
+		"personId": 106,
+		"stationId": 501
+	  },
+	  {
+		"personId": 106,
+		"stationId": 502
+	  },
+	  {
+		"personId": 106,
+		"stationId": 508
+	  },
+	  {
+		"personId": 106,
+		"stationId": 509
+	  },
+	  {
+		"personId": 106,
+		"stationId": 505
+	  },
+	  {
+		"personId": 107,
+		"stationId": 521
+	  },
+	  {
+		"personId": 107,
+		"stationId": 522
+	  },
+	  {
+		"personId": 108,
+		"stationId": 527
+	  },
+	  {
+		"personId": 108,
+		"stationId": 523
+	  },
+	  {
+		"personId": 108,
+		"stationId": 521
+	  },
+	  {
+		"personId": 108,
+		"stationId": 522
+	  },
+	  {
+		"personId": 108,
+		"stationId": 526
+	  },
+	  {
+		"personId": 108,
+		"stationId": 507
+	  },
+	  {
+		"personId": 108,
+		"stationId": 503
+	  },
+	  {
+		"personId": 108,
+		"stationId": 501
+	  },
+	  {
+		"personId": 108,
+		"stationId": 506
+	  },
+	  {
+		"personId": 108,
+		"stationId": 509
+	  },
+	  {
+		"personId": 109,
+		"stationId": 523
+	  },
+	  {
+		"personId": 109,
+		"stationId": 521
+	  },
+	  {
+		"personId": 109,
+		"stationId": 522
+	  },
+	  {
+		"personId": 109,
+		"stationId": 526
+	  },
+	  {
+		"personId": 109,
+		"stationId": 528
+	  },
+	  {
+		"personId": 109,
+		"stationId": 525
+	  },
+	  {
+		"personId": 109,
+		"stationId": 507
+	  },
+	  {
+		"personId": 109,
+		"stationId": 503
+	  },
+	  {
+		"personId": 109,
+		"stationId": 502
+	  },
+	  {
+		"personId": 109,
+		"stationId": 506
+	  },
+	  {
+		"personId": 109,
+		"stationId": 509
+	  },
+	  {
+		"personId": 11,
+		"stationId": 523
+	  },
+	  {
+		"personId": 11,
+		"stationId": 521
+	  },
+	  {
+		"personId": 11,
+		"stationId": 522
+	  },
+	  {
+		"personId": 11,
+		"stationId": 524
+	  },
+	  {
+		"personId": 11,
+		"stationId": 526
+	  },
+	  {
+		"personId": 11,
+		"stationId": 528
+	  },
+	  {
+		"personId": 11,
+		"stationId": 507
+	  },
+	  {
+		"personId": 11,
+		"stationId": 503
+	  },
+	  {
+		"personId": 11,
+		"stationId": 501
+	  },
+	  {
+		"personId": 11,
+		"stationId": 502
+	  },
+	  {
+		"personId": 11,
+		"stationId": 508
+	  },
+	  {
+		"personId": 11,
+		"stationId": 506
+	  },
+	  {
+		"personId": 11,
+		"stationId": 509
+	  },
+	  {
+		"personId": 11,
+		"stationId": 505
+	  },
+	  {
+		"personId": 110,
+		"stationId": 527
+	  },
+	  {
+		"personId": 110,
+		"stationId": 523
+	  },
+	  {
+		"personId": 110,
+		"stationId": 521
+	  },
+	  {
+		"personId": 110,
+		"stationId": 522
+	  },
+	  {
+		"personId": 110,
+		"stationId": 524
+	  },
+	  {
+		"personId": 110,
+		"stationId": 526
+	  },
+	  {
+		"personId": 110,
+		"stationId": 528
+	  },
+	  {
+		"personId": 110,
+		"stationId": 525
+	  },
+	  {
+		"personId": 110,
+		"stationId": 507
+	  },
+	  {
+		"personId": 110,
+		"stationId": 503
+	  },
+	  {
+		"personId": 110,
+		"stationId": 501
+	  },
+	  {
+		"personId": 110,
+		"stationId": 502
+	  },
+	  {
+		"personId": 110,
+		"stationId": 508
+	  },
+	  {
+		"personId": 110,
+		"stationId": 506
+	  },
+	  {
+		"personId": 110,
+		"stationId": 509
+	  },
+	  {
+		"personId": 111,
+		"stationId": 523
+	  },
+	  {
+		"personId": 111,
+		"stationId": 521
+	  },
+	  {
+		"personId": 111,
+		"stationId": 522
+	  },
+	  {
+		"personId": 111,
+		"stationId": 524
+	  },
+	  {
+		"personId": 111,
+		"stationId": 526
+	  },
+	  {
+		"personId": 111,
+		"stationId": 525
+	  },
+	  {
+		"personId": 111,
+		"stationId": 507
+	  },
+	  {
+		"personId": 111,
+		"stationId": 503
+	  },
+	  {
+		"personId": 111,
+		"stationId": 501
+	  },
+	  {
+		"personId": 111,
+		"stationId": 506
+	  },
+	  {
+		"personId": 111,
+		"stationId": 509
+	  },
+	  {
+		"personId": 112,
+		"stationId": 523
+	  },
+	  {
+		"personId": 112,
+		"stationId": 521
+	  },
+	  {
+		"personId": 112,
+		"stationId": 522
+	  },
+	  {
+		"personId": 112,
+		"stationId": 526
+	  },
+	  {
+		"personId": 112,
+		"stationId": 503
+	  },
+	  {
+		"personId": 112,
+		"stationId": 501
+	  },
+	  {
+		"personId": 112,
+		"stationId": 502
+	  },
+	  {
+		"personId": 103,
+		"stationId": 527
+	  },
+	  {
+		"personId": 103,
+		"stationId": 523
+	  },
+	  {
+		"personId": 103,
+		"stationId": 521
+	  },
+	  {
+		"personId": 103,
+		"stationId": 522
+	  },
+	  {
+		"personId": 103,
+		"stationId": 524
+	  },
+	  {
+		"personId": 103,
+		"stationId": 526
+	  },
+	  {
+		"personId": 103,
+		"stationId": 507
+	  },
+	  {
+		"personId": 103,
+		"stationId": 503
+	  },
+	  {
+		"personId": 103,
+		"stationId": 501
+	  },
+	  {
+		"personId": 103,
+		"stationId": 502
+	  },
+	  {
+		"personId": 103,
+		"stationId": 505
+	  },
+	  {
+		"personId": 10,
+		"stationId": 527
+	  },
+	  {
+		"personId": 10,
+		"stationId": 523
+	  },
+	  {
+		"personId": 10,
+		"stationId": 521
+	  },
+	  {
+		"personId": 10,
+		"stationId": 522
+	  },
+	  {
+		"personId": 10,
+		"stationId": 524
+	  },
+	  {
+		"personId": 10,
+		"stationId": 526
+	  },
+	  {
+		"personId": 10,
+		"stationId": 529
+	  },
+	  {
+		"personId": 10,
+		"stationId": 525
+	  },
+	  {
+		"personId": 10,
+		"stationId": 507
+	  },
+	  {
+		"personId": 10,
+		"stationId": 503
+	  },
+	  {
+		"personId": 10,
+		"stationId": 501
+	  },
+	  {
+		"personId": 10,
+		"stationId": 502
+	  },
+	  {
+		"personId": 10,
+		"stationId": 508
+	  },
+	  {
+		"personId": 10,
+		"stationId": 506
+	  },
+	  {
+		"personId": 10,
+		"stationId": 509
+	  },
+	  {
+		"personId": 113,
+		"stationId": 523
+	  },
+	  {
+		"personId": 113,
+		"stationId": 521
+	  },
+	  {
+		"personId": 113,
+		"stationId": 522
+	  },
+	  {
+		"personId": 113,
+		"stationId": 529
+	  },
+	  {
+		"personId": 113,
+		"stationId": 525
+	  },
+	  {
+		"personId": 113,
+		"stationId": 507
+	  },
+	  {
+		"personId": 113,
+		"stationId": 503
+	  },
+	  {
+		"personId": 113,
+		"stationId": 501
+	  },
+	  {
+		"personId": 113,
+		"stationId": 508
+	  },
+	  {
+		"personId": 113,
+		"stationId": 506
+	  },
+	  {
+		"personId": 113,
+		"stationId": 509
+	  },
+	  {
+		"personId": 104,
+		"stationId": 521
+	  },
+	  {
+		"personId": 104,
+		"stationId": 522
+	  },
+	  {
+		"personId": 104,
+		"stationId": 526
+	  },
+	  {
+		"personId": 104,
+		"stationId": 507
+	  },
+	  {
+		"personId": 104,
+		"stationId": 503
+	  },
+	  {
+		"personId": 104,
+		"stationId": 501
+	  },
+	  {
+		"personId": 104,
+		"stationId": 502
+	  },
+	  {
+		"personId": 114,
+		"stationId": 527
+	  },
+	  {
+		"personId": 114,
+		"stationId": 523
+	  },
+	  {
+		"personId": 114,
+		"stationId": 521
+	  },
+	  {
+		"personId": 114,
+		"stationId": 522
+	  },
+	  {
+		"personId": 114,
+		"stationId": 524
+	  },
+	  {
+		"personId": 114,
+		"stationId": 526
+	  },
+	  {
+		"personId": 114,
+		"stationId": 529
+	  },
+	  {
+		"personId": 114,
+		"stationId": 525
+	  },
+	  {
+		"personId": 114,
+		"stationId": 507
+	  },
+	  {
+		"personId": 114,
+		"stationId": 503
+	  },
+	  {
+		"personId": 114,
+		"stationId": 501
+	  },
+	  {
+		"personId": 114,
+		"stationId": 502
+	  },
+	  {
+		"personId": 114,
+		"stationId": 508
+	  },
+	  {
+		"personId": 114,
+		"stationId": 506
+	  },
+	  {
+		"personId": 114,
+		"stationId": 509
+	  },
+	  {
+		"personId": 114,
+		"stationId": 505
+	  },
+	  {
+		"personId": 3,
+		"stationId": 525
+	  },
+	  {
+		"personId": 3,
+		"stationId": 507
+	  },
+	  {
+		"personId": 3,
+		"stationId": 503
+	  },
+	  {
+		"personId": 3,
+		"stationId": 501
+	  },
+	  {
+		"personId": 3,
+		"stationId": 506
+	  },
+	  {
+		"personId": 3,
+		"stationId": 509
+	  },
+	  {
+		"personId": 3,
+		"stationId": 505
+	  },
+	  {
+		"personId": 115,
+		"stationId": 526
+	  },
+	  {
+		"personId": 116,
+		"stationId": 523
+	  },
+	  {
+		"personId": 116,
+		"stationId": 526
+	  },
+	  {
+		"personId": 116,
+		"stationId": 525
+	  },
+	  {
+		"personId": 116,
+		"stationId": 507
+	  },
+	  {
+		"personId": 116,
+		"stationId": 503
+	  },
+	  {
+		"personId": 116,
+		"stationId": 506
+	  },
+	  {
+		"personId": 116,
+		"stationId": 509
+	  },
+	  {
+		"personId": 116,
+		"stationId": 505
+	  },
+	  {
+		"personId": 117,
+		"stationId": 523
+	  },
+	  {
+		"personId": 117,
+		"stationId": 521
+	  },
+	  {
+		"personId": 117,
+		"stationId": 522
+	  },
+	  {
+		"personId": 117,
+		"stationId": 507
+	  },
+	  {
+		"personId": 117,
+		"stationId": 503
+	  },
+	  {
+		"personId": 117,
+		"stationId": 501
+	  },
+	  {
+		"personId": 117,
+		"stationId": 502
+	  },
+	  {
+		"personId": 117,
+		"stationId": 508
+	  },
+	  {
+		"personId": 117,
+		"stationId": 505
+	  },
+	  {
+		"personId": 7,
+		"stationId": 523
+	  },
+	  {
+		"personId": 7,
+		"stationId": 521
+	  },
+	  {
+		"personId": 7,
+		"stationId": 522
+	  },
+	  {
+		"personId": 7,
+		"stationId": 526
+	  },
+	  {
+		"personId": 7,
+		"stationId": 525
+	  },
+	  {
+		"personId": 7,
+		"stationId": 507
+	  },
+	  {
+		"personId": 7,
+		"stationId": 503
+	  },
+	  {
+		"personId": 7,
+		"stationId": 501
+	  },
+	  {
+		"personId": 7,
+		"stationId": 502
+	  },
+	  {
+		"personId": 7,
+		"stationId": 506
+	  },
+	  {
+		"personId": 7,
+		"stationId": 509
+	  },
+	  {
+		"personId": 7,
+		"stationId": 505
+	  },
+	  {
+		"personId": 118,
+		"stationId": 521
+	  },
+	  {
+		"personId": 118,
+		"stationId": 522
+	  },
+	  {
+		"personId": 118,
+		"stationId": 525
+	  },
+	  {
+		"personId": 118,
+		"stationId": 507
+	  },
+	  {
+		"personId": 118,
+		"stationId": 503
+	  },
+	  {
+		"personId": 118,
+		"stationId": 501
+	  },
+	  {
+		"personId": 118,
+		"stationId": 502
+	  },
+	  {
+		"personId": 118,
+		"stationId": 508
+	  },
+	  {
+		"personId": 118,
+		"stationId": 506
+	  },
+	  {
+		"personId": 118,
+		"stationId": 509
+	  },
+	  {
+		"personId": 118,
+		"stationId": 505
+	  },
+	  {
+		"personId": 119,
+		"stationId": 527
+	  },
+	  {
+		"personId": 119,
+		"stationId": 523
+	  },
+	  {
+		"personId": 119,
+		"stationId": 521
+	  },
+	  {
+		"personId": 119,
+		"stationId": 522
+	  },
+	  {
+		"personId": 119,
+		"stationId": 524
+	  },
+	  {
+		"personId": 119,
+		"stationId": 526
+	  },
+	  {
+		"personId": 119,
+		"stationId": 525
+	  },
+	  {
+		"personId": 119,
+		"stationId": 507
+	  },
+	  {
+		"personId": 119,
+		"stationId": 503
+	  },
+	  {
+		"personId": 119,
+		"stationId": 501
+	  },
+	  {
+		"personId": 119,
+		"stationId": 502
+	  },
+	  {
+		"personId": 119,
+		"stationId": 508
+	  },
+	  {
+		"personId": 119,
+		"stationId": 506
+	  },
+	  {
+		"personId": 119,
+		"stationId": 509
+	  },
+	  {
+		"personId": 119,
+		"stationId": 505
+	  },
+	  {
+		"personId": 120,
+		"stationId": 523
+	  },
+	  {
+		"personId": 120,
+		"stationId": 525
+	  },
+	  {
+		"personId": 120,
+		"stationId": 507
+	  },
+	  {
+		"personId": 120,
+		"stationId": 503
+	  },
+	  {
+		"personId": 120,
+		"stationId": 501
+	  },
+	  {
+		"personId": 120,
+		"stationId": 502
+	  },
+	  {
+		"personId": 120,
+		"stationId": 508
+	  },
+	  {
+		"personId": 120,
+		"stationId": 506
+	  },
+	  {
+		"personId": 120,
+		"stationId": 509
+	  },
+	  {
+		"personId": 120,
+		"stationId": 505
+	  },
+	  {
+		"personId": 121,
+		"stationId": 527
+	  },
+	  {
+		"personId": 121,
+		"stationId": 523
+	  },
+	  {
+		"personId": 121,
+		"stationId": 521
+	  },
+	  {
+		"personId": 121,
+		"stationId": 522
+	  },
+	  {
+		"personId": 121,
+		"stationId": 526
+	  },
+	  {
+		"personId": 121,
+		"stationId": 525
+	  },
+	  {
+		"personId": 121,
+		"stationId": 507
+	  },
+	  {
+		"personId": 121,
+		"stationId": 503
+	  },
+	  {
+		"personId": 121,
+		"stationId": 501
+	  },
+	  {
+		"personId": 121,
+		"stationId": 502
+	  },
+	  {
+		"personId": 121,
+		"stationId": 508
+	  },
+	  {
+		"personId": 121,
+		"stationId": 506
+	  },
+	  {
+		"personId": 121,
+		"stationId": 509
+	  },
+	  {
+		"personId": 121,
+		"stationId": 505
+	  },
+	  {
+		"personId": 2,
+		"stationId": 526
+	  },
+	  {
+		"personId": 2,
+		"stationId": 525
+	  },
+	  {
+		"personId": 2,
+		"stationId": 507
+	  },
+	  {
+		"personId": 2,
+		"stationId": 503
+	  },
+	  {
+		"personId": 2,
+		"stationId": 501
+	  },
+	  {
+		"personId": 122,
+		"stationId": 523
+	  },
+	  {
+		"personId": 122,
+		"stationId": 521
+	  },
+	  {
+		"personId": 122,
+		"stationId": 522
+	  },
+	  {
+		"personId": 122,
+		"stationId": 526
+	  },
+	  {
+		"personId": 122,
+		"stationId": 525
+	  },
+	  {
+		"personId": 122,
+		"stationId": 507
+	  },
+	  {
+		"personId": 122,
+		"stationId": 503
+	  },
+	  {
+		"personId": 122,
+		"stationId": 501
+	  },
+	  {
+		"personId": 122,
+		"stationId": 502
+	  }
+	],
+	compatibility:[{a:105,b:114}],
+	weekdaySettings:[
+		{factoryId:1,day:'Mon',nightEarliest:'21:45'},
+		{factoryId:1,day:'Tue',nightEarliest:'21:45'},
+		{factoryId:1,day:'Wed',nightEarliest:'21:45'},
+		{factoryId:1,day:'Thu',nightEarliest:'21:45'},
+		{factoryId:1,day:'Fri',nightEarliest:'21:45'},
+		{factoryId:2,day:'Mon',nightEarliest:'21:45'},
+		{factoryId:2,day:'Tue',nightEarliest:'21:45'},
+		{factoryId:2,day:'Wed',nightEarliest:'21:45'},
+		{factoryId:2,day:'Thu',nightEarliest:'21:45'},
+		{factoryId:2,day:'Fri',nightEarliest:'21:45'}
+	],
+	timeSlots:[],
+	assignments:[]
+};
