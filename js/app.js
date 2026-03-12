@@ -805,14 +805,18 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	const todayStr=(new Date()).toISOString().slice(0,10);
 	document.getElementById('dateInput').value=todayStr;
 	currentDate=new Date(todayStr+'T00:00:00');
-	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
-	document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
+	const templateSel=document.getElementById('templateSel');
+	templateSel.classList.add('d-none');
+	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
 	renderSettings();
+	syncDayChoiceFromDate();
+	toggleDayButtons();
 	suggestAndApplyTemplates();
 	rebuildAll();
 	window.addEventListener('resize',fitToViewport);
@@ -822,9 +826,10 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 (function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
 
 function setDateToOffset(days){const base=new Date();base.setDate(base.getDate()+days);const s=base.toISOString().slice(0,10);document.getElementById('dateInput').value=s;currentDate=new Date(s+'T00:00:00');}
+function syncDayChoiceFromDate(){const start=(d)=>new Date(d.getFullYear(),d.getMonth(),d.getDate());const today=start(new Date());const sel=start(currentDate);const diff=Math.round((sel-today)/86400000);dayChoice=(diff===0)?'today':((diff===1)?'tomorrow':'custom');}
 function toggleDayButtons(){document.getElementById('btnToday').classList.toggle('active',dayChoice==='today');document.getElementById('btnTomorrow').classList.toggle('active',dayChoice==='tomorrow');}
-function suggestTemplatesFor(date){const wd=date.getDay();const isMonToWed=wd>=1&&wd<=3;const isThu=wd===4;const isFri=wd===5;const isWeekday=wd>=1&&wd<=5;return{day:isWeekday?DayType.Day:DayType.OvertimeDay,evening:(isMonToWed||isThu)?DayType.EveningMonThu:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night,nextEvening:isMonToWed?DayType.EveningMonThu:(isThu?DayType.EveningFri:'ChooseMonThuOrOvertime')};}
-function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;return;}const choice=(dayChoice==='today')?sug.evening:sug.nextEvening;if(choice==='ChooseMonThuOrOvertime'){fillTemplateOptions([DayType.EveningMonThu,DayType.OvertimeDay]);currentDayType=document.getElementById('templateSel').value;}else{fillTemplateOptions([choice]);currentDayType=choice;}document.getElementById('templateSel').value=currentDayType;}
+function suggestTemplatesFor(date){const wd=date.getDay();const isFri=wd===5;const isWeekend=wd===0||wd===6;const isWeekday=wd>=1&&wd<=5;return{day:isWeekday?DayType.Day:DayType.OvertimeDay,evening:isWeekend?DayType.OvertimeDay:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night};}
+function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;return;}fillTemplateOptions([sug.evening]);currentDayType=sug.evening;document.getElementById('templateSel').value=currentDayType;}
 function fillTemplateOptions(dayTypes){const sel=document.getElementById('templateSel');sel.innerHTML='';dayTypes.forEach(dt=>{const opt=document.createElement('option');opt.value=dt;opt.textContent=labelFor(dt);sel.appendChild(opt);});}
 function labelFor(dt){switch(dt){case DayType.Day:return'Dag mån–fre';case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (lör/sön)';case DayType.Night:return'Natt';default:return dt;}}
 function formatDate(d){return d.toISOString().slice(0,10);} 
