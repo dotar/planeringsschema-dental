@@ -11,7 +11,7 @@
 		<script>
 			// DEV ONLY: new URL every reload
 			const bust = Date.now();
-			document.write('<link rel="stylesheet" href="test.css?v=' + bust + '">');
+			document.write('<link rel="stylesheet" href="css/app.css?v=' + bust + '">');
 			// If you also want JS fresh each reload:
 			//document.write('<script src="/js/app.js?v=' + bust + '" defer><\/script>');
 		</script>
@@ -285,9 +285,10 @@
 		<script>
 			// DEV ONLY: new URL every reload
 			// If you also want JS fresh each reload:
-			document.write('<script src="test-mockdata.js?v=' + bust + '" defer><\/script>');
-			document.write('<script src="test.js?v=' + bust + '" defer><\/script>');
+			document.write('<script src="js/mockdata.js?v=' + bust + '" defer><\/script>');
+			document.write('<script src="js/app.js?v=' + bust + '" defer><\/script>');
 		</script>
 		
 	</body>
 </html>
+
