@@ -1,6 +1,11 @@
 const DayType={EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentContext='evening',currentDayType=DayType.EveningMonThu,draggingPersonId=null;
 
+function parseFactoryId(v){
+	const s=String(v ?? '');
+	return /^\d+$/.test(s) ? parseInt(s,10) : s;
+}
+
 let _pickerOpenCell=null;
 
 // ---- Cell warning animation state (must be declared before init()) ----
@@ -611,9 +616,9 @@ function eligibleStationsFor(person, stations, slot, opts = {}, takenThisSlot, r
 
 
 buildDefaultSlots();
-function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of [1,2,3]){add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
+function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of DB.factories.map(f=>f.id)){add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
 
-(function init(){const qs=new URLSearchParams(location.search);mode=qs.get('mode')==='edit'?'edit':'viewer';document.documentElement.dataset.mode = mode;currentFactoryId=parseInt(qs.get('factory')||'1',10);if(mode==='edit')showCoordLogin();document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';document.body.classList.toggle('viewer',mode!=='edit');const facSel=document.getElementById('factorySel');DB.factories.forEach(f=>{const opt=document.createElement('option');opt.value=f.id;opt.textContent=f.title;facSel.appendChild(opt);});facSel.value=String(currentFactoryId);facSel.addEventListener('change',()=>{currentFactoryId=parseInt(facSel.value,10);rebuildAll();});const todayStr=(new Date()).toISOString().slice(0,10);document.getElementById('dateInput').value=todayStr;currentDate=new Date(todayStr+'T00:00:00');document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('tabEvening').addEventListener('click',()=>{currentContext='evening';setActiveContext();rebuildAll();});document.getElementById('tabNight').addEventListener('click',()=>{currentContext='night';setActiveContext();rebuildAll();});document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);document.getElementById('saveBtn').addEventListener('click',saveAll);renderSettings();suggestAndApplyTemplates();rebuildAll();window.addEventListener('resize',fitToViewport);document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))ov.remove();});})();
+(function init(){const qs=new URLSearchParams(location.search);mode=qs.get('mode')==='edit'?'edit':'viewer';document.documentElement.dataset.mode = mode;currentFactoryId=parseFactoryId(qs.get('factory')||'1');if(mode==='edit')showCoordLogin();document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';document.body.classList.toggle('viewer',mode!=='edit');const facSel=document.getElementById('factorySel');DB.factories.forEach(f=>{const opt=document.createElement('option');opt.value=f.id;opt.textContent=f.title;facSel.appendChild(opt);});facSel.value=String(currentFactoryId);facSel.addEventListener('change',()=>{currentFactoryId=parseFactoryId(facSel.value);rebuildAll();});const todayStr=(new Date()).toISOString().slice(0,10);document.getElementById('dateInput').value=todayStr;currentDate=new Date(todayStr+'T00:00:00');document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});document.getElementById('tabEvening').addEventListener('click',()=>{currentContext='evening';setActiveContext();rebuildAll();});document.getElementById('tabNight').addEventListener('click',()=>{currentContext='night';setActiveContext();rebuildAll();});document.getElementById('templateSel').addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);document.getElementById('saveBtn').addEventListener('click',saveAll);renderSettings();suggestAndApplyTemplates();rebuildAll();window.addEventListener('resize',fitToViewport);document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});})();
 
 (function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
 
@@ -1103,6 +1108,7 @@ function addPersonPill(cell, personId){
 	});
 
 	pill.addEventListener('dragstart', onDragStart);
+	pill.addEventListener('dragend', onDragEnd);
 
 	cell.querySelector('[data-role="person-list"]').appendChild(pill);
 
@@ -1127,6 +1133,12 @@ function onDragStart(ev){
 	draggingPersonId=parseInt(ev.target.dataset.personId,10);
 	ev.dataTransfer.setData('text/plain',ev.target.dataset.personId);
 	ev.dataTransfer.effectAllowed='move';
+}
+
+function onDragEnd(){
+	draggingPersonId=null;
+	document.querySelectorAll('.drop-ok, .drop-bad, .drop-training')
+		.forEach(cell => cell.classList.remove('drop-ok', 'drop-bad', 'drop-training'));
 }
 
 function onDropPerson(ev,cell,station,slot){ev.preventDefault();ev.stopPropagation();cell.classList.remove('drop-ok','drop-bad','drop-training');const personId=parseInt(ev.dataTransfer.getData('text/plain'),10);movePersonTo(cell,station,slot,personId);draggingPersonId=null;}
