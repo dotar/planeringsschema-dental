@@ -24,20 +24,25 @@
 	<body class="viewer">
 		<nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body">
 			<div class="container-fluid">
-				<a class="navbar-brand fw-bold" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
-				<span id="headerContext" class="text-muted small d-none d-md-inline">— visar <strong></strong></span>
+				<div class="d-flex flex-column justify-content-center me-3">
+					<div class="d-flex align-items-center gap-2">
+						<a class="navbar-brand fw-bold mb-0" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
+						<span id="headerContext" class="text-muted small d-none d-md-inline">— visar <strong></strong></span>
+					</div>
+					<span id="inactivityResetNotice" class="badge text-bg-warning inactivity-reset-notice d-none mt-1 align-self-start" role="status" aria-live="polite"><i class="bi bi-clock-history me-1"></i><span class="notice-text"></span></span>
+				</div>
 				<div class="d-flex align-items-center gap-2 ms-auto">
-					<select id="shiftSel" class="form-select form-select-sm" style="width:140px">
-						<option value="day">Dag</option>
-						<option value="evening">Kväll</option>
-						<option value="night">Natt</option>
-					</select>
-					<select id="factorySel" class="form-select form-select-sm" style="width:170px"></select>
+					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
+						<button type="button" class="btn btn-outline-secondary" data-value="day">Dag</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="evening">Kväll</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="night">Natt</button>
+					</div>
+					<div id="factorySel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj fabrik"></div>
 					<div class="input-group input-group-sm hide-in-viewer" style="width:220px">
 						<span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
 						<input id="dateInput" type="date" class="form-control">
 					</div>
-					<div class="btn-group btn-group-sm hide-in-viewer" role="group" aria-label="Day pick">
+					<div class="btn-group btn-group-sm" role="group" aria-label="Day pick">
 						<button id="btnToday" class="btn btn-outline-secondary active">Idag</button>
 						<button id="btnTomorrow" class="btn btn-outline-secondary">Imorgon</button>
 					</div>
@@ -122,6 +127,7 @@
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabStations" type="button" role="tab">Stationer</button></li>
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabSlots" type="button" role="tab">Tidsintervall</button></li>
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConstraints" type="button" role="tab">Samarbetsregler</button></li>
+							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabGeneral" type="button" role="tab">Allmänt</button></li>
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCredits" type="button" role="tab">Credits</button></li>
 						</ul>
 						<div class="tab-content pt-3">
@@ -162,6 +168,23 @@
 									<thead><tr><th>Person A</th><th>Person B</th><th></th></tr></thead>
 									<tbody id="constraintTable"></tbody>
 								</table>
+							</div>
+							<!-- General -->
+							<div class="tab-pane fade" id="tabGeneral" role="tabpanel">
+								<div class="card border-0 bg-body-tertiary">
+									<div class="card-body py-3">
+										<div class="row g-3 align-items-end">
+											<div class="col-md-6 col-lg-5">
+												<label for="idleResetMinutes" class="form-label mb-1">Återställ viewer-läget till aktuell visning efter inaktivitet</label>
+												<div class="input-group input-group-sm">
+													<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
+													<span class="input-group-text">minuter</span>
+												</div>
+												<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
+											</div>
+										</div>
+									</div>
+								</div>
 							</div>
 							<!-- Credits -->
 							<div class="tab-pane fade" id="tabCredits" role="tabpanel">
@@ -309,4 +332,3 @@
 		
 	</body>
 </html>
-
