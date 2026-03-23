@@ -270,6 +270,13 @@ body{ overflow:hidden; }
 	100%{ transform:translateY(0) scale(1); }
 }
 
+#settingsModal .tab-content > .tab-pane{
+	display:none;
+}
+#settingsModal .tab-content > .active{
+	display:block;
+}
+
 /* Hide edit-only controls in viewer mode */
 html[data-mode="viewer"] .hide-in-viewer{
 	display:none !important;
