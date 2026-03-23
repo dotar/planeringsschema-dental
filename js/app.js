@@ -7,6 +7,32 @@ function parseFactoryId(v){
 }
 
 
+
+function shiftLabel(shift){
+	switch(shift){
+		case 'day': return 'dag';
+		case 'evening': return 'kväll';
+		case 'night': return 'natt';
+		default: return String(shift||'');
+	}
+}
+
+function formatHeaderDateContext(date, shift, dayType){
+	const weekday=['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'][date.getDay()];
+	const dd=date.getDate();
+	const mm=date.getMonth()+1;
+	let out=`${weekday} ${shiftLabel(shift)} ${dd}/${mm}`;
+	if(dayType===DayType.OvertimeDay) out += ' ÖVERTID';
+	return out;
+}
+
+function updateHeaderContext(){
+	const el=document.getElementById('headerContext');
+	if(!el) return;
+	const strong=el.querySelector('strong');
+	if(strong) strong.textContent=formatHeaderDateContext(currentDate,currentShift,currentDayType);
+}
+
 function cloneDeep(v){
 	return JSON.parse(JSON.stringify(v));
 }
@@ -818,6 +844,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
+	updateHeaderContext();
 	rebuildAll();
 	window.addEventListener('resize',fitToViewport);
 	document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});
@@ -829,7 +856,7 @@ function setDateToOffset(days){const base=new Date();base.setDate(base.getDate()
 function syncDayChoiceFromDate(){const start=(d)=>new Date(d.getFullYear(),d.getMonth(),d.getDate());const today=start(new Date());const sel=start(currentDate);const diff=Math.round((sel-today)/86400000);dayChoice=(diff===0)?'today':((diff===1)?'tomorrow':'custom');}
 function toggleDayButtons(){document.getElementById('btnToday').classList.toggle('active',dayChoice==='today');document.getElementById('btnTomorrow').classList.toggle('active',dayChoice==='tomorrow');}
 function suggestTemplatesFor(date){const wd=date.getDay();const isFri=wd===5;const isWeekend=wd===0||wd===6;const isWeekday=wd>=1&&wd<=5;return{day:isWeekday?DayType.Day:DayType.OvertimeDay,evening:isWeekend?DayType.OvertimeDay:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night};}
-function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;return;}fillTemplateOptions([sug.evening]);currentDayType=sug.evening;document.getElementById('templateSel').value=currentDayType;}
+function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();return;}fillTemplateOptions([sug.evening]);currentDayType=sug.evening;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();}
 function fillTemplateOptions(dayTypes){const sel=document.getElementById('templateSel');sel.innerHTML='';dayTypes.forEach(dt=>{const opt=document.createElement('option');opt.value=dt;opt.textContent=labelFor(dt);sel.appendChild(opt);});}
 function labelFor(dt){switch(dt){case DayType.Day:return'Dag mån–fre';case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (lör/sön)';case DayType.Night:return'Natt';default:return dt;}}
 function formatDate(d){return d.toISOString().slice(0,10);} 
