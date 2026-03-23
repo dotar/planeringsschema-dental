@@ -238,6 +238,19 @@ body{ overflow:hidden; }
 #randStations .form-check{ margin-bottom:.25rem; }
 #randGroups .form-check{ margin-bottom:.25rem; }
 
+
+.selector-group{
+	flex-wrap:wrap;
+}
+.selector-group .btn{
+	min-width:72px;
+}
+.selector-group .btn.active{
+	color:var(--bs-btn-active-color);
+	background-color:var(--bs-btn-active-bg);
+	border-color:var(--bs-btn-active-border-color);
+}
+
 /* Hide edit-only controls in viewer mode */
 html[data-mode="viewer"] .hide-in-viewer{
 	display:none !important;
