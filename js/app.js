@@ -37,6 +37,40 @@ function cloneDeep(v){
 	return JSON.parse(JSON.stringify(v));
 }
 
+function buildShiftSpecificTimeSlots(baseTimeSlots, shift){
+	const slots=cloneDeep(baseTimeSlots||[]);
+	if(shift!=='evening') return slots;
+	const eveningOvertime=[["15:00","16:00","Work"],["16:00","17:00","Work"],["17:00","17:45","Break"],["17:45","19:00","Work"],["19:00","20:30","Work"],["20:30","20:55","Break"],["20:55","22:30","Work"],["22:30","22:45","Break"],["22:45","00:00","Work"]];
+	const byFactory=new Map();
+	for(const slot of slots){
+		if(slot.dayType!==DayType.OvertimeDay) continue;
+		const arr=byFactory.get(slot.factoryId)||[];
+		arr.push(slot);
+		byFactory.set(slot.factoryId,arr);
+	}
+	for(const arr of byFactory.values()){
+		arr.sort((a,b)=>a.sort-b.sort);
+		const factoryId=arr[0]?.factoryId;
+		const prefix=`${factoryId}-${DayType.OvertimeDay}-`;
+		for(let i=0;i<eveningOvertime.length;i++){
+			const cur=arr[i];
+			if(cur){
+				cur.start=eveningOvertime[i][0];
+				cur.end=eveningOvertime[i][1];
+				cur.type=eveningOvertime[i][2];
+				cur.sort=i+1;
+			}else{
+				slots.push({id:`${prefix}${i+1}`,factoryId,dayType:DayType.OvertimeDay,start:eveningOvertime[i][0],end:eveningOvertime[i][1],type:eveningOvertime[i][2],sort:i+1});
+			}
+		}
+		for(let i=arr.length-1;i>=eveningOvertime.length;i--){
+			const idx=slots.indexOf(arr[i]);
+			if(idx>=0) slots.splice(idx,1);
+		}
+	}
+	return slots;
+}
+
 function initShiftData(){
 	if(!DB.shiftData){
 		const base={
@@ -55,7 +89,7 @@ function initShiftData(){
 	for(const shift of ['day','evening','night']){
 		if(!DB.shiftData[shift]) DB.shiftData[shift]={};
 		if(!Array.isArray(DB.shiftData[shift].timeSlots) || DB.shiftData[shift].timeSlots.length===0){
-			DB.shiftData[shift].timeSlots=cloneDeep(fallbackTimeSlots);
+			DB.shiftData[shift].timeSlots=buildShiftSpecificTimeSlots(fallbackTimeSlots, shift);
 		}
 	}
 
