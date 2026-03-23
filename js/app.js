@@ -6,6 +6,28 @@ function parseFactoryId(v){
 	return /^\d+$/.test(s) ? parseInt(s,10) : s;
 }
 
+function setButtonGroupValue(group, value){
+	if(!group) return;
+	group.querySelectorAll('[data-value]').forEach(btn=>{
+		const active=btn.dataset.value===String(value);
+		btn.classList.toggle('active', active);
+		btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+	});
+}
+
+function detectCurrentShift(date=new Date()){
+	const mins=(date.getHours()*60)+date.getMinutes();
+	if(mins>=6*60+55 && mins<14*60+52) return 'day';
+	if(mins>=14*60+52 || mins<31) return 'evening';
+	return 'night';
+}
+
+function syncShiftUi(){
+	setButtonGroupValue(document.getElementById('shiftSel'), currentShift);
+	const settingsShiftSel=document.getElementById('settingsShiftSel');
+	if(settingsShiftSel) settingsShiftSel.value=currentShift;
+}
+
 
 
 function shiftLabel(shift){
@@ -31,9 +53,16 @@ function syncInactivitySettingInput(){
 	if(input) input.value=String(inactivityResetMinutes);
 }
 
+function formatInactivityNoticeText(){
+	const unit=inactivityResetMinutes===1 ? 'minut' : 'minuters';
+	return `Vy återställd efter ${inactivityResetMinutes} ${unit} inaktivitet`;
+}
+
 function showInactivityResetNotice(){
 	const notice=document.getElementById('inactivityResetNotice');
 	if(!notice) return;
+	const textEl=notice.querySelector('.notice-text');
+	if(textEl) textEl.textContent=formatInactivityNoticeText();
 	if(inactivityNoticeTimerId){
 		clearTimeout(inactivityNoticeTimerId);
 		inactivityNoticeTimerId=null;
@@ -55,8 +84,11 @@ function resetToTodayIfNeeded(){
 	dayChoice='today';
 	showInactivityResetNotice();
 	setDateToOffset(0);
+	setShift(detectCurrentShift(),{updateUrl:true});
+	syncShiftUi();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
+	renderSettings();
 	rebuildAll();
 }
 
@@ -904,8 +936,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	}
 
 	function syncShiftSelectors(){
-		setButtonGroupValue(shiftSel, currentShift);
-		if(settingsShiftSel) settingsShiftSel.value=currentShift;
+		syncShiftUi();
 	}
 
 	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
