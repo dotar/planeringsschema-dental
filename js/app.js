@@ -801,6 +801,19 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	initShiftData();
 	setShift(qs.get('shift')||'evening',{updateUrl:false});
 
+	function populateFactoryButtons(group){
+		if(!group) return;
+		group.innerHTML='';
+		DB.factories.forEach(f=>{
+			const btn=document.createElement('button');
+			btn.type='button';
+			btn.className='btn btn-outline-secondary';
+			btn.dataset.value=String(f.id);
+			btn.textContent=f.title;
+			group.appendChild(btn);
+		});
+	}
+
 	function populateFactorySelect(sel){
 		if(!sel) return;
 		sel.innerHTML='';
@@ -811,18 +824,27 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			sel.appendChild(opt);
 		});
 	}
-	populateFactorySelect(facSel);
+	populateFactoryButtons(facSel);
 	populateFactorySelect(settingsFacSel);
 
+	function setButtonGroupValue(group, value){
+		if(!group) return;
+		group.querySelectorAll('[data-value]').forEach(btn=>{
+			const active=btn.dataset.value===String(value);
+			btn.classList.toggle('active', active);
+			btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+		});
+	}
+
 	function syncShiftSelectors(){
-		if(shiftSel) shiftSel.value=currentShift;
+		setButtonGroupValue(shiftSel, currentShift);
 		if(settingsShiftSel) settingsShiftSel.value=currentShift;
 	}
 
 	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
 		currentFactoryId=parseFactoryId(v);
 		const value=String(currentFactoryId);
-		if(facSel) facSel.value=value;
+		setButtonGroupValue(facSel, value);
 		if(settingsFacSel) settingsFacSel.value=value;
 
 		if(updateUrl){
@@ -846,8 +868,12 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	}
 
 	if(facSel){
-		facSel.value=String(currentFactoryId);
-		facSel.addEventListener('change',()=>applyFactoryChange(facSel.value,{rerenderSettings:true}));
+		setButtonGroupValue(facSel, currentFactoryId);
+		facSel.addEventListener('click',e=>{
+			const btn=e.target.closest('[data-value]');
+			if(!btn || !facSel.contains(btn)) return;
+			applyFactoryChange(btn.dataset.value,{rerenderSettings:true});
+		});
 	}
 	if(settingsFacSel){
 		settingsFacSel.value=String(currentFactoryId);
@@ -856,7 +882,11 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 
 	syncShiftSelectors();
 	if(shiftSel){
-		shiftSel.addEventListener('change',()=>applyShiftChange(shiftSel.value,{rerenderSettings:true}));
+		shiftSel.addEventListener('click',e=>{
+			const btn=e.target.closest('[data-value]');
+			if(!btn || !shiftSel.contains(btn)) return;
+			applyShiftChange(btn.dataset.value,{rerenderSettings:true});
+		});
 	}
 	if(settingsShiftSel){
 		settingsShiftSel.addEventListener('change',()=>applyShiftChange(settingsShiftSel.value,{rerenderSettings:true}));

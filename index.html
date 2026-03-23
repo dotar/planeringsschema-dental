@@ -27,12 +27,12 @@
 				<a class="navbar-brand fw-bold" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
 				<span id="headerContext" class="text-muted small d-none d-md-inline">— visar <strong></strong></span>
 				<div class="d-flex align-items-center gap-2 ms-auto">
-					<select id="shiftSel" class="form-select form-select-sm" style="width:140px">
-						<option value="day">Dag</option>
-						<option value="evening">Kväll</option>
-						<option value="night">Natt</option>
-					</select>
-					<select id="factorySel" class="form-select form-select-sm" style="width:170px"></select>
+					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
+						<button type="button" class="btn btn-outline-secondary" data-value="day">Dag</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="evening">Kväll</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="night">Natt</button>
+					</div>
+					<div id="factorySel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj fabrik"></div>
 					<div class="input-group input-group-sm hide-in-viewer" style="width:220px">
 						<span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
 						<input id="dateInput" type="date" class="form-control">
