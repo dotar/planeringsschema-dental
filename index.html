@@ -26,6 +26,7 @@
 			<div class="container-fluid">
 				<a class="navbar-brand fw-bold" href="#"><i class="bi bi-grid-3x3-gap"></i> Planeringsschema Dental</a>
 				<span id="headerContext" class="text-muted small d-none d-md-inline">— visar <strong></strong></span>
+				<span id="inactivityResetNotice" class="badge text-bg-warning inactivity-reset-notice d-none" role="status" aria-live="polite"><i class="bi bi-clock-history me-1"></i>Återställd till idag efter inaktivitet</span>
 				<div class="d-flex align-items-center gap-2 ms-auto">
 					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
 						<button type="button" class="btn btn-outline-secondary" data-value="day">Dag</button>
@@ -37,7 +38,7 @@
 						<span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
 						<input id="dateInput" type="date" class="form-control">
 					</div>
-					<div class="btn-group btn-group-sm hide-in-viewer" role="group" aria-label="Day pick">
+					<div class="btn-group btn-group-sm" role="group" aria-label="Day pick">
 						<button id="btnToday" class="btn btn-outline-secondary active">Idag</button>
 						<button id="btnTomorrow" class="btn btn-outline-secondary">Imorgon</button>
 					</div>
@@ -124,7 +125,21 @@
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConstraints" type="button" role="tab">Samarbetsregler</button></li>
 							<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCredits" type="button" role="tab">Credits</button></li>
 						</ul>
-						<div class="tab-content pt-3">
+						<div class="card border-0 bg-body-tertiary mb-3">
+							<div class="card-body py-3">
+								<div class="row g-3 align-items-end">
+									<div class="col-md-6 col-lg-4">
+										<label for="idleResetMinutes" class="form-label mb-1">Återställ till Idag efter inaktivitet</label>
+										<div class="input-group input-group-sm">
+											<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
+											<span class="input-group-text">minuter</span>
+										</div>
+										<div class="form-text">Ange 0 för att stänga av automatisk återställning.</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					<div class="tab-content pt-3">
 							<!-- Personnel -->
 							<div class="tab-pane fade show active" id="tabPersonnel" role="tabpanel">
 								<div id="personGroupsWrap" class="vstack gap-4"></div>
