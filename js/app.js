@@ -926,6 +926,15 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	populateFactoryButtons(facSel);
 	populateFactorySelect(settingsFacSel);
 
+	function setButtonGroupValue(group, value){
+		if(!group) return;
+		group.querySelectorAll('[data-value]').forEach(btn=>{
+			const active=btn.dataset.value===String(value);
+			btn.classList.toggle('active', active);
+			btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+		});
+	}
+
 	function syncShiftSelectors(){
 		syncShiftUi();
 	}
