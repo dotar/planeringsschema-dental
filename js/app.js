@@ -54,7 +54,7 @@ function syncInactivitySettingInput(){
 }
 
 function formatInactivityNoticeText(){
-	const unit=inactivityResetMinutes===1 ? 'minut' : 'minuters';
+	const unit=inactivityResetMinutes===1 ? 'minuts' : 'minuters';
 	return `Vy återställd efter ${inactivityResetMinutes} ${unit} inaktivitet`;
 }
 
