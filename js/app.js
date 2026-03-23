@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,inactivityNoticeTimerId=null;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -15,6 +15,73 @@ function shiftLabel(shift){
 		case 'night': return 'natt';
 		default: return String(shift||'');
 	}
+}
+
+const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
+const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
+
+function getInactivityResetMinutes(){
+	const raw=localStorage.getItem(INACTIVITY_RESET_KEY);
+	const parsed=Number.parseInt(raw ?? '0',10);
+	return Number.isFinite(parsed) && parsed>0 ? parsed : 0;
+}
+
+function syncInactivitySettingInput(){
+	const input=document.getElementById('idleResetMinutes');
+	if(input) input.value=String(inactivityResetMinutes);
+}
+
+function showInactivityResetNotice(){
+	const notice=document.getElementById('inactivityResetNotice');
+	if(!notice) return;
+	if(inactivityNoticeTimerId){
+		clearTimeout(inactivityNoticeTimerId);
+		inactivityNoticeTimerId=null;
+	}
+	notice.classList.remove('d-none','show');
+	void notice.offsetWidth;
+	notice.classList.add('show');
+	inactivityNoticeTimerId=window.setTimeout(()=>{
+		notice.classList.remove('show');
+		inactivityNoticeTimerId=window.setTimeout(()=>{
+			notice.classList.add('d-none');
+			inactivityNoticeTimerId=null;
+		}, 220);
+	}, 2800);
+}
+
+function resetToTodayIfNeeded(){
+	if(dayChoice==='today') return;
+	dayChoice='today';
+	showInactivityResetNotice();
+	setDateToOffset(0);
+	toggleDayButtons();
+	suggestAndApplyTemplates();
+	rebuildAll();
+}
+
+function scheduleInactivityReset(){
+	if(inactivityTimerId){
+		clearTimeout(inactivityTimerId);
+		inactivityTimerId=null;
+	}
+	if(mode!=='viewer' || inactivityResetMinutes<=0) return;
+	inactivityTimerId=window.setTimeout(()=>{
+		resetToTodayIfNeeded();
+		scheduleInactivityReset();
+	}, inactivityResetMinutes*60*1000);
+}
+
+function recordActivity(){
+	scheduleInactivityReset();
+}
+
+function applyInactivityResetSetting(value,{persist=true}={}){
+	const minutes=Math.max(0, Number.parseInt(value ?? '0',10) || 0);
+	inactivityResetMinutes=minutes;
+	if(persist) localStorage.setItem(INACTIVITY_RESET_KEY, String(minutes));
+	syncInactivitySettingInput();
+	scheduleInactivityReset();
 }
 
 function formatHeaderDateContext(date, shift, dayType){
@@ -801,6 +868,19 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	initShiftData();
 	setShift(qs.get('shift')||'evening',{updateUrl:false});
 
+	function populateFactoryButtons(group){
+		if(!group) return;
+		group.innerHTML='';
+		DB.factories.forEach(f=>{
+			const btn=document.createElement('button');
+			btn.type='button';
+			btn.className='btn btn-outline-secondary';
+			btn.dataset.value=String(f.id);
+			btn.textContent=f.title;
+			group.appendChild(btn);
+		});
+	}
+
 	function populateFactorySelect(sel){
 		if(!sel) return;
 		sel.innerHTML='';
@@ -811,18 +891,27 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			sel.appendChild(opt);
 		});
 	}
-	populateFactorySelect(facSel);
+	populateFactoryButtons(facSel);
 	populateFactorySelect(settingsFacSel);
 
+	function setButtonGroupValue(group, value){
+		if(!group) return;
+		group.querySelectorAll('[data-value]').forEach(btn=>{
+			const active=btn.dataset.value===String(value);
+			btn.classList.toggle('active', active);
+			btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+		});
+	}
+
 	function syncShiftSelectors(){
-		if(shiftSel) shiftSel.value=currentShift;
+		setButtonGroupValue(shiftSel, currentShift);
 		if(settingsShiftSel) settingsShiftSel.value=currentShift;
 	}
 
 	function applyFactoryChange(v,{rerenderSettings=false,updateUrl=true}={}){
 		currentFactoryId=parseFactoryId(v);
 		const value=String(currentFactoryId);
-		if(facSel) facSel.value=value;
+		setButtonGroupValue(facSel, value);
 		if(settingsFacSel) settingsFacSel.value=value;
 
 		if(updateUrl){
@@ -846,8 +935,12 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	}
 
 	if(facSel){
-		facSel.value=String(currentFactoryId);
-		facSel.addEventListener('change',()=>applyFactoryChange(facSel.value,{rerenderSettings:true}));
+		setButtonGroupValue(facSel, currentFactoryId);
+		facSel.addEventListener('click',e=>{
+			const btn=e.target.closest('[data-value]');
+			if(!btn || !facSel.contains(btn)) return;
+			applyFactoryChange(btn.dataset.value,{rerenderSettings:true});
+		});
 	}
 	if(settingsFacSel){
 		settingsFacSel.value=String(currentFactoryId);
@@ -856,7 +949,11 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 
 	syncShiftSelectors();
 	if(shiftSel){
-		shiftSel.addEventListener('change',()=>applyShiftChange(shiftSel.value,{rerenderSettings:true}));
+		shiftSel.addEventListener('click',e=>{
+			const btn=e.target.closest('[data-value]');
+			if(!btn || !shiftSel.contains(btn)) return;
+			applyShiftChange(btn.dataset.value,{rerenderSettings:true});
+		});
 	}
 	if(settingsShiftSel){
 		settingsShiftSel.addEventListener('change',()=>applyShiftChange(settingsShiftSel.value,{rerenderSettings:true}));
@@ -874,7 +971,10 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
+	applyInactivityResetSetting(getInactivityResetMinutes(),{persist:false});
 	renderSettings();
+	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
+	if(mode==='viewer') INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1835,7 +1935,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');

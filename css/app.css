@@ -238,6 +238,36 @@ body{ overflow:hidden; }
 #randStations .form-check{ margin-bottom:.25rem; }
 #randGroups .form-check{ margin-bottom:.25rem; }
 
+
+.selector-group{
+	flex-wrap:wrap;
+}
+.selector-group .btn{
+	min-width:72px;
+}
+.selector-group .btn.active{
+	color:var(--bs-btn-active-color);
+	background-color:var(--bs-btn-active-bg);
+	border-color:var(--bs-btn-active-border-color);
+}
+
+.inactivity-reset-notice{
+	opacity:0;
+	transform:translateY(-4px) scale(.96);
+	transition:opacity .2s ease, transform .2s ease;
+	box-shadow:0 .35rem .9rem rgba(var(--bs-warning-rgb), .35);
+}
+.inactivity-reset-notice.show{
+	opacity:1;
+	transform:translateY(0) scale(1);
+	animation:inactivity-reset-pop 2.8s ease;
+}
+@keyframes inactivity-reset-pop{
+	0%{ transform:translateY(-6px) scale(.92); }
+	18%{ transform:translateY(0) scale(1.04); }
+	100%{ transform:translateY(0) scale(1); }
+}
+
 /* Hide edit-only controls in viewer mode */
 html[data-mode="viewer"] .hide-in-viewer{
 	display:none !important;
