@@ -21,13 +21,13 @@
 	--stripe-w:12px;
 	
 	/* image tokens that exactly match your base visuals */
-	--img-none: linear-gradient(transparent; transparent);
-	--img-warn: linear-gradient(rgba(var(--bs-warning-rgb); .30); rgba(var(--bs-warning-rgb); .30));
-	--img-invalid: linear-gradient(rgba(var(--bs-danger-rgb); .30); rgba(var(--bs-danger-rgb); .30));
+	--img-none: linear-gradient(transparent, transparent);
+	--img-warn: linear-gradient(rgba(var(--bs-warning-rgb), .30), rgba(var(--bs-warning-rgb), .30));
+	--img-invalid: linear-gradient(rgba(var(--bs-danger-rgb), .30), rgba(var(--bs-danger-rgb), .30));
 	--img-both: repeating-linear-gradient(
-		45deg;
-		rgba(var(--bs-danger-rgb); .30) 0 var(--stripe-w);
-		rgba(var(--bs-warning-rgb); .30) var(--stripe-w) calc(2*var(--stripe-w))
+		45deg,
+		rgba(var(--bs-danger-rgb), .30) 0 var(--stripe-w),
+		rgba(var(--bs-warning-rgb), .30) var(--stripe-w) calc(2*var(--stripe-w))
 	);
 }
 
