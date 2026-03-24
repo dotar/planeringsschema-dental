@@ -266,6 +266,16 @@ html[data-mode="viewer"] .mode-badge:hover{
 	border-radius:.5rem;
 	background:color-mix(in srgb, var(--bs-body-bg) 85%, var(--bs-tertiary-bg) 15%);
 }
+.general-group{
+	padding:.85rem;
+	border:1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
+	border-radius:.65rem;
+	background:color-mix(in srgb, var(--bs-tertiary-bg) 35%, var(--bs-body-bg) 65%);
+}
+.general-group-title{
+	font-weight:600;
+	margin-bottom:.55rem;
+}
 
 .viewer-update-notice{
 	opacity:0;

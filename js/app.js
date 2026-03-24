@@ -172,8 +172,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
 		badge.classList.toggle('text-bg-success', mode==='edit');
 		badge.classList.toggle('text-bg-secondary', mode!=='edit');
-		badge.removeAttribute('title');
-		badge.setAttribute('aria-label',mode==='edit'?'Koordinatorläge. Klicka för att logga ut.':'Viewerläge. Klicka för att logga in som koordinator.');
+		badge.title=mode==='edit'?'Klicka för att logga ut':'Klicka för att logga in som koordinator';
 	}
 	bindViewerActivityListeners(mode==='viewer');
 	bindCoordinatorActivityListeners(mode==='edit');
@@ -188,6 +187,16 @@ function applyMode(nextMode,{updateUrl=true}={}){
 		const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
 		window.history.replaceState(null, '', nextUrl);
 	}
+}
+
+function dismissNativeTitleTooltip(el){
+	if(!el) return;
+	const ttl=el.getAttribute('title');
+	if(ttl==null) return;
+	el.removeAttribute('title');
+	window.setTimeout(()=>{
+		if(document.contains(el)) el.setAttribute('title', ttl);
+	}, 80);
 }
 
 function formatInactivityNoticeText(){
@@ -1199,6 +1208,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
+		dismissNativeTitleTooltip(modeBadge);
 		modeBadge.blur();
 		if(mode==='edit'){
 			logoutCoordinator({reason:'Du har loggat ut från koordinatorläget.'});
@@ -2690,23 +2700,31 @@ function showCoordLogin({onSuccess}={}){
 	// Hard-lock the modal (no backdrop/Esc close)
 	const m=new bootstrap.Modal(el,{backdrop:'static',keyboard:false});
 
-	// Prevent close unless logged in
-	el.addEventListener('hide.bs.modal', ev=>{
+	// Prevent close unless logged in (bind once per open by replacing previous handler)
+	if(el._coordHideHandler){
+		el.removeEventListener('hide.bs.modal', el._coordHideHandler);
+	}
+	el._coordHideHandler=(ev)=>{
 		if(sessionStorage.getItem('planning.coord')!=='ok'){
 			ev.preventDefault();
 			if(typeof showToast==='function'){
 				showToast('info','Inloggning krävs','Du måste logga in för att fortsätta.');
 			}
 		}
-	});
+	};
+	el.addEventListener('hide.bs.modal', el._coordHideHandler);
 
 	// Clear invalid state when typing
-	pwdEl.addEventListener('input', ()=>{
+	pwdEl.oninput=()=>{
 		pwdEl.classList.remove('is-invalid');
-	});
+	};
 
 	// Focus when shown
-	el.addEventListener('shown.bs.modal', ()=>pwdEl.focus());
+	if(el._coordShownHandler){
+		el.removeEventListener('shown.bs.modal', el._coordShownHandler);
+	}
+	el._coordShownHandler=()=>pwdEl.focus();
+	el.addEventListener('shown.bs.modal', el._coordShownHandler);
 
 	// Pretty error feedback
 	function showPrettyError(msg){
@@ -2728,24 +2746,30 @@ function showCoordLogin({onSuccess}={}){
 
 	// Submit handler (button + Enter)
 	async function doLogin(){
+		if(btn.disabled) return;
+		btn.disabled=true;
 		const pwd=pwdEl.value;
-		const ok=await verifyPassword(pwd);
-		if(ok){
-			sessionStorage.setItem('planning.coord','ok');
-			m.hide();
-			if(typeof onSuccess==='function') onSuccess();
-		}else{
-			showPrettyError('Fel lösenord');
+		try{
+			const ok=await verifyPassword(pwd);
+			if(ok){
+				sessionStorage.setItem('planning.coord','ok');
+				m.hide();
+				if(typeof onSuccess==='function') onSuccess();
+			}else{
+				showPrettyError('Fel lösenord');
+			}
+		}finally{
+			btn.disabled=false;
 		}
 	}
 
 	btn.onclick=doLogin;
-	pwdEl.addEventListener('keydown', e=>{
+	pwdEl.onkeydown=(e)=>{
 		if(e.key==='Enter'){
 			e.preventDefault();
 			doLogin();
 		}
-	});
+	};
 
 	m.show();
 }
