@@ -30,7 +30,7 @@
 						<span id="headerContext" class="text-muted small d-none d-md-inline">— visar <strong></strong></span>
 					</div>
 				</div>
-				<div id="inactivityResetNotice" class="badge text-bg-warning inactivity-reset-notice d-none mt-1 align-self-start" role="status" aria-live="polite"><i class="bi bi-clock-history me-1"></i><span class="notice-text"></span></div>
+				<div id="viewerUpdateNotice" class="badge text-bg-warning viewer-update-notice d-none mt-1 align-self-start" role="status" aria-live="polite"><i class="bi bi-clock-history me-1 notice-icon"></i><span class="notice-text"></span></div>
 				<div class="d-flex align-items-center gap-2 ms-auto">
 					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
 						<button type="button" class="btn btn-outline-secondary" data-value="day">Dag</button>
@@ -181,6 +181,14 @@
 													<span class="input-group-text">minuter</span>
 												</div>
 												<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
+											</div>
+											<div class="col-md-6 col-lg-5">
+												<label for="viewerShiftLeadMinutes" class="form-label mb-1">Byt automatiskt till nästa skift i viewer-läge</label>
+												<div class="input-group input-group-sm">
+													<input id="viewerShiftLeadMinutes" type="number" class="form-control" min="0" step="1">
+													<span class="input-group-text">minuter före</span>
+												</div>
+												<div class="form-text">Gäller bara i Viewer-läge och när dagens datum visas. Ange hur många minuter innan skiftstart vyn ska byta till nästa skift (0 = vid skiftstart).</div>
 											</div>
 										</div>
 									</div>

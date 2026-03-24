@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,inactivityNoticeTimerId=null;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -40,6 +40,7 @@ function shiftLabel(shift){
 }
 
 const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
+const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
 const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
 
 function getInactivityResetMinutes(){
@@ -48,9 +49,20 @@ function getInactivityResetMinutes(){
 	return Number.isFinite(parsed) && parsed>0 ? parsed : 0;
 }
 
+function getViewerShiftLeadMinutes(){
+	const raw=localStorage.getItem(VIEWER_SHIFT_LEAD_KEY);
+	const parsed=Number.parseInt(raw ?? '0',10);
+	return Number.isFinite(parsed) && parsed>=0 ? parsed : 0;
+}
+
 function syncInactivitySettingInput(){
 	const input=document.getElementById('idleResetMinutes');
 	if(input) input.value=String(inactivityResetMinutes);
+}
+
+function syncViewerShiftLeadSettingInput(){
+	const input=document.getElementById('viewerShiftLeadMinutes');
+	if(input) input.value=String(viewerShiftLeadMinutes);
 }
 
 function formatInactivityNoticeText(){
@@ -58,23 +70,27 @@ function formatInactivityNoticeText(){
 	return `Vy återställd efter ${inactivityResetMinutes} ${unit} inaktivitet`;
 }
 
-function showInactivityResetNotice(){
-	const notice=document.getElementById('inactivityResetNotice');
+function showViewerNotice(message,{iconClass='bi-clock-history'}={}){
+	const notice=document.getElementById('viewerUpdateNotice');
 	if(!notice) return;
+	const iconEl=notice.querySelector('.notice-icon');
 	const textEl=notice.querySelector('.notice-text');
-	if(textEl) textEl.textContent=formatInactivityNoticeText();
-	if(inactivityNoticeTimerId){
-		clearTimeout(inactivityNoticeTimerId);
-		inactivityNoticeTimerId=null;
+	if(iconEl){
+		iconEl.className=`bi ${iconClass} me-1 notice-icon`;
+	}
+	if(textEl) textEl.textContent=message;
+	if(viewerNoticeTimerId){
+		clearTimeout(viewerNoticeTimerId);
+		viewerNoticeTimerId=null;
 	}
 	notice.classList.remove('d-none','show');
 	void notice.offsetWidth;
 	notice.classList.add('show');
-	inactivityNoticeTimerId=window.setTimeout(()=>{
+	viewerNoticeTimerId=window.setTimeout(()=>{
 		notice.classList.remove('show');
-		inactivityNoticeTimerId=window.setTimeout(()=>{
+		viewerNoticeTimerId=window.setTimeout(()=>{
 			notice.classList.add('d-none');
-			inactivityNoticeTimerId=null;
+			viewerNoticeTimerId=null;
 		}, 220);
 	}, 2800);
 }
@@ -82,7 +98,7 @@ function showInactivityResetNotice(){
 function resetToTodayIfNeeded(){
 	if(dayChoice==='today') return;
 	dayChoice='today';
-	showInactivityResetNotice();
+	showViewerNotice(formatInactivityNoticeText(),{iconClass:'bi-clock-history'});
 	setDateToOffset(0);
 	setShift(detectCurrentShift(),{updateUrl:true});
 	syncShiftUi();
@@ -114,6 +130,45 @@ function applyInactivityResetSetting(value,{persist=true}={}){
 	if(persist) localStorage.setItem(INACTIVITY_RESET_KEY, String(minutes));
 	syncInactivitySettingInput();
 	scheduleInactivityReset();
+}
+
+function getDetectedViewerShift(){
+	const now=new Date(Date.now()+(viewerShiftLeadMinutes*60*1000));
+	return detectCurrentShift(now);
+}
+
+function syncViewerShiftIfNeeded(){
+	if(mode!=='viewer' || dayChoice!=='today') return;
+	const nextShift=getDetectedViewerShift();
+	if(nextShift===currentShift) return;
+	const prevShift=currentShift;
+	setShift(nextShift,{updateUrl:true});
+	syncShiftUi();
+	suggestAndApplyTemplates();
+	renderSettings();
+	rebuildAll();
+	const minsLabel=viewerShiftLeadMinutes===1 ? '1 minut' : `${viewerShiftLeadMinutes} minuter`;
+	const timingText=viewerShiftLeadMinutes===0 ? 'vid skiftstart' : `${minsLabel} före skiftstart`;
+	showViewerNotice(`Visningen bytte från ${shiftLabel(prevShift)} till ${shiftLabel(nextShift)} (${timingText}).`,{iconClass:'bi-arrow-repeat'});
+}
+
+function scheduleViewerShiftSync(){
+	if(viewerShiftSyncIntervalId){
+		clearInterval(viewerShiftSyncIntervalId);
+		viewerShiftSyncIntervalId=null;
+	}
+	if(mode!=='viewer') return;
+	syncViewerShiftIfNeeded();
+	viewerShiftSyncIntervalId=window.setInterval(syncViewerShiftIfNeeded, 30*1000);
+}
+
+function applyViewerShiftLeadSetting(value,{persist=true}={}){
+	const minutes=Math.max(0, Number.parseInt(value ?? '0',10) || 0);
+	viewerShiftLeadMinutes=minutes;
+	if(persist) localStorage.setItem(VIEWER_SHIFT_LEAD_KEY, String(minutes));
+	syncViewerShiftLeadSettingInput();
+	syncViewerShiftIfNeeded();
+	scheduleViewerShiftSync();
 }
 
 function formatHeaderDateContext(date, shift, dayType){
@@ -993,8 +1048,8 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	const todayStr=(new Date()).toISOString().slice(0,10);
 	document.getElementById('dateInput').value=todayStr;
 	currentDate=new Date(todayStr+'T00:00:00');
-	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
-	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
 	const templateSel=document.getElementById('templateSel');
 	templateSel.classList.add('d-none');
@@ -1003,9 +1058,12 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
 	applyInactivityResetSetting(getInactivityResetMinutes(),{persist:false});
+	applyViewerShiftLeadSetting(getViewerShiftLeadMinutes(),{persist:false});
 	renderSettings();
 	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
+	document.getElementById('viewerShiftLeadMinutes')?.addEventListener('change',e=>applyViewerShiftLeadSetting(e.target.value));
 	if(mode==='viewer') INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
+	scheduleViewerShiftSync();
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1966,7 +2024,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');

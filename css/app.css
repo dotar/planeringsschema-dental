@@ -251,7 +251,7 @@ body{ overflow:hidden; }
 	border-color:var(--bs-btn-active-border-color);
 }
 
-.inactivity-reset-notice{
+.viewer-update-notice{
 	opacity:0;
 	transform:translateY(-6px) scale(.94);
 	transition:opacity .22s ease, transform .22s ease;
@@ -259,12 +259,12 @@ body{ overflow:hidden; }
 	font-size:.95rem;
 	padding:.6rem .85rem;
 }
-.inactivity-reset-notice.show{
+.viewer-update-notice.show{
 	opacity:1;
 	transform:translateY(0) scale(1);
-	animation:inactivity-reset-pop 2.8s ease;
+	animation:viewer-update-pop 2.8s ease;
 }
-@keyframes inactivity-reset-pop{
+@keyframes viewer-update-pop{
 	0%{ transform:translateY(-6px) scale(.92); }
 	18%{ transform:translateY(0) scale(1.04); }
 	100%{ transform:translateY(0) scale(1); }
