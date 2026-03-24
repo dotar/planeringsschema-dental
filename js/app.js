@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -55,6 +55,10 @@ function getViewerShiftLeadMinutes(){
 	return Number.isFinite(parsed) && parsed>=0 ? parsed : 0;
 }
 
+function getViewerEditSetting(){
+	return DB?.appSettings?.ViewerCanEditAssignments===true;
+}
+
 function syncInactivitySettingInput(){
 	const input=document.getElementById('idleResetMinutes');
 	if(input) input.value=String(inactivityResetMinutes);
@@ -63,6 +67,58 @@ function syncInactivitySettingInput(){
 function syncViewerShiftLeadSettingInput(){
 	const input=document.getElementById('viewerShiftLeadMinutes');
 	if(input) input.value=String(viewerShiftLeadMinutes);
+}
+
+function syncViewerEditSettingInput(){
+	const input=document.getElementById('viewerCanEditAssignments');
+	if(input) input.checked=!!viewerCanEditAssignments;
+}
+
+function applyViewerEditSetting(enabled,{persist=true}={}){
+	viewerCanEditAssignments=!!enabled;
+	if(!DB.appSettings) DB.appSettings={};
+	if(persist) DB.appSettings.ViewerCanEditAssignments=viewerCanEditAssignments;
+	syncViewerEditSettingInput();
+}
+
+function canModifyAssignments(){
+	return mode==='edit' || viewerCanEditAssignments;
+}
+
+function bindViewerActivityListeners(enabled){
+	if(enabled && !viewerActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
+		viewerActivityTrackingBound=true;
+		return;
+	}
+	if(!enabled && viewerActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.removeEventListener(evt, recordActivity, {passive:true}));
+		viewerActivityTrackingBound=false;
+	}
+}
+
+function applyMode(nextMode,{updateUrl=true}={}){
+	mode=nextMode==='edit' ? 'edit' : 'viewer';
+	document.documentElement.dataset.mode = mode;
+	document.body.classList.toggle('viewer',mode!=='edit');
+	const badge=document.getElementById('modeBadge');
+	if(badge){
+		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
+		badge.classList.toggle('text-bg-success', mode==='edit');
+		badge.classList.toggle('text-bg-secondary', mode!=='edit');
+		badge.title=mode==='edit'?'Inloggad som koordinator':'Klicka för att logga in som koordinator';
+	}
+	bindViewerActivityListeners(mode==='viewer');
+	scheduleInactivityReset();
+	scheduleViewerShiftSync();
+	if(updateUrl){
+		const nextQs = new URLSearchParams(window.location.search);
+		nextQs.set('mode', mode==='edit'?'edit':'viewer');
+		nextQs.set('factory', String(currentFactoryId));
+		nextQs.set('shift', currentShift);
+		const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
+		window.history.replaceState(null, '', nextUrl);
+	}
 }
 
 function formatInactivityNoticeText(){
@@ -941,11 +997,18 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 (function init(){
 	const qs=new URLSearchParams(location.search);
 	mode=qs.get('mode')==='edit'?'edit':'viewer';
-	document.documentElement.dataset.mode = mode;
 	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
-	if(mode==='edit')showCoordLogin();
-	document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';
-	document.body.classList.toggle('viewer',mode!=='edit');
+	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
+	applyMode(mode,{updateUrl:false});
+	if(mode==='edit'){
+		showCoordLogin({
+			onSuccess:()=>{
+				applyMode('edit');
+				renderSettings();
+				rebuildAll();
+			}
+		});
+	}
 
 	const facSel=document.getElementById('factorySel');
 	const settingsFacSel=document.getElementById('settingsFactorySel');
@@ -1062,8 +1125,25 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	renderSettings();
 	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
 	document.getElementById('viewerShiftLeadMinutes')?.addEventListener('change',e=>applyViewerShiftLeadSetting(e.target.value));
-	if(mode==='viewer') INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
-	scheduleViewerShiftSync();
+	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
+	const modeBadge=document.getElementById('modeBadge');
+	modeBadge?.addEventListener('click',()=>{
+		if(mode==='edit') return;
+		showCoordLogin({
+			onSuccess:()=>{
+				applyMode('edit');
+				showToast('info','Koordinatorläge aktivt','Du är nu inloggad som koordinator.');
+				renderSettings();
+				rebuildAll();
+			}
+		});
+	});
+	modeBadge?.addEventListener('keydown',e=>{
+		if(e.key==='Enter' || e.key===' '){
+			e.preventDefault();
+			modeBadge.click();
+		}
+	});
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1250,6 +1330,10 @@ function buildGrid(){
 			c.addEventListener('click', ev=>{
 				if(draggingPersonId) return;
 				if(ev.target.closest('.person-pill')) return;	// don't open when clicking a pill
+				if(!canModifyAssignments()){
+					showToast('info','Viewer-läge','Redigering i viewer-läge är avstängd i Inställningar → Allmänt.');
+					return;
+				}
 				openAssignDropdownOverlay(c, station, slot);
 			});
 
@@ -1314,6 +1398,7 @@ function openAssignDropdown(cell,station,slot){
 }
 
 function openAssignDropdownOverlay(cell, station, slot){
+	if(!canModifyAssignments()) return;
 	// Toggle: close if this cell is already open
 	if(_pickerOpenCell===cell || cell.dataset.pickerOpen==='1'){
 		closeAnyPicker();
@@ -1514,6 +1599,7 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 
 
 function movePersonTo(cell, station, slot, personId){
+	if(!canModifyAssignments()) return;
 	const dateStr = getSelectedDateStr();
 	const person = getPlanningPersonById(personId);
 	if(!person) return;
@@ -1568,7 +1654,7 @@ function addPersonPill(cell, personId){
 	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
 	const pill = document.createElement('span');
 	pill.className = 'person-pill';
-	pill.draggable = true;
+	pill.draggable = canModifyAssignments();
 	pill.dataset.personId = personId;
 
 	// Soft background derived from group's color
@@ -1599,6 +1685,7 @@ function addPersonPill(cell, personId){
 	pill.innerHTML = `<i class="bi bi-person"></i> ${escapeHtml(p.name)} <i class="bi bi-x ms-1" role="button"></i>`;
 	pill.querySelector('.bi-x').addEventListener('click', ev=>{
 		ev.stopPropagation();
+		if(!canModifyAssignments()) return;
 		removePersonPill(cell, personId);
 	});
 
@@ -1623,6 +1710,10 @@ function removePersonPill(cell,personId){
 }
 
 function onDragStart(ev){
+	if(!canModifyAssignments()){
+		ev.preventDefault();
+		return;
+	}
 	const pill=ev.target.closest('.person-pill');
 	if(pill) killPillTooltip(pill);
 	draggingPersonId=parseInt(ev.target.dataset.personId,10);
@@ -2024,7 +2115,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
@@ -2509,9 +2600,12 @@ function editTraining(personId){
 }
 
 
-function showCoordLogin(){
+function showCoordLogin({onSuccess}={}){
 	const saved=sessionStorage.getItem('planning.coord');
-	if(saved==='ok') return;
+	if(saved==='ok'){
+		if(typeof onSuccess==='function') onSuccess();
+		return;
+	}
 
 	const el=document.getElementById('coordModal');
 	const pwdEl=document.getElementById('coordPwd');
@@ -2564,6 +2658,7 @@ function showCoordLogin(){
 		if(ok){
 			sessionStorage.setItem('planning.coord','ok');
 			m.hide();
+			if(typeof onSuccess==='function') onSuccess();
 		}else{
 			showPrettyError('Fel lösenord');
 		}
