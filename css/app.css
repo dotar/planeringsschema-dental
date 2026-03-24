@@ -260,6 +260,12 @@ html[data-mode="viewer"] .mode-badge{
 html[data-mode="viewer"] .mode-badge:hover{
 	filter:brightness(.95);
 }
+.general-setting-item{
+	padding:.75rem .85rem;
+	border:1px solid var(--bs-border-color);
+	border-radius:.5rem;
+	background:color-mix(in srgb, var(--bs-body-bg) 85%, var(--bs-tertiary-bg) 15%);
+}
 
 .viewer-update-notice{
 	opacity:0;

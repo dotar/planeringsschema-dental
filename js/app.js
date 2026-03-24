@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -41,6 +41,8 @@ function shiftLabel(shift){
 
 const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
 const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
+const VIEWER_EDIT_KEY='planning.viewerCanEditAssignments';
+const COORD_AUTO_LOGOUT_KEY='planning.coordAutoLogoutMinutes';
 const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
 
 function getInactivityResetMinutes(){
@@ -56,7 +58,16 @@ function getViewerShiftLeadMinutes(){
 }
 
 function getViewerEditSetting(){
-	return DB?.appSettings?.ViewerCanEditAssignments===true;
+	const fromSettings=DB?.appSettings?.ViewerCanEditAssignments;
+	if(typeof fromSettings==='boolean') return fromSettings;
+	return localStorage.getItem(VIEWER_EDIT_KEY)==='1';
+}
+
+function getCoordAutoLogoutMinutes(){
+	const fromSettings=DB?.appSettings?.CoordAutoLogoutMinutes;
+	const raw=(fromSettings ?? localStorage.getItem(COORD_AUTO_LOGOUT_KEY) ?? '0');
+	const parsed=Number.parseInt(raw,10);
+	return Number.isFinite(parsed) && parsed>=0 ? parsed : 0;
 }
 
 function syncInactivitySettingInput(){
@@ -74,11 +85,66 @@ function syncViewerEditSettingInput(){
 	if(input) input.checked=!!viewerCanEditAssignments;
 }
 
+function syncCoordAutoLogoutInput(){
+	const input=document.getElementById('coordAutoLogoutMinutes');
+	if(input) input.value=String(coordAutoLogoutMinutes);
+}
+
 function applyViewerEditSetting(enabled,{persist=true}={}){
 	viewerCanEditAssignments=!!enabled;
 	if(!DB.appSettings) DB.appSettings={};
-	if(persist) DB.appSettings.ViewerCanEditAssignments=viewerCanEditAssignments;
+	if(persist){
+		DB.appSettings.ViewerCanEditAssignments=viewerCanEditAssignments;
+		localStorage.setItem(VIEWER_EDIT_KEY, viewerCanEditAssignments ? '1' : '0');
+	}
 	syncViewerEditSettingInput();
+}
+
+function logoutCoordinator({reason='' }={}){
+	sessionStorage.removeItem('planning.coord');
+	applyMode('viewer');
+	renderSettings();
+	rebuildAll();
+	if(reason) showToast('info','Utloggad',reason);
+}
+
+function scheduleCoordinatorAutoLogout(){
+	if(coordAutoLogoutTimerId){
+		clearTimeout(coordAutoLogoutTimerId);
+		coordAutoLogoutTimerId=null;
+	}
+	if(mode!=='edit' || coordAutoLogoutMinutes<=0 || sessionStorage.getItem('planning.coord')!=='ok') return;
+	coordAutoLogoutTimerId=window.setTimeout(()=>{
+		logoutCoordinator({reason:`Koordinatorläget loggades ut efter ${coordAutoLogoutMinutes} minuters inaktivitet.`});
+	}, coordAutoLogoutMinutes*60*1000);
+}
+
+function recordCoordinatorActivity(){
+	scheduleCoordinatorAutoLogout();
+}
+
+function bindCoordinatorActivityListeners(enabled){
+	if(enabled && !coordActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordCoordinatorActivity, {passive:true}));
+		coordActivityTrackingBound=true;
+		return;
+	}
+	if(!enabled && coordActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.removeEventListener(evt, recordCoordinatorActivity, {passive:true}));
+		coordActivityTrackingBound=false;
+	}
+}
+
+function applyCoordAutoLogoutSetting(value,{persist=true}={}){
+	const minutes=Math.max(0, Number.parseInt(value ?? '0',10) || 0);
+	coordAutoLogoutMinutes=minutes;
+	if(!DB.appSettings) DB.appSettings={};
+	if(persist){
+		DB.appSettings.CoordAutoLogoutMinutes=minutes;
+		localStorage.setItem(COORD_AUTO_LOGOUT_KEY, String(minutes));
+	}
+	syncCoordAutoLogoutInput();
+	scheduleCoordinatorAutoLogout();
 }
 
 function canModifyAssignments(){
@@ -106,11 +172,14 @@ function applyMode(nextMode,{updateUrl=true}={}){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
 		badge.classList.toggle('text-bg-success', mode==='edit');
 		badge.classList.toggle('text-bg-secondary', mode!=='edit');
-		badge.title=mode==='edit'?'Inloggad som koordinator':'Klicka för att logga in som koordinator';
+		badge.removeAttribute('title');
+		badge.setAttribute('aria-label',mode==='edit'?'Koordinatorläge. Klicka för att logga ut.':'Viewerläge. Klicka för att logga in som koordinator.');
 	}
 	bindViewerActivityListeners(mode==='viewer');
+	bindCoordinatorActivityListeners(mode==='edit');
 	scheduleInactivityReset();
 	scheduleViewerShiftSync();
+	scheduleCoordinatorAutoLogout();
 	if(updateUrl){
 		const nextQs = new URLSearchParams(window.location.search);
 		nextQs.set('mode', mode==='edit'?'edit':'viewer');
@@ -999,6 +1068,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	mode=qs.get('mode')==='edit'?'edit':'viewer';
 	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
 	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
+	applyCoordAutoLogoutSetting(getCoordAutoLogoutMinutes(),{persist:false});
 	applyMode(mode,{updateUrl:false});
 	if(mode==='edit'){
 		showCoordLogin({
@@ -1126,9 +1196,14 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
 	document.getElementById('viewerShiftLeadMinutes')?.addEventListener('change',e=>applyViewerShiftLeadSetting(e.target.value));
 	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
+	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
-		if(mode==='edit') return;
+		modeBadge.blur();
+		if(mode==='edit'){
+			logoutCoordinator({reason:'Du har loggat ut från koordinatorläget.'});
+			return;
+		}
 		showCoordLogin({
 			onSuccess:()=>{
 				applyMode('edit');
@@ -2115,7 +2190,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncCoordAutoLogoutInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
