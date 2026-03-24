@@ -251,6 +251,16 @@ body{ overflow:hidden; }
 	border-color:var(--bs-btn-active-border-color);
 }
 
+.mode-badge{
+	user-select:none;
+}
+html[data-mode="viewer"] .mode-badge{
+	cursor:pointer;
+}
+html[data-mode="viewer"] .mode-badge:hover{
+	filter:brightness(.95);
+}
+
 .viewer-update-notice{
 	opacity:0;
 	transform:translateY(-6px) scale(.94);
