@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,inactivityNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -70,23 +70,27 @@ function formatInactivityNoticeText(){
 	return `Vy återställd efter ${inactivityResetMinutes} ${unit} inaktivitet`;
 }
 
-function showInactivityResetNotice(){
-	const notice=document.getElementById('inactivityResetNotice');
+function showViewerNotice(message,{iconClass='bi-clock-history'}={}){
+	const notice=document.getElementById('viewerUpdateNotice');
 	if(!notice) return;
+	const iconEl=notice.querySelector('.notice-icon');
 	const textEl=notice.querySelector('.notice-text');
-	if(textEl) textEl.textContent=formatInactivityNoticeText();
-	if(inactivityNoticeTimerId){
-		clearTimeout(inactivityNoticeTimerId);
-		inactivityNoticeTimerId=null;
+	if(iconEl){
+		iconEl.className=`bi ${iconClass} me-1 notice-icon`;
+	}
+	if(textEl) textEl.textContent=message;
+	if(viewerNoticeTimerId){
+		clearTimeout(viewerNoticeTimerId);
+		viewerNoticeTimerId=null;
 	}
 	notice.classList.remove('d-none','show');
 	void notice.offsetWidth;
 	notice.classList.add('show');
-	inactivityNoticeTimerId=window.setTimeout(()=>{
+	viewerNoticeTimerId=window.setTimeout(()=>{
 		notice.classList.remove('show');
-		inactivityNoticeTimerId=window.setTimeout(()=>{
+		viewerNoticeTimerId=window.setTimeout(()=>{
 			notice.classList.add('d-none');
-			inactivityNoticeTimerId=null;
+			viewerNoticeTimerId=null;
 		}, 220);
 	}, 2800);
 }
@@ -94,7 +98,7 @@ function showInactivityResetNotice(){
 function resetToTodayIfNeeded(){
 	if(dayChoice==='today') return;
 	dayChoice='today';
-	showInactivityResetNotice();
+	showViewerNotice(formatInactivityNoticeText(),{iconClass:'bi-clock-history'});
 	setDateToOffset(0);
 	setShift(detectCurrentShift(),{updateUrl:true});
 	syncShiftUi();
@@ -137,11 +141,15 @@ function syncViewerShiftIfNeeded(){
 	if(mode!=='viewer' || dayChoice!=='today') return;
 	const nextShift=getDetectedViewerShift();
 	if(nextShift===currentShift) return;
+	const prevShift=currentShift;
 	setShift(nextShift,{updateUrl:true});
 	syncShiftUi();
 	suggestAndApplyTemplates();
 	renderSettings();
 	rebuildAll();
+	const minsLabel=viewerShiftLeadMinutes===1 ? '1 minut' : `${viewerShiftLeadMinutes} minuter`;
+	const timingText=viewerShiftLeadMinutes===0 ? 'vid skiftstart' : `${minsLabel} före skiftstart`;
+	showViewerNotice(`Visningen bytte från ${shiftLabel(prevShift)} till ${shiftLabel(nextShift)} (${timingText}).`,{iconClass:'bi-arrow-repeat'});
 }
 
 function scheduleViewerShiftSync(){
