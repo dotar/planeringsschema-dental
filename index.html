@@ -51,7 +51,7 @@
 					<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
 					<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
 					<button id="themeBtn" class="btn btn-sm btn-outline-secondary" title="Tema"><i class="bi bi-circle-half"></i></button>
-					<span id="modeBadge" class="badge text-bg-secondary mode-badge">COORDINATOR</span>
+					<span id="modeBadge" class="badge text-bg-secondary mode-badge" role="button" tabindex="0" title="Klicka för att logga in som koordinator">VIEWER</span>
 				</div>
 			</div>
 		</nav>
@@ -175,22 +175,50 @@
 							<div class="tab-pane fade" id="tabGeneral" role="tabpanel">
 								<div class="card border-0 bg-body-tertiary">
 									<div class="card-body py-3">
-										<div class="row g-3 align-items-end">
-											<div class="col-md-6 col-lg-5">
-												<label for="idleResetMinutes" class="form-label mb-1">Återställ viewer-läget till aktuell visning efter inaktivitet</label>
-												<div class="input-group input-group-sm">
-													<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
-													<span class="input-group-text">minuter</span>
+										<div class="vstack gap-3">
+											<div class="general-group">
+												<div class="general-group-title"><i class="bi bi-eye me-2"></i>Viewer – visning & automation</div>
+												<div class="row g-3 align-items-start">
+													<div class="col-md-6 general-setting-item">
+														<label for="idleResetMinutes" class="form-label mb-1">Återställ viewer-läget till aktuell visning efter inaktivitet</label>
+														<div class="input-group input-group-sm">
+															<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
+															<span class="input-group-text">minuter</span>
+														</div>
+														<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
+													</div>
+													<div class="col-md-6 general-setting-item">
+														<label for="viewerShiftLeadMinutes" class="form-label mb-1">Byt automatiskt till nästa skift i viewer-läge</label>
+														<div class="input-group input-group-sm">
+															<input id="viewerShiftLeadMinutes" type="number" class="form-control" min="0" step="1">
+															<span class="input-group-text">minuter före</span>
+														</div>
+														<div class="form-text">Gäller bara i Viewer-läge och när dagens datum visas. Ange hur många minuter innan skiftstart vyn ska byta till nästa skift (0 = vid skiftstart).</div>
+													</div>
 												</div>
-												<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
 											</div>
-											<div class="col-md-6 col-lg-5">
-												<label for="viewerShiftLeadMinutes" class="form-label mb-1">Byt automatiskt till nästa skift i viewer-läge</label>
-												<div class="input-group input-group-sm">
-													<input id="viewerShiftLeadMinutes" type="number" class="form-control" min="0" step="1">
-													<span class="input-group-text">minuter före</span>
+											<div class="general-group">
+												<div class="general-group-title"><i class="bi bi-unlock me-2"></i>Viewer – redigeringsrättigheter</div>
+												<div class="general-setting-item">
+													<div class="form-check mt-1">
+														<input id="viewerCanEditAssignments" class="form-check-input" type="checkbox">
+														<label class="form-check-label" for="viewerCanEditAssignments">Tillåt att lägga till/flytta personer i Viewer-läge</label>
+													</div>
+													<div class="form-text">När avstängt kan Viewer bara läsa planeringen. När påslaget kan personer läggas till, flyttas och tas bort utan koordinatorinloggning.</div>
 												</div>
-												<div class="form-text">Gäller bara i Viewer-läge och när dagens datum visas. Ange hur många minuter innan skiftstart vyn ska byta till nästa skift (0 = vid skiftstart).</div>
+											</div>
+											<div class="general-group">
+												<div class="general-group-title"><i class="bi bi-shield-lock me-2"></i>Koordinator – säkerhet</div>
+												<div class="row g-3 align-items-start">
+													<div class="col-md-6 general-setting-item">
+														<label for="coordAutoLogoutMinutes" class="form-label mb-1">Logga ut koordinatorläge efter inaktivitet</label>
+														<div class="input-group input-group-sm">
+															<input id="coordAutoLogoutMinutes" type="number" class="form-control" min="0" step="1">
+															<span class="input-group-text">minuter</span>
+														</div>
+														<div class="form-text">Gäller bara i Koordinatorläge. Efter vald tid utan aktivitet loggas användaren ut till Viewer-läge. Ange 0 för att stänga av.</div>
+													</div>
+												</div>
 											</div>
 										</div>
 									</div>

@@ -251,6 +251,32 @@ body{ overflow:hidden; }
 	border-color:var(--bs-btn-active-border-color);
 }
 
+.mode-badge{
+	user-select:none;
+}
+html[data-mode="viewer"] .mode-badge{
+	cursor:pointer;
+}
+html[data-mode="viewer"] .mode-badge:hover{
+	filter:brightness(.95);
+}
+.general-setting-item{
+	padding:.75rem .85rem;
+	border:1px solid var(--bs-border-color);
+	border-radius:.5rem;
+	background:color-mix(in srgb, var(--bs-body-bg) 85%, var(--bs-tertiary-bg) 15%);
+}
+.general-group{
+	padding:.85rem;
+	border:1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
+	border-radius:.65rem;
+	background:color-mix(in srgb, var(--bs-tertiary-bg) 35%, var(--bs-body-bg) 65%);
+}
+.general-group-title{
+	font-weight:600;
+	margin-bottom:.55rem;
+}
+
 .viewer-update-notice{
 	opacity:0;
 	transform:translateY(-6px) scale(.94);

@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -41,6 +41,8 @@ function shiftLabel(shift){
 
 const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
 const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
+const VIEWER_EDIT_KEY='planning.viewerCanEditAssignments';
+const COORD_AUTO_LOGOUT_KEY='planning.coordAutoLogoutMinutes';
 const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
 
 function getInactivityResetMinutes(){
@@ -55,6 +57,19 @@ function getViewerShiftLeadMinutes(){
 	return Number.isFinite(parsed) && parsed>=0 ? parsed : 0;
 }
 
+function getViewerEditSetting(){
+	const fromSettings=DB?.appSettings?.ViewerCanEditAssignments;
+	if(typeof fromSettings==='boolean') return fromSettings;
+	return localStorage.getItem(VIEWER_EDIT_KEY)==='1';
+}
+
+function getCoordAutoLogoutMinutes(){
+	const fromSettings=DB?.appSettings?.CoordAutoLogoutMinutes;
+	const raw=(fromSettings ?? localStorage.getItem(COORD_AUTO_LOGOUT_KEY) ?? '0');
+	const parsed=Number.parseInt(raw,10);
+	return Number.isFinite(parsed) && parsed>=0 ? parsed : 0;
+}
+
 function syncInactivitySettingInput(){
 	const input=document.getElementById('idleResetMinutes');
 	if(input) input.value=String(inactivityResetMinutes);
@@ -63,6 +78,125 @@ function syncInactivitySettingInput(){
 function syncViewerShiftLeadSettingInput(){
 	const input=document.getElementById('viewerShiftLeadMinutes');
 	if(input) input.value=String(viewerShiftLeadMinutes);
+}
+
+function syncViewerEditSettingInput(){
+	const input=document.getElementById('viewerCanEditAssignments');
+	if(input) input.checked=!!viewerCanEditAssignments;
+}
+
+function syncCoordAutoLogoutInput(){
+	const input=document.getElementById('coordAutoLogoutMinutes');
+	if(input) input.value=String(coordAutoLogoutMinutes);
+}
+
+function applyViewerEditSetting(enabled,{persist=true}={}){
+	viewerCanEditAssignments=!!enabled;
+	if(!DB.appSettings) DB.appSettings={};
+	if(persist){
+		DB.appSettings.ViewerCanEditAssignments=viewerCanEditAssignments;
+		localStorage.setItem(VIEWER_EDIT_KEY, viewerCanEditAssignments ? '1' : '0');
+	}
+	syncViewerEditSettingInput();
+}
+
+function logoutCoordinator({reason='' }={}){
+	sessionStorage.removeItem('planning.coord');
+	applyMode('viewer');
+	renderSettings();
+	rebuildAll();
+	if(reason) showToast('info','Utloggad',reason);
+}
+
+function scheduleCoordinatorAutoLogout(){
+	if(coordAutoLogoutTimerId){
+		clearTimeout(coordAutoLogoutTimerId);
+		coordAutoLogoutTimerId=null;
+	}
+	if(mode!=='edit' || coordAutoLogoutMinutes<=0 || sessionStorage.getItem('planning.coord')!=='ok') return;
+	coordAutoLogoutTimerId=window.setTimeout(()=>{
+		logoutCoordinator({reason:`Koordinatorläget loggades ut efter ${coordAutoLogoutMinutes} minuters inaktivitet.`});
+	}, coordAutoLogoutMinutes*60*1000);
+}
+
+function recordCoordinatorActivity(){
+	scheduleCoordinatorAutoLogout();
+}
+
+function bindCoordinatorActivityListeners(enabled){
+	if(enabled && !coordActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordCoordinatorActivity, {passive:true}));
+		coordActivityTrackingBound=true;
+		return;
+	}
+	if(!enabled && coordActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.removeEventListener(evt, recordCoordinatorActivity, {passive:true}));
+		coordActivityTrackingBound=false;
+	}
+}
+
+function applyCoordAutoLogoutSetting(value,{persist=true}={}){
+	const minutes=Math.max(0, Number.parseInt(value ?? '0',10) || 0);
+	coordAutoLogoutMinutes=minutes;
+	if(!DB.appSettings) DB.appSettings={};
+	if(persist){
+		DB.appSettings.CoordAutoLogoutMinutes=minutes;
+		localStorage.setItem(COORD_AUTO_LOGOUT_KEY, String(minutes));
+	}
+	syncCoordAutoLogoutInput();
+	scheduleCoordinatorAutoLogout();
+}
+
+function canModifyAssignments(){
+	return mode==='edit' || viewerCanEditAssignments;
+}
+
+function bindViewerActivityListeners(enabled){
+	if(enabled && !viewerActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
+		viewerActivityTrackingBound=true;
+		return;
+	}
+	if(!enabled && viewerActivityTrackingBound){
+		INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.removeEventListener(evt, recordActivity, {passive:true}));
+		viewerActivityTrackingBound=false;
+	}
+}
+
+function applyMode(nextMode,{updateUrl=true}={}){
+	mode=nextMode==='edit' ? 'edit' : 'viewer';
+	document.documentElement.dataset.mode = mode;
+	document.body.classList.toggle('viewer',mode!=='edit');
+	const badge=document.getElementById('modeBadge');
+	if(badge){
+		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
+		badge.classList.toggle('text-bg-success', mode==='edit');
+		badge.classList.toggle('text-bg-secondary', mode!=='edit');
+		badge.title=mode==='edit'?'Klicka för att logga ut':'Klicka för att logga in som koordinator';
+	}
+	bindViewerActivityListeners(mode==='viewer');
+	bindCoordinatorActivityListeners(mode==='edit');
+	scheduleInactivityReset();
+	scheduleViewerShiftSync();
+	scheduleCoordinatorAutoLogout();
+	if(updateUrl){
+		const nextQs = new URLSearchParams(window.location.search);
+		nextQs.set('mode', mode==='edit'?'edit':'viewer');
+		nextQs.set('factory', String(currentFactoryId));
+		nextQs.set('shift', currentShift);
+		const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
+		window.history.replaceState(null, '', nextUrl);
+	}
+}
+
+function dismissNativeTitleTooltip(el){
+	if(!el) return;
+	const ttl=el.getAttribute('title');
+	if(ttl==null) return;
+	el.removeAttribute('title');
+	window.setTimeout(()=>{
+		if(document.contains(el)) el.setAttribute('title', ttl);
+	}, 80);
 }
 
 function formatInactivityNoticeText(){
@@ -941,11 +1075,19 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 (function init(){
 	const qs=new URLSearchParams(location.search);
 	mode=qs.get('mode')==='edit'?'edit':'viewer';
-	document.documentElement.dataset.mode = mode;
 	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
-	if(mode==='edit')showCoordLogin();
-	document.getElementById('modeBadge').textContent=mode==='edit'?'COORDINATOR':'VIEWER';
-	document.body.classList.toggle('viewer',mode!=='edit');
+	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
+	applyCoordAutoLogoutSetting(getCoordAutoLogoutMinutes(),{persist:false});
+	applyMode(mode,{updateUrl:false});
+	if(mode==='edit'){
+		showCoordLogin({
+			onSuccess:()=>{
+				applyMode('edit');
+				renderSettings();
+				rebuildAll();
+			}
+		});
+	}
 
 	const facSel=document.getElementById('factorySel');
 	const settingsFacSel=document.getElementById('settingsFactorySel');
@@ -1062,8 +1204,31 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	renderSettings();
 	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
 	document.getElementById('viewerShiftLeadMinutes')?.addEventListener('change',e=>applyViewerShiftLeadSetting(e.target.value));
-	if(mode==='viewer') INACTIVITY_ACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, recordActivity, {passive:true}));
-	scheduleViewerShiftSync();
+	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
+	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
+	const modeBadge=document.getElementById('modeBadge');
+	modeBadge?.addEventListener('click',()=>{
+		dismissNativeTitleTooltip(modeBadge);
+		modeBadge.blur();
+		if(mode==='edit'){
+			logoutCoordinator({reason:'Du har loggat ut från koordinatorläget.'});
+			return;
+		}
+		showCoordLogin({
+			onSuccess:()=>{
+				applyMode('edit');
+				showToast('info','Koordinatorläge aktivt','Du är nu inloggad som koordinator.');
+				renderSettings();
+				rebuildAll();
+			}
+		});
+	});
+	modeBadge?.addEventListener('keydown',e=>{
+		if(e.key==='Enter' || e.key===' '){
+			e.preventDefault();
+			modeBadge.click();
+		}
+	});
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1250,6 +1415,10 @@ function buildGrid(){
 			c.addEventListener('click', ev=>{
 				if(draggingPersonId) return;
 				if(ev.target.closest('.person-pill')) return;	// don't open when clicking a pill
+				if(!canModifyAssignments()){
+					showToast('info','Viewer-läge','Redigering i viewer-läge är avstängd i Inställningar → Allmänt.');
+					return;
+				}
 				openAssignDropdownOverlay(c, station, slot);
 			});
 
@@ -1314,6 +1483,7 @@ function openAssignDropdown(cell,station,slot){
 }
 
 function openAssignDropdownOverlay(cell, station, slot){
+	if(!canModifyAssignments()) return;
 	// Toggle: close if this cell is already open
 	if(_pickerOpenCell===cell || cell.dataset.pickerOpen==='1'){
 		closeAnyPicker();
@@ -1514,6 +1684,7 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 
 
 function movePersonTo(cell, station, slot, personId){
+	if(!canModifyAssignments()) return;
 	const dateStr = getSelectedDateStr();
 	const person = getPlanningPersonById(personId);
 	if(!person) return;
@@ -1568,7 +1739,7 @@ function addPersonPill(cell, personId){
 	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
 	const pill = document.createElement('span');
 	pill.className = 'person-pill';
-	pill.draggable = true;
+	pill.draggable = canModifyAssignments();
 	pill.dataset.personId = personId;
 
 	// Soft background derived from group's color
@@ -1599,6 +1770,7 @@ function addPersonPill(cell, personId){
 	pill.innerHTML = `<i class="bi bi-person"></i> ${escapeHtml(p.name)} <i class="bi bi-x ms-1" role="button"></i>`;
 	pill.querySelector('.bi-x').addEventListener('click', ev=>{
 		ev.stopPropagation();
+		if(!canModifyAssignments()) return;
 		removePersonPill(cell, personId);
 	});
 
@@ -1623,6 +1795,10 @@ function removePersonPill(cell,personId){
 }
 
 function onDragStart(ev){
+	if(!canModifyAssignments()){
+		ev.preventDefault();
+		return;
+	}
 	const pill=ev.target.closest('.person-pill');
 	if(pill) killPillTooltip(pill);
 	draggingPersonId=parseInt(ev.target.dataset.personId,10);
@@ -2024,7 +2200,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncCoordAutoLogoutInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
@@ -2509,9 +2685,12 @@ function editTraining(personId){
 }
 
 
-function showCoordLogin(){
+function showCoordLogin({onSuccess}={}){
 	const saved=sessionStorage.getItem('planning.coord');
-	if(saved==='ok') return;
+	if(saved==='ok'){
+		if(typeof onSuccess==='function') onSuccess();
+		return;
+	}
 
 	const el=document.getElementById('coordModal');
 	const pwdEl=document.getElementById('coordPwd');
@@ -2521,23 +2700,31 @@ function showCoordLogin(){
 	// Hard-lock the modal (no backdrop/Esc close)
 	const m=new bootstrap.Modal(el,{backdrop:'static',keyboard:false});
 
-	// Prevent close unless logged in
-	el.addEventListener('hide.bs.modal', ev=>{
+	// Prevent close unless logged in (bind once per open by replacing previous handler)
+	if(el._coordHideHandler){
+		el.removeEventListener('hide.bs.modal', el._coordHideHandler);
+	}
+	el._coordHideHandler=(ev)=>{
 		if(sessionStorage.getItem('planning.coord')!=='ok'){
 			ev.preventDefault();
 			if(typeof showToast==='function'){
 				showToast('info','Inloggning krävs','Du måste logga in för att fortsätta.');
 			}
 		}
-	});
+	};
+	el.addEventListener('hide.bs.modal', el._coordHideHandler);
 
 	// Clear invalid state when typing
-	pwdEl.addEventListener('input', ()=>{
+	pwdEl.oninput=()=>{
 		pwdEl.classList.remove('is-invalid');
-	});
+	};
 
 	// Focus when shown
-	el.addEventListener('shown.bs.modal', ()=>pwdEl.focus());
+	if(el._coordShownHandler){
+		el.removeEventListener('shown.bs.modal', el._coordShownHandler);
+	}
+	el._coordShownHandler=()=>pwdEl.focus();
+	el.addEventListener('shown.bs.modal', el._coordShownHandler);
 
 	// Pretty error feedback
 	function showPrettyError(msg){
@@ -2559,23 +2746,30 @@ function showCoordLogin(){
 
 	// Submit handler (button + Enter)
 	async function doLogin(){
+		if(btn.disabled) return;
+		btn.disabled=true;
 		const pwd=pwdEl.value;
-		const ok=await verifyPassword(pwd);
-		if(ok){
-			sessionStorage.setItem('planning.coord','ok');
-			m.hide();
-		}else{
-			showPrettyError('Fel lösenord');
+		try{
+			const ok=await verifyPassword(pwd);
+			if(ok){
+				sessionStorage.setItem('planning.coord','ok');
+				m.hide();
+				if(typeof onSuccess==='function') onSuccess();
+			}else{
+				showPrettyError('Fel lösenord');
+			}
+		}finally{
+			btn.disabled=false;
 		}
 	}
 
 	btn.onclick=doLogin;
-	pwdEl.addEventListener('keydown', e=>{
+	pwdEl.onkeydown=(e)=>{
 		if(e.key==='Enter'){
 			e.preventDefault();
 			doLogin();
 		}
-	});
+	};
 
 	m.show();
 }
