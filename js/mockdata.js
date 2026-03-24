@@ -1255,6 +1255,56 @@ const DB={
 	timeSlots:[],
 	assignments:[]
 };
+
+function collectForeignKeyIssues(datasetLabel, data){
+	const issues=[];
+	const personIds=new Set((data.persons||[]).map(p=>p.id));
+	const stationIds=new Set((data.stations||DB.stations||[]).map(s=>s.id));
+	const rows=(data.training||[]);
+	rows.forEach((row,index)=>{
+		if(!personIds.has(row.personId)){
+			issues.push({
+				dataset:datasetLabel,
+				type:'training.personId',
+				index,
+				personId:row.personId,
+				stationId:row.stationId
+			});
+		}
+		if(!stationIds.has(row.stationId)){
+			issues.push({
+				dataset:datasetLabel,
+				type:'training.stationId',
+				index,
+				personId:row.personId,
+				stationId:row.stationId
+			});
+		}
+	});
+	return issues;
+}
+
+function getMockDataIntegrityIssues(db=DB){
+	const issues=[...collectForeignKeyIssues('default',db)];
+	if(db.shiftData){
+		for(const [shift,shiftData] of Object.entries(db.shiftData)){
+			issues.push(...collectForeignKeyIssues(`shift:${shift}`,{
+				persons:shiftData.persons,
+				stations:db.stations,
+				training:shiftData.training
+			}));
+		}
+	}
+	return issues;
+}
+
+function reconcileTrainingForeignKeys(db=DB){
+	const personIds=new Set((db.persons||[]).map(p=>p.id));
+	const stationIds=new Set((db.stations||[]).map(s=>s.id));
+	db.training=(db.training||[]).filter(row=>personIds.has(row.personId)&&stationIds.has(row.stationId));
+}
+
+reconcileTrainingForeignKeys(DB);
 (function initShiftMockData(){
 	const clone=v=>JSON.parse(JSON.stringify(v));
 	const shifts=['day','evening','night'];
@@ -1310,4 +1360,13 @@ const DB={
 	DB.training=clone(shiftData.evening.training);
 	DB.assignments=[];
 	DB.compatibility=[];
+
+	const issues=getMockDataIntegrityIssues(DB);
+	if(issues.length){
+		console.warn('[mockdata] integrity issues detected', issues);
+	}
 })();
+
+if(typeof module!=='undefined'&&module.exports){
+	module.exports={DB,getMockDataIntegrityIssues,reconcileTrainingForeignKeys};
+}
