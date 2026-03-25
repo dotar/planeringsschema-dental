@@ -1322,29 +1322,30 @@ function computeSummaryMetrics(){
 		byCell.set(key,arr);
 	});
 	const details=[];
-	let totals={required:0,assigned:0,missingCapacity:0,missingTrained:0,compatibilityConflicts:0,affectedCells:0};
+	let totals={required:0,assigned:0,capacityCells:0,trainingCells:0,compatibilityCells:0,affectedCells:0};
 	for(const slot of slots){
 		for(const station of stationById.values()){
 			const required=slot.type==='Work' ? (station.defaultCapacity||1) : 0;
 			const people=(byCell.get(`${station.id}:${slot.id}`)||[]);
 			const assigned=people.length;
-			const trainedAssigned=people.filter(pid=>isPersonTrainedForStation(pid, station.id)).length;
-			const missingCapacity=Math.max(0, required-assigned);
-			const missingTrained=Math.max(0, required-trainedAssigned);
+			const untrainedAssigned=people.filter(pid=>!isPersonTrainedForStation(pid, station.id)).length;
 			let conflicts=0;
 			for(let i=0;i<people.length;i++){
 				for(let j=i+1;j<people.length;j++){
 					if(isIncompatible(people[i], people[j])) conflicts++;
 				}
 			}
-			const hasIssue=missingCapacity>0||missingTrained>0||conflicts>0;
-			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,missingCapacity,missingTrained,compatibilityConflicts:conflicts,hasIssue};
+			const capacityIssue=assigned!==required;
+			const trainingIssue=assigned>0 && untrainedAssigned>0;
+			const compatibilityIssue=conflicts>0;
+			const hasIssue=capacityIssue||trainingIssue||compatibilityIssue;
+			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,untrainedAssigned,compatibilityConflicts:conflicts,capacityIssue,trainingIssue,compatibilityIssue,hasIssue};
 			details.push(row);
 			if(!hasIssue) continue;
 			totals.affectedCells++;
-			totals.missingCapacity+=missingCapacity;
-			totals.missingTrained+=missingTrained;
-			totals.compatibilityConflicts+=conflicts;
+			if(capacityIssue) totals.capacityCells++;
+			if(trainingIssue) totals.trainingCells++;
+			if(compatibilityIssue) totals.compatibilityCells++;
 		}
 	}
 	totals.required=details.reduce((s,x)=>s+x.required,0);
@@ -1355,9 +1356,9 @@ function computeSummaryMetrics(){
 function getSummaryMatches(metric){
 	if(!summaryData) return [];
 	return summaryData.details.filter(r=>{
-		if(metric==='capacity') return r.missingCapacity>0;
-		if(metric==='training') return r.missingTrained>0;
-		if(metric==='compatibility') return r.compatibilityConflicts>0;
+		if(metric==='capacity') return r.capacityIssue;
+		if(metric==='training') return r.trainingIssue;
+		if(metric==='compatibility') return r.compatibilityIssue;
 		return r.hasIssue;
 	});
 }
@@ -1399,13 +1400,14 @@ function renderSummaryPanel(){
 		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen - Kapacitet ${totals.assigned}/${totals.required} tilldelade.`;
 	}
 	const btns=[{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'}];
-	if(totals.missingCapacity>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.missingCapacity})`,cls:'btn-outline-danger'});
-	if(totals.missingTrained>0) btns.push({metric:'training',label:`Utbildning (${totals.missingTrained})`,cls:'btn-outline-warning'});
-	if(totals.compatibilityConflicts>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityConflicts})`,cls:'btn-outline-info'});
+	if(totals.capacityCells>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.capacityCells})`,cls:'btn-outline-danger'});
+	if(totals.trainingCells>0) btns.push({metric:'training',label:`Utbildning (${totals.trainingCells})`,cls:'btn-outline-warning'});
+	if(totals.compatibilityCells>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityCells})`,cls:'btn-outline-info'});
 	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
 	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
 		btn.addEventListener('click',()=>applySummaryFilter(btn.dataset.metric));
 	});
+	if(activeSummaryFilter!=='all' && !btns.some(b=>b.metric===activeSummaryFilter)) activeSummaryFilter='all';
 	applySummaryFilter(activeSummaryFilter);
 }
 
