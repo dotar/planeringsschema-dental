@@ -290,6 +290,21 @@ html[data-mode="viewer"] .mode-badge:hover{
 	transform:translateY(0) scale(1);
 	animation:viewer-update-pop 2.8s ease;
 }
+
+.summary-warning{
+	border-color:color-mix(in srgb, var(--bs-warning) 45%, var(--bs-border-color));
+	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .17) 70%, var(--bs-body-bg) 30%);
+}
+.summary-filter-btn{
+	--bs-btn-padding-y:.15rem;
+	--bs-btn-padding-x:.5rem;
+	--bs-btn-font-size:.74rem;
+}
+.cell.summary-highlight{
+	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
+	outline-offset:-3px;
+	box-shadow:inset 0 0 0 3px color-mix(in srgb, var(--bs-info) 20%, transparent), inset 0 0 0 1px var(--bs-border-color);
+}
 @keyframes viewer-update-pop{
 	0%{ transform:translateY(-6px) scale(.92); }
 	18%{ transform:translateY(0) scale(1.04); }
