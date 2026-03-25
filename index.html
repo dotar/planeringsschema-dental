@@ -179,21 +179,25 @@
 											<div class="general-group">
 												<div class="general-group-title"><i class="bi bi-eye me-2"></i>Viewer – visning & automation</div>
 												<div class="row g-3 align-items-start">
-													<div class="col-md-6 general-setting-item">
-														<label for="idleResetMinutes" class="form-label mb-1">Återställ viewer-läget till aktuell visning efter inaktivitet</label>
-														<div class="input-group input-group-sm">
-															<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
-															<span class="input-group-text">minuter</span>
+													<div class="col-md-6">
+														<div class="general-setting-item">
+															<label for="idleResetMinutes" class="form-label mb-1">Återställ viewer-läget till aktuell visning efter inaktivitet</label>
+															<div class="input-group input-group-sm">
+																<input id="idleResetMinutes" type="number" class="form-control" min="0" step="1">
+																<span class="input-group-text">minuter</span>
+															</div>
+															<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
 														</div>
-														<div class="form-text">Gäller bara i Viewer-läge: efter vald tid återställs vyn till dagens datum och det skift som gäller just nu. Ange 0 för att stänga av.</div>
 													</div>
-													<div class="col-md-6 general-setting-item">
-														<label for="viewerShiftLeadMinutes" class="form-label mb-1">Byt automatiskt till nästa skift i viewer-läge</label>
-														<div class="input-group input-group-sm">
-															<input id="viewerShiftLeadMinutes" type="number" class="form-control" min="0" step="1">
-															<span class="input-group-text">minuter före</span>
+													<div class="col-md-6">
+														<div class="general-setting-item">
+															<label for="viewerShiftLeadMinutes" class="form-label mb-1">Byt automatiskt till nästa skift i viewer-läge</label>
+															<div class="input-group input-group-sm">
+																<input id="viewerShiftLeadMinutes" type="number" class="form-control" min="0" step="1">
+																<span class="input-group-text">minuter före</span>
+															</div>
+															<div class="form-text">Gäller bara i Viewer-läge och när dagens datum visas. Ange hur många minuter innan skiftstart vyn ska byta till nästa skift (0 = vid skiftstart).</div>
 														</div>
-														<div class="form-text">Gäller bara i Viewer-läge och när dagens datum visas. Ange hur många minuter innan skiftstart vyn ska byta till nästa skift (0 = vid skiftstart).</div>
 													</div>
 												</div>
 											</div>
