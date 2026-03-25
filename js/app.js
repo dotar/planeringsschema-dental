@@ -1324,7 +1324,7 @@ function setupSummaryInfoPopover(){
 		'<div><strong>Alla:</strong> unika celler med minst en varning.</div>',
 		'<div><strong>Kapacitet:</strong> celler där tilldelade ≠ kapacitet.</div>',
 		'<div><strong>Utbildning:</strong> celler med tilldelad person utan utbildning.</div>',
-		'<div><strong>Kompatibilitet:</strong> celler med minst en konflikterande person-kombination.</div>',
+		'<div><strong>Kompatibilitet:</strong> byt plats på en av dessa personer.</div>',
 		'</div>'
 	].join('');
 	summaryInfoPopover=bootstrap.Popover.getOrCreateInstance(btn,{
