@@ -6,6 +6,15 @@ function parseFactoryId(v){
 	return /^\d+$/.test(s) ? parseInt(s,10) : s;
 }
 
+function parseEntityId(v){
+	const s=String(v ?? '');
+	return /^\d+$/.test(s) ? parseInt(s,10) : s;
+}
+
+function escapeDataId(id){
+	return CSS.escape(String(id));
+}
+
 function setButtonGroupValue(group, value){
 	if(!group) return;
 	group.querySelectorAll('[data-value]').forEach(btn=>{
@@ -879,14 +888,14 @@ function setStationOperational(stationId, on){
 	s.operational=!!on;
 
 	// reflect in any checkbox that represents this station (randomizer or settings)
-	document.querySelectorAll(`[data-role="station-op"][data-station-id="${stationId}"]`)
+	document.querySelectorAll(`[data-role="station-op"][data-station-id="${escapeDataId(stationId)}"]`)
 		.forEach(el=>{ el.checked=!!on; el.indeterminate=false; });
 
 	// update tri-state header in randomizer if open
 	if(s.groupId){
-		const box=document.querySelector(`.rand-station-group[data-gid="${s.groupId}"]`);
+		const box=document.querySelector(`.rand-station-group[data-gid="${escapeDataId(s.groupId)}"]`);
 		if(box){
-			const gChk=box.querySelector(`#rsg${s.groupId}`);
+			const gChk=box.querySelector(`#${CSS.escape(`rsg${s.groupId}`)}`);
 			const child=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
 			const total=child.length;
 			const onCount=child.filter(c=>c.checked).length;
@@ -900,7 +909,7 @@ function setStationOperational(stationId, on){
 document.addEventListener('change',e=>{
 	const t=e.target;
 	if(t.matches('[data-role="station-op"]')){
-		const id=parseInt(t.dataset.stationId,10);
+		const id=parseEntityId(t.dataset.stationId);
 		setStationOperational(id, t.checked);
 	}
 });
@@ -1476,7 +1485,7 @@ function buildGrid(){
 }
 
 function renderAssignments(){const dateStr=getSelectedDateStr();const all=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);for(const a of all){const cell=findCell(a.stationId,a.timeSlotId);if(cell)addPersonPill(cell,a.personId);} }
-function findCell(stationId,slotId){return document.querySelector(`.cell[data-station-id="${stationId}"][data-slot-id="${CSS.escape(String(slotId))}"]`);} 
+function findCell(stationId,slotId){return document.querySelector(`.cell[data-station-id="${escapeDataId(stationId)}"][data-slot-id="${CSS.escape(String(slotId))}"]`);} 
 
 function openAssignDropdown(cell,station,slot){
   return openAssignDropdownOverlay(cell,station,slot);
@@ -1603,7 +1612,7 @@ function openAssignDropdownOverlay(cell, station, slot){
 	sel.addEventListener('change', ()=>{
 		const opt=sel.options[sel.selectedIndex];
 		if(opt && !opt.disabled){
-			const pid=parseInt(opt.value,10);
+			const pid=parseEntityId(opt.value);
 			if(pid) movePersonTo(cell, station, slot, pid);
 			cleanup();
 		}
@@ -1712,7 +1721,7 @@ function movePersonTo(cell, station, slot, personId){
 		!(a.date===dateStr && a.personId===personId && a.timeSlotId===slot.id && a.dayType===currentDayType)
 	);
 	document.querySelectorAll(
-		`.cell[data-slot-id="${CSS.escape(String(slot.id))}"] .person-pill[data-person-id="${personId}"]`
+		`.cell[data-slot-id="${CSS.escape(String(slot.id))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
 	).forEach(el => { if(typeof killPillTooltip==='function') killPillTooltip(el); el.remove(); });
 
 	// Enable per-move warning toasts
@@ -1752,7 +1761,7 @@ function addPersonPill(cell, personId){
 	}
 
 	// If placed at a station where p is NOT trained, mark + tooltip
-	const stationId = parseInt(cell.dataset.stationId, 10);
+	const stationId = parseEntityId(cell.dataset.stationId);
 	const trainedHere = isPersonTrainedForStation(personId, stationId);
 	if(!trainedHere){
 
@@ -1784,13 +1793,13 @@ function addPersonPill(cell, personId){
 
 
 function removePersonPill(cell,personId){
-	const pill=cell.querySelector(`.person-pill[data-person-id="${personId}"]`);
+	const pill=cell.querySelector(`.person-pill[data-person-id="${escapeDataId(personId)}"]`);
 	if(pill) killPillTooltip(pill);
 	const dateStr=getSelectedDateStr();
 	const slotId=cell.dataset.slotId;
-	const stationId=parseInt(cell.dataset.stationId,10);
+	const stationId=parseEntityId(cell.dataset.stationId);
 	DB.assignments=DB.assignments.filter(a=>!(a.date===dateStr&&a.timeSlotId===slotId&&a.stationId===stationId&&a.personId===personId&&a.dayType===currentDayType));
-	cell.querySelector(`[data-person-id="${personId}"]`)?.remove();
+	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
 	if(mode==='edit')validateBoard();
 }
 
@@ -1801,7 +1810,7 @@ function onDragStart(ev){
 	}
 	const pill=ev.target.closest('.person-pill');
 	if(pill) killPillTooltip(pill);
-	draggingPersonId=parseInt(ev.target.dataset.personId,10);
+	draggingPersonId=parseEntityId(ev.target.dataset.personId);
 	ev.dataTransfer.setData('text/plain',ev.target.dataset.personId);
 	ev.dataTransfer.effectAllowed='move';
 }
@@ -1812,7 +1821,7 @@ function onDragEnd(){
 		.forEach(cell => cell.classList.remove('drop-ok', 'drop-bad', 'drop-training'));
 }
 
-function onDropPerson(ev,cell,station,slot){ev.preventDefault();ev.stopPropagation();cell.classList.remove('drop-ok','drop-bad','drop-training');const personId=parseInt(ev.dataTransfer.getData('text/plain'),10);movePersonTo(cell,station,slot,personId);draggingPersonId=null;}
+function onDropPerson(ev,cell,station,slot){ev.preventDefault();ev.stopPropagation();cell.classList.remove('drop-ok','drop-bad','drop-training');const personId=parseEntityId(ev.dataTransfer.getData('text/plain'));movePersonTo(cell,station,slot,personId);draggingPersonId=null;}
 
 function validateBoard(){
 	const _prevCellStates=beginCellValidation();
@@ -1871,7 +1880,7 @@ function validateBoard(){
 
 	// 4) Capacity
 	document.querySelectorAll('.cell[data-station-id]').forEach(c=>{
-		const station=DB.stations.find(s=>s.id===parseInt(c.dataset.stationId,10));
+		const station=DB.stations.find(s=>String(s.id)===String(parseEntityId(c.dataset.stationId)));
 		const count=c.querySelectorAll('.person-pill').length;
 		if(count>(station.defaultCapacity||1)) markCellInvalid(station.id,c.dataset.slotId,'Över kapacitet.', 'Kapacitet');
 	});
@@ -1883,8 +1892,8 @@ function validateBoard(){
 			const slot=DB.timeSlots.find(ts=>String(ts.id)===c.dataset.slotId);
 			if(timeLess(slot.start,cutoff)){
 				c.querySelectorAll('.person-pill').forEach(pp=>{
-					const p=getPlanningPersonById(parseInt(pp.dataset.personId,10));
-					if(p && currentShift==='night' && p.isNight) markCellInvalid(parseInt(c.dataset.stationId,10),c.dataset.slotId,'Nattpersonal får ej bokas före cutoff.', 'Ej tillåten tid');
+					const p=getPlanningPersonById(parseEntityId(pp.dataset.personId));
+					if(p && currentShift==='night' && p.isNight) markCellInvalid(parseEntityId(c.dataset.stationId),c.dataset.slotId,'Nattpersonal får ej bokas före cutoff.', 'Ej tillåten tid');
 				});
 			}
 		});
@@ -1898,7 +1907,7 @@ function cellKey(stationId, slotId){ return `${stationId}:${slotId}` }
 
 function getCellByKey(key){
 	const [sid,slot]=key.split(':')
-	return findCell(parseInt(sid,10), slot)
+	return findCell(parseEntityId(sid), slot)
 }
 
 function beginCellValidation(){
@@ -1907,7 +1916,7 @@ function beginCellValidation(){
 
 	const prev = new Map();
 	document.querySelectorAll('.cell').forEach(c=>{
-		const sid = parseInt(c.dataset.stationId, 10);
+		const sid = parseEntityId(c.dataset.stationId);
 		const slot = c.dataset.slotId || c.getAttribute('data-slot-id');
 		if(!sid || !slot) return;
 		const key = `${sid}:${slot}`;
@@ -1982,7 +1991,7 @@ function applyCellValidationDiff(prev){
 
 function markCellWarn(stationId, slotId, msg){
 	if(_inValidation){ queueCellWarn(stationId, slotId, msg); return; }
-	const cell = findCell(parseInt(stationId,10), slotId);
+	const cell = findCell(parseEntityId(stationId), slotId);
 	if(!cell) return;
 	_appendCellTooltip(cell, msg);
 	const prevTag = _stateTag(cell.classList.contains('warn'), cell.classList.contains('invalid'));
@@ -1990,7 +1999,7 @@ function markCellWarn(stationId, slotId, msg){
 }
 function markCellInvalid(stationId, slotId, msg){
 	if(_inValidation){ queueCellInvalid(stationId, slotId, msg); return; }
-	const cell = findCell(parseInt(stationId,10), slotId);
+	const cell = findCell(parseEntityId(stationId), slotId);
 	if(!cell) return;
 	_appendCellTooltip(cell, msg);
 	const prevTag = _stateTag(cell.classList.contains('warn'), cell.classList.contains('invalid'));
@@ -2089,7 +2098,7 @@ function openRandomizer(){
 			const on=gChk.checked;
 			const childs=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
 			childs.forEach(c=>{
-				const sid=parseInt(c.dataset.stationId,10);
+				const sid=parseEntityId(c.dataset.stationId);
 				setStationOperational(sid, on); // updates DB + both UIs
 			});
 		});
@@ -2107,12 +2116,12 @@ function openRandomizer(){
 function runRandomizer(){
 	// groups -> PEOPLE POOL
 	const selectedGroupIds = new Set(
-		[...document.querySelectorAll('#randGroups input:checked')].map(i => parseInt(i.value, 10))
+		[...document.querySelectorAll('#randGroups input:checked')].map(i => parseEntityId(i.value))
 	);
 
 	// stations to fill
 	const selectedStationIds = new Set(
-		[...document.querySelectorAll('#randStations input[id^="rs"]:checked')].map(i => parseInt(i.value, 10))
+		[...document.querySelectorAll('#randStations input[id^="rs"]:checked')].map(i => parseEntityId(i.value))
 	);
 
 	// avoid consecutive toggle (persist)
@@ -2295,13 +2304,13 @@ function renderPersonGroups(){
 	// bindings
 	wrap.querySelectorAll('input[data-bind], select[data-bind]').forEach(el=>{
 		el.addEventListener('change', ()=>{
-			const id = parseInt(el.dataset.id,10);
+			const id = parseEntityId(el.dataset.id);
 			const p = DB.persons.find(x=>x.id===id);
 			if(!p) return;
 			if(el.dataset.bind==='name') p.name = el.value.trim();
 			if(el.dataset.bind==='present') p.present = el.checked;
 			if(el.dataset.bind==='groupId'){
-				const newG = parseInt(el.value,10);
+				const newG = parseEntityId(el.value);
 				if(p.groupId!==newG){
 					p.groupId = newG;
 					const maxSort = Math.max(0, ...DB.persons
@@ -2314,25 +2323,25 @@ function renderPersonGroups(){
 		});
 	});
 	wrap.querySelectorAll('button[data-action="training"]').forEach(b=>
-		b.addEventListener('click',()=>editTraining(parseInt(b.dataset.id,10)))
+		b.addEventListener('click',()=>editTraining(parseEntityId(b.dataset.id)))
 	);
 	wrap.querySelectorAll('button[data-action="del"]').forEach(b=>
 		b.addEventListener('click',()=>{
-			const id = parseInt(b.dataset.id,10);
+			const id = parseEntityId(b.dataset.id);
 			DB.persons = DB.persons.filter(p=>p.id!==id);
 			renderPersonGroups(); rebuildAll();
 		})
 	);
 	wrap.querySelectorAll('button[data-action="add"]').forEach(b=>
 		b.addEventListener('click',()=>{
-			const gid = parseInt(b.dataset.group,10);
+			const gid = parseEntityId(b.dataset.group);
 			const id  = newId();
 			const maxSort = Math.max(0, ...DB.persons
 				.filter(x=>x.factoryId===currentFactoryId && x.groupId===gid && typeof x.sort==='number')
 				.map(x=>x.sort||0));
 			DB.persons.push({ id, name:'Ny', factoryId:currentFactoryId, groupId:gid, isNight:(currentShift==='night'), present:true, sort:maxSort+1 });
 			renderPersonGroups();
-			const inp = document.querySelector(`input[data-bind="name"][data-id="${id}"]`);
+			const inp = document.querySelector(`input[data-bind="name"][data-id="${escapeDataId(id)}"]`);
 			if(inp){ inp.focus(); inp.select(); }
 		})
 	);
@@ -2361,12 +2370,12 @@ function renderGroupTable(){
 		tb.appendChild(tr);
 	}
 	enableRowDragKeys(tb,(orderKeys)=>{
-		DB.groupDisplayOrder[currentFactoryId]=orderKeys.map(k=>k==='resurs'?'resurs':parseInt(k,10));
+		DB.groupDisplayOrder[currentFactoryId]=orderKeys.map(k=>k==='resurs'?'resurs':parseEntityId(k));
 		renderGroupTable();renderStationsByGroup();rebuildAll();
 	});
 	tb.querySelectorAll('input[data-bind]').forEach(el=>{
 		el.addEventListener('change',()=>{
-			const id=parseInt(el.dataset.id,10);
+			const id=parseEntityId(el.dataset.id);
 			const g=DB.groups.find(x=>x.id===id);
 			if(el.dataset.bind==='title') g.title=el.value.trim();
 			if(el.dataset.bind==='color') g.color=el.value;
@@ -2380,11 +2389,11 @@ function renderGroupTable(){
 		const cur=DB.groupDisplayOrder[currentFactoryId]||[];
 		DB.groupDisplayOrder[currentFactoryId]=[...cur,id];
 		renderGroupTable();renderStationsByGroup();rebuildAll();
-		const inp=document.querySelector(`input[data-bind="title"][data-id="${id}"]`);
+		const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 		if(inp){inp.focus();inp.select();}
 	};
 	tb.querySelectorAll('button.btn-outline-danger').forEach(b => b.addEventListener('click', async () => {
-		const id = parseInt(b.dataset.id, 10);
+		const id = parseEntityId(b.dataset.id);
 		const g = DB.groups.find(x => x.id === id);
 
 		// what will be removed
@@ -2478,7 +2487,7 @@ function renderStationsByGroup(){
 
 		tb.querySelectorAll('input[data-bind]').forEach(el=>{
 			el.addEventListener('change',()=>{
-				const id=parseInt(el.dataset.id,10);
+				const id=parseEntityId(el.dataset.id);
 				const s=DB.stations.find(x=>x.id===id);
 				if(el.dataset.bind==='title') s.title=el.value.trim();
 				if(el.dataset.bind==='defcap') s.defaultCapacity=parseInt(el.value,10)||1;
@@ -2491,11 +2500,11 @@ function renderStationsByGroup(){
 			const id=newId();
 			DB.stations.push({id,factoryId:currentFactoryId,groupId:isRes?null:tok,title:'Ny station',defaultCapacity:1,operational:true,sort:99,isResurs:isRes});
 			renderStationsByGroup();rebuildAll();
-			const inp=document.querySelector(`input[data-bind="title"][data-id="${id}"]`);
+			const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 			if(inp){inp.focus();inp.select();}
 		});
 		card.querySelectorAll('button.btn-outline-danger').forEach(b=>b.addEventListener('click',async()=>{
-			const id=parseInt(b.dataset.id,10);
+			const id=parseEntityId(b.dataset.id);
 			const s=DB.stations.find(x=>x.id===id);
 			const ok=await showConfirm({
 				title:'Ta bort station',
@@ -2546,7 +2555,7 @@ function renderSlotEditor(){
 			const id=`${currentFactoryId}-${dt}-${Date.now()}`;
 			DB.timeSlots.push({id,factoryId:currentFactoryId,dayType:dt,start:'00:00',end:'',type:'Work',sort:99});
 			renderSlotEditor();rebuildAll();
-			const inp=document.querySelector(`input[data-bind="start"][data-id="${id}"]`);
+			const inp=document.querySelector(`input[data-bind="start"][data-id="${escapeDataId(id)}"]`);
 			if(inp){inp.focus();inp.select();}
 		});
 		wrap.appendChild(div);
@@ -2598,7 +2607,10 @@ function renderConstraintTable(){
 		const rows=[...tb.querySelectorAll('tr')];
 		DB.compatibility=rows.map(r=>{
 			const s=r.querySelectorAll('select');
-			return {a:parseInt(s[0].value||'0',10)||null,b:parseInt(s[1].value||'0',10)||null};
+			return {
+				a:s[0].value ? parseEntityId(s[0].value) : null,
+				b:s[1].value ? parseEntityId(s[1].value) : null
+			};
 		});
 	}));
 	tb.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',async()=>{
@@ -2670,7 +2682,7 @@ function editTraining(personId){
 	dlg.querySelector('.btn-primary').addEventListener('click', () => {
 		DB.training = DB.training.filter(t => t.personId !== personId);
 		dlg.querySelectorAll('input[type="checkbox"]').forEach(ch => {
-			if(ch.checked) DB.training.push({ personId, stationId: parseInt(ch.dataset.stationId, 10) });
+			if(ch.checked) DB.training.push({ personId, stationId: parseEntityId(ch.dataset.stationId) });
 		});
 		m.hide();
 		dlg.addEventListener('hidden.bs.modal', () => dlg.remove());
@@ -2881,7 +2893,36 @@ function groupTitle(groupId){return(DB.groups.find(g=>g.id===groupId)||{}).title
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
 function cellDiv(cls){const d=document.createElement('div');d.className=cls;return d;}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
-function newId(){return Math.floor(Math.random()*1e9);}
+let _idCounter=0;
+let _lastIdTs=0;
+function newId(){
+	const existing=new Set([
+		...DB.persons.map(x=>String(x.id)),
+		...DB.groups.map(x=>String(x.id)),
+		...DB.stations.map(x=>String(x.id)),
+		...DB.timeSlots.map(x=>String(x.id))
+	]);
+
+	if(typeof crypto!=='undefined' && typeof crypto.randomUUID==='function'){
+		for(let i=0;i<5;i++){
+			const candidate=crypto.randomUUID();
+			if(!existing.has(candidate)) return candidate;
+		}
+	}
+
+	const now=Date.now();
+	if(now===_lastIdTs) _idCounter+=1;
+	else{
+		_lastIdTs=now;
+		_idCounter=0;
+	}
+	let candidate=`id-${now.toString(36)}-${_idCounter.toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+	while(existing.has(candidate)){
+		_idCounter+=1;
+		candidate=`id-${now.toString(36)}-${_idCounter.toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+	}
+	return candidate;
+}
 function groupBy(arr,key){const m={};for(const it of arr){const k=it[key];if(!m[k])m[k]=[];m[k].push(it);}return m;}
 function groupArray(arr,keyFn){const m=new Map();for(const it of arr){const k=keyFn(it);const s=m.get(k)||[];s.push(it);m.set(k,s);}return m;}
 function timeLess(hm,hm2){return hm.localeCompare(hm2)<0;}
