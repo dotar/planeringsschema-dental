@@ -295,9 +295,6 @@ html[data-mode="viewer"] .mode-badge:hover{
 	border-color:color-mix(in srgb, var(--bs-warning) 45%, var(--bs-border-color));
 	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .17) 70%, var(--bs-body-bg) 30%);
 }
-.summary-slot-select{
-	width:220px;
-}
 .summary-filter-btn{
 	--bs-btn-padding-y:.15rem;
 	--bs-btn-padding-x:.5rem;

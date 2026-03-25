@@ -1322,7 +1322,6 @@ function computeSummaryMetrics(){
 		byCell.set(key,arr);
 	});
 	const details=[];
-	const slotRollup=new Map();
 	let totals={required:0,assigned:0,missingCapacity:0,missingTrained:0,compatibilityConflicts:0,affectedCells:0};
 	for(const slot of slots){
 		for(const station of stationById.values()){
@@ -1342,9 +1341,6 @@ function computeSummaryMetrics(){
 			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,missingCapacity,missingTrained,compatibilityConflicts:conflicts,hasIssue};
 			details.push(row);
 			if(!hasIssue) continue;
-			const slotItem=slotRollup.get(row.slotId)||{slotId:row.slotId,slotLabel:row.slotLabel,issues:0};
-			slotItem.issues++;
-			slotRollup.set(row.slotId,slotItem);
 			totals.affectedCells++;
 			totals.missingCapacity+=missingCapacity;
 			totals.missingTrained+=missingTrained;
@@ -1353,7 +1349,7 @@ function computeSummaryMetrics(){
 	}
 	totals.required=details.reduce((s,x)=>s+x.required,0);
 	totals.assigned=details.reduce((s,x)=>s+x.assigned,0);
-	return {details,totals,slotIssues:[...slotRollup.values()].sort((a,b)=>a.slotLabel.localeCompare(b.slotLabel))};
+	return {details,totals};
 }
 
 function getSummaryMatches(metric){
@@ -1380,30 +1376,6 @@ function applySummaryFilter(metric='all'){
 	});
 }
 
-function jumpToSummarySlot(slotId){
-	if(!slotId) return;
-	const target=document.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`) ||
-		document.querySelector(`.cell[data-slot-id="${CSS.escape(String(slotId))}"]`);
-	if(!target) return;
-	target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
-}
-
-function exportSummary(){
-	if(!summaryData) return;
-	const header=['slotId','slotLabel','stationId','stationTitle','required','assigned','missingCapacity','missingTrained','compatibilityConflicts'];
-	const rows=summaryData.details.filter(r=>r.hasIssue);
-	const csv=[header.join(',')].concat(rows.map(r=>header.map(k=>`"${String(r[k]??'').replaceAll('"','""')}"`).join(','))).join('\n');
-	const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-	const url=URL.createObjectURL(blob);
-	const a=document.createElement('a');
-	a.href=url;
-	a.download=`summary-${getSelectedDateStr()}-${currentShift}.csv`;
-	document.body.appendChild(a);
-	a.click();
-	a.remove();
-	URL.revokeObjectURL(url);
-}
-
 function renderSummaryPanel(){
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
@@ -1411,45 +1383,29 @@ function renderSummaryPanel(){
 	if(mode!=='edit'){
 		warnBox.classList.add('d-none');
 		clearSummaryHighlights();
-		const modalEl=document.getElementById('summaryModal');
-		const modal=modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
-		if(modal) modal.hide();
 		return;
 	}
 	summaryData=computeSummaryMetrics();
 	const filterBar=document.getElementById('summaryFilterBar');
-	const slotSel=document.getElementById('summarySlotSelect');
-	const exportBtn=document.getElementById('summaryExportBtn');
-	const jumpBtn=document.getElementById('summaryJumpBtn');
-	const totalsEl=document.getElementById('summaryTotals');
 	const totals=summaryData.totals;
 	if(totals.affectedCells===0){
 		warnBox.classList.add('d-none');
 		clearSummaryHighlights();
-		const modalEl=document.getElementById('summaryModal');
-		const modal=modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
-		if(modal) modal.hide();
 		return;
 	}
 	warnBox.classList.remove('d-none');
 	if(warnText){
 		const unit=totals.affectedCells===1?'varning':'varningar';
-		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen – öppna detaljer för filter, hopp och export.`;
+		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen - Kapacitet ${totals.assigned}/${totals.required} tilldelade.`;
 	}
-	if(totalsEl) totalsEl.textContent=`Kapacitet ${totals.assigned}/${totals.required} tilldelade`;
-	const btns=[
-		{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'},
-		{metric:'capacity',label:`Kapacitet (${totals.missingCapacity})`,cls:'btn-outline-danger'},
-		{metric:'training',label:`Utbildning (${totals.missingTrained})`,cls:'btn-outline-warning'},
-		{metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityConflicts})`,cls:'btn-outline-info'}
-	];
+	const btns=[{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'}];
+	if(totals.missingCapacity>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.missingCapacity})`,cls:'btn-outline-danger'});
+	if(totals.missingTrained>0) btns.push({metric:'training',label:`Utbildning (${totals.missingTrained})`,cls:'btn-outline-warning'});
+	if(totals.compatibilityConflicts>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityConflicts})`,cls:'btn-outline-info'});
 	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
 	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
 		btn.addEventListener('click',()=>applySummaryFilter(btn.dataset.metric));
 	});
-	slotSel.innerHTML=summaryData.slotIssues.map(s=>`<option value="${s.slotId}">${s.slotLabel} (${s.issues})</option>`).join('');
-	jumpBtn.onclick=()=>jumpToSummarySlot(slotSel.value);
-	exportBtn.onclick=exportSummary;
 	applySummaryFilter(activeSummaryFilter);
 }
 
