@@ -177,7 +177,7 @@
 									<div class="card-body py-3">
 										<div class="vstack gap-3">
 											<div class="general-group">
-												<div class="general-group-title"><i class="bi bi-eye me-2"></i>Viewer – visning & automation</div>
+												<div class="general-group-title"><i class="bi bi-eye me-2"></i>Viewer-läge</div>
 												<div class="row g-3 align-items-start">
 													<div class="col-md-6">
 														<div class="general-setting-item">
@@ -200,27 +200,30 @@
 														</div>
 													</div>
 												</div>
-											</div>
-											<div class="general-group">
-												<div class="general-group-title"><i class="bi bi-unlock me-2"></i>Viewer – redigeringsrättigheter</div>
-												<div class="general-setting-item">
-													<div class="form-check mt-1">
-														<input id="viewerCanEditAssignments" class="form-check-input" type="checkbox">
-														<label class="form-check-label" for="viewerCanEditAssignments">Tillåt att lägga till/flytta personer i Viewer-läge</label>
+												<div class="row g-3 align-items-start">
+													<div class="col-md-6">
+														<div class="general-setting-item">
+															<div class="form-check mt-1">
+																<input id="viewerCanEditAssignments" class="form-check-input" type="checkbox">
+																<label class="form-check-label" for="viewerCanEditAssignments">Tillåt att lägga till/flytta personer i Viewer-läge</label>
+															</div>
+															<div class="form-text">När avstängt kan Viewer bara läsa planeringen. När påslaget kan personer läggas till, flyttas och tas bort utan koordinatorinloggning.</div>
+														</div>
 													</div>
-													<div class="form-text">När avstängt kan Viewer bara läsa planeringen. När påslaget kan personer läggas till, flyttas och tas bort utan koordinatorinloggning.</div>
 												</div>
 											</div>
 											<div class="general-group">
-												<div class="general-group-title"><i class="bi bi-shield-lock me-2"></i>Koordinator – säkerhet</div>
+												<div class="general-group-title"><i class="bi bi-shield-lock me-2"></i>Koordinator-läge</div>
 												<div class="row g-3 align-items-start">
 													<div class="col-md-6 general-setting-item">
-														<label for="coordAutoLogoutMinutes" class="form-label mb-1">Logga ut koordinatorläge efter inaktivitet</label>
-														<div class="input-group input-group-sm">
-															<input id="coordAutoLogoutMinutes" type="number" class="form-control" min="0" step="1">
-															<span class="input-group-text">minuter</span>
+														<div class="general-setting-item">
+															<label for="coordAutoLogoutMinutes" class="form-label mb-1">Logga ut koordinatorläge efter inaktivitet</label>
+															<div class="input-group input-group-sm">
+																<input id="coordAutoLogoutMinutes" type="number" class="form-control" min="0" step="1">
+																<span class="input-group-text">minuter</span>
+															</div>
+															<div class="form-text">Gäller bara i Koordinatorläge. Efter vald tid utan aktivitet loggas användaren ut till Viewer-läge. Ange 0 för att stänga av.</div>
 														</div>
-														<div class="form-text">Gäller bara i Koordinatorläge. Efter vald tid utan aktivitet loggas användaren ut till Viewer-läge. Ange 0 för att stänga av.</div>
 													</div>
 												</div>
 											</div>
