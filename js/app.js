@@ -1,5 +1,6 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
+let summaryData=null,activeSummaryFilter='all';
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -1294,7 +1295,163 @@ function getNormalizedGroupOrder(factoryId){
 
 function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
 
-function rebuildAll(){buildGrid();setupTooltips();fitToViewport();window.addEventListener('resize', fitToViewport);}
+function rebuildAll(){
+	buildGrid();
+	setupTooltips();
+	fitToViewport();
+	renderSummaryPanel();
+	window.addEventListener('resize', fitToViewport);
+}
+
+function clearSummaryHighlights(){
+	document.querySelectorAll('.cell.summary-highlight').forEach(c=>c.classList.remove('summary-highlight'));
+}
+
+function computeSummaryMetrics(){
+	const dateStr=getSelectedDateStr();
+	const slots=DB.timeSlots
+		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType)
+		.sort((a,b)=>a.sort-b.sort);
+	const stationById=new Map(DB.stations.filter(s=>s.factoryId===currentFactoryId).map(s=>[String(s.id),s]));
+	const rows=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
+	const byCell=new Map();
+	rows.forEach(a=>{
+		const key=`${a.stationId}:${a.timeSlotId}`;
+		const arr=byCell.get(key)||[];
+		arr.push(a.personId);
+		byCell.set(key,arr);
+	});
+	const details=[];
+	const slotRollup=new Map();
+	let totals={required:0,assigned:0,missingCapacity:0,missingTrained:0,compatibilityConflicts:0,affectedCells:0};
+	for(const slot of slots){
+		for(const station of stationById.values()){
+			const required=slot.type==='Work' ? (station.defaultCapacity||1) : 0;
+			const people=(byCell.get(`${station.id}:${slot.id}`)||[]);
+			const assigned=people.length;
+			const trainedAssigned=people.filter(pid=>isPersonTrainedForStation(pid, station.id)).length;
+			const missingCapacity=Math.max(0, required-assigned);
+			const missingTrained=Math.max(0, required-trainedAssigned);
+			let conflicts=0;
+			for(let i=0;i<people.length;i++){
+				for(let j=i+1;j<people.length;j++){
+					if(isIncompatible(people[i], people[j])) conflicts++;
+				}
+			}
+			const hasIssue=missingCapacity>0||missingTrained>0||conflicts>0;
+			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,missingCapacity,missingTrained,compatibilityConflicts:conflicts,hasIssue};
+			details.push(row);
+			if(!hasIssue) continue;
+			const slotItem=slotRollup.get(row.slotId)||{slotId:row.slotId,slotLabel:row.slotLabel,issues:0};
+			slotItem.issues++;
+			slotRollup.set(row.slotId,slotItem);
+			totals.affectedCells++;
+			totals.missingCapacity+=missingCapacity;
+			totals.missingTrained+=missingTrained;
+			totals.compatibilityConflicts+=conflicts;
+		}
+	}
+	totals.required=details.reduce((s,x)=>s+x.required,0);
+	totals.assigned=details.reduce((s,x)=>s+x.assigned,0);
+	return {details,totals,slotIssues:[...slotRollup.values()].sort((a,b)=>a.slotLabel.localeCompare(b.slotLabel))};
+}
+
+function getSummaryMatches(metric){
+	if(!summaryData) return [];
+	return summaryData.details.filter(r=>{
+		if(metric==='capacity') return r.missingCapacity>0;
+		if(metric==='training') return r.missingTrained>0;
+		if(metric==='compatibility') return r.compatibilityConflicts>0;
+		return r.hasIssue;
+	});
+}
+
+function applySummaryFilter(metric='all'){
+	activeSummaryFilter=metric;
+	clearSummaryHighlights();
+	const rows=getSummaryMatches(metric);
+	rows.forEach(r=>{
+		const cell=findCell(parseEntityId(r.stationId), r.slotId);
+		if(cell) cell.classList.add('summary-highlight');
+	});
+	document.querySelectorAll('#summaryFilterBar .summary-filter-btn').forEach(btn=>{
+		const active=btn.dataset.metric===metric;
+		btn.classList.toggle('active', active);
+	});
+}
+
+function jumpToSummarySlot(slotId){
+	if(!slotId) return;
+	const target=document.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`) ||
+		document.querySelector(`.cell[data-slot-id="${CSS.escape(String(slotId))}"]`);
+	if(!target) return;
+	target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+}
+
+function exportSummary(){
+	if(!summaryData) return;
+	const header=['slotId','slotLabel','stationId','stationTitle','required','assigned','missingCapacity','missingTrained','compatibilityConflicts'];
+	const rows=summaryData.details.filter(r=>r.hasIssue);
+	const csv=[header.join(',')].concat(rows.map(r=>header.map(k=>`"${String(r[k]??'').replaceAll('"','""')}"`).join(','))).join('\n');
+	const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+	const url=URL.createObjectURL(blob);
+	const a=document.createElement('a');
+	a.href=url;
+	a.download=`summary-${getSelectedDateStr()}-${currentShift}.csv`;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	URL.revokeObjectURL(url);
+}
+
+function renderSummaryPanel(){
+	const warnBox=document.getElementById('summaryWarning');
+	const warnText=document.getElementById('summaryWarningText');
+	if(!warnBox) return;
+	if(mode!=='edit'){
+		warnBox.classList.add('d-none');
+		clearSummaryHighlights();
+		const modalEl=document.getElementById('summaryModal');
+		const modal=modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+		if(modal) modal.hide();
+		return;
+	}
+	summaryData=computeSummaryMetrics();
+	const filterBar=document.getElementById('summaryFilterBar');
+	const slotSel=document.getElementById('summarySlotSelect');
+	const exportBtn=document.getElementById('summaryExportBtn');
+	const jumpBtn=document.getElementById('summaryJumpBtn');
+	const totalsEl=document.getElementById('summaryTotals');
+	const totals=summaryData.totals;
+	if(totals.affectedCells===0){
+		warnBox.classList.add('d-none');
+		clearSummaryHighlights();
+		const modalEl=document.getElementById('summaryModal');
+		const modal=modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+		if(modal) modal.hide();
+		return;
+	}
+	warnBox.classList.remove('d-none');
+	if(warnText){
+		const unit=totals.affectedCells===1?'varning':'varningar';
+		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen – öppna detaljer för filter, hopp och export.`;
+	}
+	if(totalsEl) totalsEl.textContent=`Kapacitet ${totals.assigned}/${totals.required} tilldelade`;
+	const btns=[
+		{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'},
+		{metric:'capacity',label:`Kapacitet (${totals.missingCapacity})`,cls:'btn-outline-danger'},
+		{metric:'training',label:`Utbildning (${totals.missingTrained})`,cls:'btn-outline-warning'},
+		{metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityConflicts})`,cls:'btn-outline-info'}
+	];
+	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
+	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
+		btn.addEventListener('click',()=>applySummaryFilter(btn.dataset.metric));
+	});
+	slotSel.innerHTML=summaryData.slotIssues.map(s=>`<option value="${s.slotId}">${s.slotLabel} (${s.issues})</option>`).join('');
+	jumpBtn.onclick=()=>jumpToSummarySlot(slotSel.value);
+	exportBtn.onclick=exportSummary;
+	applySummaryFilter(activeSummaryFilter);
+}
 
 function buildGrid(){
 	const scaler=document.getElementById('gridScaler');
@@ -1383,6 +1540,7 @@ function buildGrid(){
 		const timeCell = cellDiv('cell time-cell');
 		timeCell.classList.toggle('break', slot.type === 'Break');
 		if(isLast) timeCell.classList.add('last-row');
+		timeCell.dataset.slotId=slot.id;
 		timeCell.innerHTML =
 			`<div class="slot-time">${slot.start}<br>—<br>${slot.end}</div>` +
 			`<div class="slot-kind">${slot.type === 'Break' ? 'Rast' : 'Arbete'}</div>`;
@@ -1899,6 +2057,7 @@ function validateBoard(){
 		});
 	}
 	applyCellValidationDiff(_prevCellStates);
+	renderSummaryPanel();
 
 }
 

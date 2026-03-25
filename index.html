@@ -59,6 +59,14 @@
 		<div id="app" class="container-fluid">
 			<div id="suggestionAlert" class="alert alert-info py-2 my-2 d-none"></div>
 			<div id="warnAlert" class="alert alert-warning py-2 my-2 d-none"></div>
+			<div id="summaryWarning" class="alert alert-warning py-2 my-2 d-none hide-in-viewer summary-warning" aria-live="polite">
+				<div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+					<div id="summaryWarningText" class="small fw-semibold"></div>
+					<button id="summaryOpenBtn" type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#summaryModal">
+						<i class="bi bi-search me-1"></i> Visa detaljer
+					</button>
+				</div>
+			</div>
 			<div id="gridArea">
 				<div class="grid-shell">
 					<div id="gridScroller">
@@ -356,6 +364,32 @@
 					<div class="modal-footer">
 						<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Avbryt</button>
 						<button class="btn btn-danger" id="confirmOkBtn">Ta bort</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Planning Summary Modal -->
+		<div class="modal fade" id="summaryModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title"><i class="bi bi-clipboard2-data me-1"></i> Planeringsvarningar</h5>
+						<button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body">
+						<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+							<div id="summaryTotals" class="small text-muted"></div>
+							<button id="summaryExportBtn" type="button" class="btn btn-sm btn-outline-secondary">
+								<i class="bi bi-download me-1"></i> Exportera
+							</button>
+						</div>
+						<div id="summaryFilterBar" class="d-flex flex-wrap gap-2 mb-3"></div>
+						<div class="d-flex flex-wrap align-items-center gap-2">
+							<label for="summarySlotSelect" class="small text-muted mb-0">Hoppa till tidsintervall:</label>
+							<select id="summarySlotSelect" class="form-select form-select-sm summary-slot-select"></select>
+							<button id="summaryJumpBtn" type="button" class="btn btn-sm btn-outline-primary">Hoppa</button>
+						</div>
 					</div>
 				</div>
 			</div>
