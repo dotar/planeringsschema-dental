@@ -59,6 +59,17 @@ Assignments can be made manually through drag-and-drop or picker overlays, and t
 
 The UI includes validation visuals for warning and invalid states, tooltip messaging on cells, and toast-based user feedback. :contentReference[oaicite:13]{index=13} :contentReference[oaicite:14]{index=14}
 
+## Definition of warning metrics (summary bar)
+
+The coordinator warning summary uses **unique grid cells** as its counting unit.
+
+- **Alla**: number of unique cells with at least one issue.
+- **Kapacitet**: cells where `assigned !== required capacity` (both under and over capacity).
+- **Utbildning**: cells that have assigned personnel and at least one assigned person is not trained for that station.
+- **Kompatibilitet**: cells with at least one incompatible person pair assigned together.
+
+The text `Kapacitet x/y tilldelade` in the summary describes total assigned capacity (`x`) versus total required capacity (`y`) across the visible planning grid.
+
 ## Running locally
 
 No build step is required.
