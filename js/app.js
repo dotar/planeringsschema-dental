@@ -1,5 +1,7 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
+let summaryData=null,activeSummaryFilter='all';
+let summaryInfoPopover=null,summaryInfoPinned=false,summaryInfoBound=false;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -1238,6 +1240,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			modeBadge.click();
 		}
 	});
+	setupSummaryInfoPopover();
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1294,7 +1297,175 @@ function getNormalizedGroupOrder(factoryId){
 
 function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
 
-function rebuildAll(){buildGrid();setupTooltips();fitToViewport();window.addEventListener('resize', fitToViewport);}
+function rebuildAll(){
+	buildGrid();
+	setupTooltips();
+	fitToViewport();
+	renderSummaryPanel();
+	window.addEventListener('resize', fitToViewport);
+}
+
+function clearSummaryHighlights(){
+	document.querySelectorAll('.cell.summary-highlight').forEach(c=>c.classList.remove('summary-highlight'));
+}
+
+function hideSummaryInfoPopover({forceUnpin=false}={}){
+	if(!summaryInfoPopover) return;
+	summaryInfoPopover.hide();
+	if(forceUnpin) summaryInfoPinned=false;
+}
+
+function setupSummaryInfoPopover(){
+	if(summaryInfoBound) return;
+	const btn=document.getElementById('summaryInfoBtn');
+	if(!btn || !window.bootstrap?.Popover) return;
+	const content=[
+		'<div class="small">',
+		'<div><strong>Alla:</strong> unika celler med minst en varning.</div>',
+		'<div><strong>Kapacitet:</strong> celler där tilldelade ≠ kapacitet.</div>',
+		'<div><strong>Utbildning:</strong> celler med tilldelad person utan utbildning.</div>',
+		'<div><strong>Kompatibilitet:</strong> celler med minst en konflikterande person-kombination.</div>',
+		'</div>'
+	].join('');
+	summaryInfoPopover=bootstrap.Popover.getOrCreateInstance(btn,{
+		trigger:'manual',
+		container:'body',
+		html:true,
+		placement:'bottom',
+		content
+	});
+	btn.addEventListener('mouseenter',()=>{
+		if(summaryInfoPinned) return;
+		summaryInfoPopover?.show();
+	});
+	btn.addEventListener('mouseleave',()=>{
+		if(summaryInfoPinned) return;
+		summaryInfoPopover?.hide();
+	});
+	btn.addEventListener('click',e=>{
+		e.preventDefault();
+		e.stopPropagation();
+		if(summaryInfoPinned){
+			hideSummaryInfoPopover({forceUnpin:true});
+			return;
+		}
+		summaryInfoPinned=true;
+		summaryInfoPopover?.show();
+	});
+	document.addEventListener('click',e=>{
+		if(!summaryInfoPinned) return;
+		const pop=document.querySelector('.popover');
+		if(btn.contains(e.target) || (pop && pop.contains(e.target))) return;
+		hideSummaryInfoPopover({forceUnpin:true});
+	});
+	summaryInfoBound=true;
+}
+
+function computeSummaryMetrics(){
+	const dateStr=getSelectedDateStr();
+	const slots=DB.timeSlots
+		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType)
+		.sort((a,b)=>a.sort-b.sort);
+	const stationById=new Map(DB.stations.filter(s=>s.factoryId===currentFactoryId).map(s=>[String(s.id),s]));
+	const rows=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
+	const byCell=new Map();
+	rows.forEach(a=>{
+		const key=`${a.stationId}:${a.timeSlotId}`;
+		const arr=byCell.get(key)||[];
+		arr.push(a.personId);
+		byCell.set(key,arr);
+	});
+	const details=[];
+	let totals={required:0,assigned:0,capacityCells:0,trainingCells:0,compatibilityCells:0,affectedCells:0};
+	for(const slot of slots){
+		for(const station of stationById.values()){
+			const required=slot.type==='Work' ? (station.defaultCapacity||1) : 0;
+			const people=(byCell.get(`${station.id}:${slot.id}`)||[]);
+			const assigned=people.length;
+			const untrainedAssigned=people.filter(pid=>!isPersonTrainedForStation(pid, station.id)).length;
+			let conflicts=0;
+			for(let i=0;i<people.length;i++){
+				for(let j=i+1;j<people.length;j++){
+					if(isIncompatible(people[i], people[j])) conflicts++;
+				}
+			}
+			const capacityIssue=assigned!==required;
+			const trainingIssue=assigned>0 && untrainedAssigned>0;
+			const compatibilityIssue=conflicts>0;
+			const hasIssue=capacityIssue||trainingIssue||compatibilityIssue;
+			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,untrainedAssigned,compatibilityConflicts:conflicts,capacityIssue,trainingIssue,compatibilityIssue,hasIssue};
+			details.push(row);
+			if(!hasIssue) continue;
+			totals.affectedCells++;
+			if(capacityIssue) totals.capacityCells++;
+			if(trainingIssue) totals.trainingCells++;
+			if(compatibilityIssue) totals.compatibilityCells++;
+		}
+	}
+	totals.required=details.reduce((s,x)=>s+x.required,0);
+	totals.assigned=details.reduce((s,x)=>s+x.assigned,0);
+	return {details,totals};
+}
+
+function getSummaryMatches(metric){
+	if(!summaryData) return [];
+	return summaryData.details.filter(r=>{
+		if(metric==='capacity') return r.capacityIssue;
+		if(metric==='training') return r.trainingIssue;
+		if(metric==='compatibility') return r.compatibilityIssue;
+		return r.hasIssue;
+	});
+}
+
+function applySummaryFilter(metric='all'){
+	activeSummaryFilter=metric;
+	clearSummaryHighlights();
+	const rows=getSummaryMatches(metric);
+	rows.forEach(r=>{
+		const cell=findCell(parseEntityId(r.stationId), r.slotId);
+		if(cell) cell.classList.add('summary-highlight');
+	});
+	document.querySelectorAll('#summaryFilterBar .summary-filter-btn').forEach(btn=>{
+		const active=btn.dataset.metric===metric;
+		btn.classList.toggle('active', active);
+	});
+}
+
+function renderSummaryPanel(){
+	const warnBox=document.getElementById('summaryWarning');
+	const warnText=document.getElementById('summaryWarningText');
+	if(!warnBox) return;
+	if(mode!=='edit'){
+		warnBox.classList.add('d-none');
+		clearSummaryHighlights();
+		hideSummaryInfoPopover({forceUnpin:true});
+		return;
+	}
+	summaryData=computeSummaryMetrics();
+	const filterBar=document.getElementById('summaryFilterBar');
+	const totals=summaryData.totals;
+	if(totals.affectedCells===0){
+		warnBox.classList.add('d-none');
+		clearSummaryHighlights();
+		hideSummaryInfoPopover({forceUnpin:true});
+		return;
+	}
+	warnBox.classList.remove('d-none');
+	if(warnText){
+		const unit=totals.affectedCells===1?'varning':'varningar';
+		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen - Kapacitet ${totals.assigned}/${totals.required} tilldelade.`;
+	}
+	const btns=[{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'}];
+	if(totals.capacityCells>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.capacityCells})`,cls:'btn-outline-danger'});
+	if(totals.trainingCells>0) btns.push({metric:'training',label:`Utbildning (${totals.trainingCells})`,cls:'btn-outline-warning'});
+	if(totals.compatibilityCells>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityCells})`,cls:'btn-outline-info'});
+	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
+	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
+		btn.addEventListener('click',()=>applySummaryFilter(btn.dataset.metric));
+	});
+	if(activeSummaryFilter!=='all' && !btns.some(b=>b.metric===activeSummaryFilter)) activeSummaryFilter='all';
+	applySummaryFilter(activeSummaryFilter);
+}
 
 function buildGrid(){
 	const scaler=document.getElementById('gridScaler');
@@ -1383,6 +1554,7 @@ function buildGrid(){
 		const timeCell = cellDiv('cell time-cell');
 		timeCell.classList.toggle('break', slot.type === 'Break');
 		if(isLast) timeCell.classList.add('last-row');
+		timeCell.dataset.slotId=slot.id;
 		timeCell.innerHTML =
 			`<div class="slot-time">${slot.start}<br>—<br>${slot.end}</div>` +
 			`<div class="slot-kind">${slot.type === 'Break' ? 'Rast' : 'Arbete'}</div>`;
@@ -1899,6 +2071,7 @@ function validateBoard(){
 		});
 	}
 	applyCellValidationDiff(_prevCellStates);
+	renderSummaryPanel();
 
 }
 
