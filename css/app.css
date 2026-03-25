@@ -300,6 +300,12 @@ html[data-mode="viewer"] .mode-badge:hover{
 	--bs-btn-padding-x:.5rem;
 	--bs-btn-font-size:.74rem;
 }
+.summary-info-btn{
+	--bs-btn-padding-y:.05rem;
+	--bs-btn-padding-x:.35rem;
+	--bs-btn-font-size:.8rem;
+	line-height:1;
+}
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
 	outline-offset:-3px;

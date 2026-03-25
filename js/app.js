@@ -1,6 +1,7 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
+let summaryInfoPopover=null,summaryInfoPinned=false,summaryInfoBound=false;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -1239,6 +1240,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			modeBadge.click();
 		}
 	});
+	setupSummaryInfoPopover();
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1305,6 +1307,58 @@ function rebuildAll(){
 
 function clearSummaryHighlights(){
 	document.querySelectorAll('.cell.summary-highlight').forEach(c=>c.classList.remove('summary-highlight'));
+}
+
+function hideSummaryInfoPopover({forceUnpin=false}={}){
+	if(!summaryInfoPopover) return;
+	summaryInfoPopover.hide();
+	if(forceUnpin) summaryInfoPinned=false;
+}
+
+function setupSummaryInfoPopover(){
+	if(summaryInfoBound) return;
+	const btn=document.getElementById('summaryInfoBtn');
+	if(!btn || !window.bootstrap?.Popover) return;
+	const content=[
+		'<div class="small">',
+		'<div><strong>Alla:</strong> unika celler med minst en varning.</div>',
+		'<div><strong>Kapacitet:</strong> celler där tilldelade ≠ kapacitet.</div>',
+		'<div><strong>Utbildning:</strong> celler med tilldelad person utan utbildning.</div>',
+		'<div><strong>Kompatibilitet:</strong> celler med minst en konflikterande person-kombination.</div>',
+		'</div>'
+	].join('');
+	summaryInfoPopover=bootstrap.Popover.getOrCreateInstance(btn,{
+		trigger:'manual',
+		container:'body',
+		html:true,
+		placement:'bottom',
+		content
+	});
+	btn.addEventListener('mouseenter',()=>{
+		if(summaryInfoPinned) return;
+		summaryInfoPopover?.show();
+	});
+	btn.addEventListener('mouseleave',()=>{
+		if(summaryInfoPinned) return;
+		summaryInfoPopover?.hide();
+	});
+	btn.addEventListener('click',e=>{
+		e.preventDefault();
+		e.stopPropagation();
+		if(summaryInfoPinned){
+			hideSummaryInfoPopover({forceUnpin:true});
+			return;
+		}
+		summaryInfoPinned=true;
+		summaryInfoPopover?.show();
+	});
+	document.addEventListener('click',e=>{
+		if(!summaryInfoPinned) return;
+		const pop=document.querySelector('.popover');
+		if(btn.contains(e.target) || (pop && pop.contains(e.target))) return;
+		hideSummaryInfoPopover({forceUnpin:true});
+	});
+	summaryInfoBound=true;
 }
 
 function computeSummaryMetrics(){
@@ -1384,6 +1438,7 @@ function renderSummaryPanel(){
 	if(mode!=='edit'){
 		warnBox.classList.add('d-none');
 		clearSummaryHighlights();
+		hideSummaryInfoPopover({forceUnpin:true});
 		return;
 	}
 	summaryData=computeSummaryMetrics();
@@ -1392,6 +1447,7 @@ function renderSummaryPanel(){
 	if(totals.affectedCells===0){
 		warnBox.classList.add('d-none');
 		clearSummaryHighlights();
+		hideSummaryInfoPopover({forceUnpin:true});
 		return;
 	}
 	warnBox.classList.remove('d-none');
