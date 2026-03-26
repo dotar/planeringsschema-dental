@@ -2421,8 +2421,8 @@ function renderPersonGroups(){
 							<th style="width:2.5%"></th>
 							<th style="width:22%">Namn</th>
 							<th style="width:18%">Grupp</th>
-							<th style="width:12%">Närvarande</th>
-							<th style="width:12%">Utbildning</th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Närvarande <button type="button" class="settings-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Avmarkera om personen är frånvarande. Frånvarande personer kan inte tilldelas i planeringen."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Närvarande</span></button></span></th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Utbildning <button type="button" class="settings-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Öppnar personens utbildningar per station. Saknad utbildning ger utbildningsvarning i planeringen."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Utbildning</span></button></span></th>
 							<th style="width:10%"></th>
 						</tr>
 					</thead>
@@ -2638,7 +2638,7 @@ function renderStationsByGroup(){
 			<button class="btn btn-sm btn-light" data-action="addStation" data-group="${isRes ? '' : tok}"><i class="bi bi-plus"></i> Lägg till station</button>
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
-			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th>Operativ</th><th></th></tr></thead>
+			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Aktivera för att visa stationen i planeringen. Inställningen delas mellan skift."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
