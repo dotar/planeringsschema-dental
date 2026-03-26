@@ -2638,7 +2638,7 @@ function renderStationsByGroup(){
 			<button class="btn btn-sm btn-light" data-action="addStation" data-group="${isRes ? '' : tok}"><i class="bi bi-plus"></i> Lägg till station</button>
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
-			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Aktivera för att visa stationen i planeringen. Inställningen delas mellan Dag/Natt."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
+			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Aktivera för att visa stationen i planeringen. Inställningen delas mellan skift."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
