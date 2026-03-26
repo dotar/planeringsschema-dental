@@ -59,6 +59,17 @@
 		<div id="app" class="container-fluid">
 			<div id="suggestionAlert" class="alert alert-info py-2 my-2 d-none"></div>
 			<div id="warnAlert" class="alert alert-warning py-2 my-2 d-none"></div>
+			<div id="summaryWarning" class="alert alert-warning py-2 my-2 d-none hide-in-viewer summary-warning" aria-live="polite">
+				<div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+					<div class="d-flex align-items-center gap-2">
+						<div id="summaryWarningText" class="small fw-semibold"></div>
+							<button id="summaryInfoBtn" type="button" class="summary-info-btn" aria-label="Förklaring av varningsmått">
+								<i class="bi bi-info-circle-fill"></i>
+							</button>
+					</div>
+					<div id="summaryFilterBar" class="btn-group btn-group-sm" role="group" aria-label="Filtrera planeringsvarningar"></div>
+				</div>
+			</div>
 			<div id="gridArea">
 				<div class="grid-shell">
 					<div id="gridScroller">
