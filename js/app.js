@@ -2780,23 +2780,28 @@ function renderSlotEditor(){
 function renderConstraintTable(){
 	const tb=document.getElementById('constraintTable');
 	tb.innerHTML='';
-	for(const c of DB.compatibility){
+	DB.compatibility.forEach((c, idx)=>{
 		const tr=document.createElement('tr');
-		tr.innerHTML=`<td>${personSelect(c.a,'a-'+(c.a||'')+'-'+(c.b||''))}</td><td>${personSelect(c.b,'b-'+(c.a||'')+'-'+(c.b||''))}</td><td><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>`;
+		tr.dataset.index=String(idx);
+		tr.innerHTML=`<td>${personSelect(c.a,`a-${idx}`,{excludeId:c.b})}</td><td>${personSelect(c.b,`b-${idx}`,{excludeId:c.a})}</td><td><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>`;
 		tb.appendChild(tr);
-	}
+	});
 	document.getElementById('addConstraintBtn').onclick=()=>{
-		DB.compatibility.push({a:null,b:null});renderConstraintTable();
+		DB.compatibility.push({a:null,b:null});
+		renderConstraintTable();
+		if(mode==='edit') validateBoard();
 	};
 	tb.querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{
-		const rows=[...tb.querySelectorAll('tr')];
-		DB.compatibility=rows.map(r=>{
-			const s=r.querySelectorAll('select');
-			return {
-				a:s[0].value ? parseEntityId(s[0].value) : null,
-				b:s[1].value ? parseEntityId(s[1].value) : null
-			};
-		});
+		const row=sel.closest('tr');
+		const index=Number.parseInt(row?.dataset.index ?? '-1',10);
+		if(index<0 || !DB.compatibility[index]) return;
+		const s=row.querySelectorAll('select');
+		DB.compatibility[index]={
+			a:s[0].value ? parseEntityId(s[0].value) : null,
+			b:s[1].value ? parseEntityId(s[1].value) : null
+		};
+		renderConstraintTable();
+		if(mode==='edit') validateBoard();
 	}));
 	tb.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',async()=>{
 		const tr=btn.closest('tr');
@@ -2819,9 +2824,12 @@ function renderConstraintTable(){
 
 }
 
-function personSelect(val,id){
+function personSelect(val,id,{excludeId=null}={}){
 	const opts=['<option value="">- Välj person -</option>'].concat(
-		DB.persons.filter(p=>p.factoryId===currentFactoryId).map(p=>`<option value="${p.id}" ${p.id===val?'selected':''}>${escapeHtml(p.name)}</option>`)
+		DB.persons
+			.filter(p=>p.factoryId===currentFactoryId)
+			.filter(p=>excludeId==null || p.id!==excludeId || p.id===val)
+			.map(p=>`<option value="${p.id}" ${p.id===val?'selected':''}>${escapeHtml(p.name)}</option>`)
 	).join('');
 	return `<select class="form-select form-select-sm" data-id="${id}">${opts}</select>`;
 }
