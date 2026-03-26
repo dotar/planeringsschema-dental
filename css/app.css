@@ -471,3 +471,85 @@ html[data-mode="viewer"] .hide-in-viewer{
 	transition: --mix .18s ease;
 	will-change: --mix;
 }
+
+/* Custom info tooltips */
+.info-tooltip {
+  --bs-tooltip-bg: #ffe69c;
+  --bs-tooltip-color: #000);
+}
+
+/* Confetti bubble effect for Bootstrap buttons (drop-in) */
+.btn.confetti-btn{
+	position: relative;
+	overflow: visible;
+}
+
+.btn.confetti-btn::before,
+.btn.confetti-btn::after{
+	position: absolute;
+	content: '';
+	display: none;
+	width: 140%;
+	height: 100%;
+	left: -20%;
+	z-index: -1000;
+	transition: all .5s ease-in-out;
+	background-repeat: no-repeat;
+}
+
+/* top burst */
+.btn.confetti-btn::before{
+	top: -75%;
+	background-image:
+		radial-gradient(circle, var(--c1, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, transparent 20%, var(--c2, #ff0081) 20%, transparent 30%),
+		radial-gradient(circle, var(--c3, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--c4, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, transparent 10%, var(--c5, #ff0081) 15%, transparent 20%),
+		radial-gradient(circle, var(--c6, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--c7, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--c8, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--c9, #ff0081) 20%, transparent 20%);
+	background-size: 10% 10%, 20% 20%, 15% 15%, 20% 20%, 18% 18%, 10% 10%, 15% 15%, 10% 10%, 18% 18%;
+}
+
+/* bottom burst */
+.btn.confetti-btn::after{
+	bottom: -75%;
+	background-image:
+		radial-gradient(circle, var(--b1, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--b2, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, transparent 10%, var(--b3, #ff0081) 15%, transparent 20%),
+		radial-gradient(circle, var(--b4, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--b5, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--b6, #ff0081) 20%, transparent 20%),
+		radial-gradient(circle, var(--b7, #ff0081) 20%, transparent 20%);
+	background-size: 15% 15%, 20% 20%, 18% 18%, 20% 20%, 15% 15%, 10% 10%, 20% 20%;
+}
+
+/* play animations only while .animate is present */
+.btn.confetti-btn.animate::before{
+	display: block;
+	animation: topBubbles .75s ease-in-out forwards;
+}
+.btn.confetti-btn.animate::after{
+	display: block;
+	animation: bottomBubbles .75s ease-in-out forwards;
+}
+
+@keyframes topBubbles{
+	0%{background-position:5% 90%,10% 90%,10% 90%,15% 90%,25% 90%,25% 90%,40% 90%,55% 90%,70% 90%}
+	50%{background-position:0% 80%,0% 20%,10% 40%,20% 0%,30% 30%,22% 50%,50% 50%,65% 20%,90% 30%}
+	100%{
+		background-position:0% 70%,0% 10%,10% 30%,20% -10%,30% 20%,22% 40%,50% 40%,65% 10%,90% 20%;
+		background-size:0% 0%,0% 0%,0% 0%,0% 0%,0% 0%,0% 0%
+	}
+}
+@keyframes bottomBubbles{
+	0%{background-position:10% -10%,30% 10%,55% -10%,70% -10%,85% -10%,70% -10%,70% 0%}
+	50%{background-position:0% 80%,20% 80%,45% 60%,60% 100%,75% 70%,95% 60%,105% 0%}
+	100%{
+		background-position:0% 90%,20% 90%,45% 70%,60% 110%,75% 80%,95% 70%,110% 10%;
+		background-size:0% 0%,0% 0%,0% 0%,0% 0%,0% 0%,0% 0%
+	}
+}
