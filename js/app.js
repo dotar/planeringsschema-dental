@@ -3321,3 +3321,10 @@ new bootstrap.Tooltip(document.body, {
 	trigger: 'hover',
 	sanitize: false
 });
+new bootstrap.Popover(document.body, {
+	selector: '[data-bs-toggle="popover"]',
+	container: 'body',
+	html: true,
+	trigger: 'focus',
+	sanitize: false
+});

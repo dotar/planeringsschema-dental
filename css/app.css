@@ -342,6 +342,9 @@ html[data-mode="viewer"] .mode-badge:hover{
 	height:1.2rem;
 	font-size:.72rem;
 }
+.popover .popover-body{
+	text-align:left;
+}
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
 	outline-offset:-3px;
