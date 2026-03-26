@@ -324,22 +324,9 @@ html[data-mode="viewer"] .mode-badge:hover{
 	box-shadow:0 0 0 2px rgba(var(--bs-primary-rgb), .35);
 }
 .settings-info-btn{
-	display:inline-flex;
-	align-items:center;
-	justify-content:center;
-	padding:0;
-	border:0;
-	background:transparent;
-	color:inherit;
-	line-height:1;
-}
-.settings-info-btn:hover{
-	opacity:.75;
-}
-.settings-info-btn:focus-visible{
-	outline:2px solid rgba(var(--bs-primary-rgb), .35);
-	outline-offset:2px;
-	border-radius:999px;
+	width:1.2rem;
+	height:1.2rem;
+	font-size:.72rem;
 }
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
