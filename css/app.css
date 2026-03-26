@@ -225,6 +225,7 @@ body{ overflow:hidden; }
 .credits .badge{ font-weight:600; }
 
 /* Randomizer modal polish */
+#randomizeModal .modal-dialog{max-width:min(1400px,96vw);}
 #randomizeModal .modal-body{padding-top:.75rem;}
 .rand-group-header{
 	display:flex; align-items:center; gap:.5rem;
@@ -237,6 +238,19 @@ body{ overflow:hidden; }
 }
 #randStations .form-check{ margin-bottom:.25rem; }
 #randGroups .form-check{ margin-bottom:.25rem; }
+.rand-section{
+	border:1px solid var(--bs-border-color);
+	border-radius:.65rem;
+	padding:.75rem .85rem;
+	background:color-mix(in srgb, var(--bs-tertiary-bg) 25%, var(--bs-body-bg) 75%);
+}
+.rand-section-title{
+	font-weight:600;
+	margin-bottom:.45rem;
+}
+.rand-help-text{
+	padding:0 .1rem;
+}
 
 
 .selector-group{
@@ -327,6 +341,9 @@ html[data-mode="viewer"] .mode-badge:hover{
 	width:1.2rem;
 	height:1.2rem;
 	font-size:.72rem;
+}
+.popover .popover-body{
+	text-align:left;
 }
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);

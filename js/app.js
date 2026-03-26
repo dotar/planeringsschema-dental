@@ -1072,7 +1072,7 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 	const dateStr = getSelectedDateStr();
 	if(takenThisSlot.has(person.id)) return false;
 	if((remaining.get(station.id) || 0) <= 0) return false;
-	if(!isPersonAllowedFor(person, station, slot)) return false;
+	if(!isPersonAllowedFor(person, station, slot, {ignoreTraining: opts.requireTraining===false})) return false;
 
 	if(opts.avoidConsecutive !== false){
 		const workSlots = DB.timeSlots
@@ -2233,10 +2233,19 @@ function setupTooltips(){[...document.querySelectorAll('[title]')].forEach(el=>{
 function openRandomizer(){
 	const m=new bootstrap.Modal('#randomizeModal');
 
-	// ----- restore avoidConsecutive from storage (default: true) -----
+	// ----- restore toggles from storage -----
 	const acSaved=localStorage.getItem('planning.avoidConsecutive');
 	const ac=(acSaved===null)?true:(acSaved==='1'||acSaved==='true');
 	document.getElementById('avoidConsecutive').checked=ac;
+	const fillResursSaved=localStorage.getItem('planning.fillResurs');
+	const fillResurs=(fillResursSaved===null)?true:(fillResursSaved==='1'||fillResursSaved==='true');
+	document.getElementById('fillResurs').checked=fillResurs;
+	const keepPrefilledSaved=localStorage.getItem('planning.keepPrefilled');
+	const keepPrefilled=(keepPrefilledSaved===null)?true:(keepPrefilledSaved==='1'||keepPrefilledSaved==='true');
+	document.getElementById('keepPrefilled').checked=keepPrefilled;
+	const preferTrainedSaved=localStorage.getItem('planning.preferTrained');
+	const preferTrained=(preferTrainedSaved===null)?true:(preferTrainedSaved==='1'||preferTrainedSaved==='true');
+	document.getElementById('preferTrained').checked=preferTrained;
 
 	// ----- Groups (now: defines PEOPLE POOL) -----
 	const wrapG=document.getElementById('randGroups');
@@ -2260,7 +2269,7 @@ function openRandomizer(){
 
 	const {grouped}=orderedColumns();
 	order.forEach(tok=>{
-		if(tok==='resurs')return; // still not listed; we fill it last automatically
+		if(tok==='resurs')return;
 		const g=DB.groups.find(x=>x.id===tok);
 		if(!g)return;
 		const stations=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
@@ -2340,11 +2349,26 @@ function runRandomizer(){
 	// avoid consecutive toggle (persist)
 	const avoidConsecutive = document.getElementById('avoidConsecutive').checked;
 	localStorage.setItem('planning.avoidConsecutive', avoidConsecutive ? '1' : '0');
+	const fillResurs = document.getElementById('fillResurs').checked;
+	localStorage.setItem('planning.fillResurs', fillResurs ? '1' : '0');
+	const keepPrefilled = document.getElementById('keepPrefilled').checked;
+	localStorage.setItem('planning.keepPrefilled', keepPrefilled ? '1' : '0');
+	const preferTrained = document.getElementById('preferTrained').checked;
+	localStorage.setItem('planning.preferTrained', preferTrained ? '1' : '0');
 
 	// ordered work slots
 	const slots = DB.timeSlots
 		.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
 		.sort((a, b)=>a.sort-b.sort);
+
+	if(!keepPrefilled){
+		const dateStr=getSelectedDateStr();
+		DB.assignments = DB.assignments.filter(a => !(
+			a.date===dateStr &&
+			a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType
+		));
+	}
 
 	// chosen stations: non-Resurs first; Resurs auto last
 	const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
@@ -2353,12 +2377,12 @@ function runRandomizer(){
 
 	// per slot: round-robin across non-Resurs
 	for(const sl of slots){
-		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive});
+		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
 	}
 	// then Resurs (if present)
-	if(res){
+	if(res && fillResurs){
 		for(const sl of slots){
-			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive});
+			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
 		}
 	}
 
@@ -2449,8 +2473,8 @@ function renderPersonGroups(){
 							<th style="width:2.5%"></th>
 							<th style="width:22%">Namn</th>
 							<th style="width:18%">Grupp</th>
-							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Närvarande <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Avmarkera om personen är frånvarande. Frånvarande personer kan inte tilldelas i planeringen."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Närvarande</span></button></span></th>
-							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Utbildning <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Öppnar personens utbildningar per station. Saknad utbildning ger utbildningsvarning i planeringen."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Utbildning</span></button></span></th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Närvarande <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Personen kan användas i planeringen.<br><strong>Avaktiverad:</strong> Personen räknas som frånvarande och kan inte tilldelas."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Närvarande</span></button></span></th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Utbildning <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Öppnar och redigerar personens utbildningar per station.<br><strong>Avaktiverad:</strong> Ingen ändring av utbildningar görs."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Utbildning</span></button></span></th>
 							<th style="width:10%"></th>
 						</tr>
 					</thead>
@@ -2666,7 +2690,7 @@ function renderStationsByGroup(){
 			<button class="btn btn-sm btn-light" data-action="addStation" data-group="${isRes ? '' : tok}"><i class="bi bi-plus"></i> Lägg till station</button>
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
-			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Styr om stationen fylls när schema randomiseras. Inställningen delas mellan skiften."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
+			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
@@ -3353,4 +3377,11 @@ new bootstrap.Tooltip(document.body, {
 	selector: '[data-bs-toggle="tooltip"]',
 	container: 'body',
 	boundary: 'viewport'
+});
+new bootstrap.Popover(document.body, {
+	selector: '[data-bs-toggle="popover"]',
+	container: 'body',
+	html: true,
+	trigger: 'focus',
+	sanitize: false
 });
