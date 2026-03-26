@@ -1072,7 +1072,7 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 	const dateStr = getSelectedDateStr();
 	if(takenThisSlot.has(person.id)) return false;
 	if((remaining.get(station.id) || 0) <= 0) return false;
-	if(!isPersonAllowedFor(person, station, slot)) return false;
+	if(!isPersonAllowedFor(person, station, slot, {ignoreTraining: opts.requireTraining===false})) return false;
 
 	if(opts.avoidConsecutive !== false){
 		const workSlots = DB.timeSlots
@@ -2233,10 +2233,19 @@ function setupTooltips(){[...document.querySelectorAll('[title]')].forEach(el=>{
 function openRandomizer(){
 	const m=new bootstrap.Modal('#randomizeModal');
 
-	// ----- restore avoidConsecutive from storage (default: true) -----
+	// ----- restore toggles from storage -----
 	const acSaved=localStorage.getItem('planning.avoidConsecutive');
 	const ac=(acSaved===null)?true:(acSaved==='1'||acSaved==='true');
 	document.getElementById('avoidConsecutive').checked=ac;
+	const fillResursSaved=localStorage.getItem('planning.fillResurs');
+	const fillResurs=(fillResursSaved===null)?true:(fillResursSaved==='1'||fillResursSaved==='true');
+	document.getElementById('fillResurs').checked=fillResurs;
+	const keepPrefilledSaved=localStorage.getItem('planning.keepPrefilled');
+	const keepPrefilled=(keepPrefilledSaved===null)?true:(keepPrefilledSaved==='1'||keepPrefilledSaved==='true');
+	document.getElementById('keepPrefilled').checked=keepPrefilled;
+	const preferTrainedSaved=localStorage.getItem('planning.preferTrained');
+	const preferTrained=(preferTrainedSaved===null)?true:(preferTrainedSaved==='1'||preferTrainedSaved==='true');
+	document.getElementById('preferTrained').checked=preferTrained;
 
 	// ----- Groups (now: defines PEOPLE POOL) -----
 	const wrapG=document.getElementById('randGroups');
@@ -2260,7 +2269,7 @@ function openRandomizer(){
 
 	const {grouped}=orderedColumns();
 	order.forEach(tok=>{
-		if(tok==='resurs')return; // still not listed; we fill it last automatically
+		if(tok==='resurs')return;
 		const g=DB.groups.find(x=>x.id===tok);
 		if(!g)return;
 		const stations=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
@@ -2340,11 +2349,26 @@ function runRandomizer(){
 	// avoid consecutive toggle (persist)
 	const avoidConsecutive = document.getElementById('avoidConsecutive').checked;
 	localStorage.setItem('planning.avoidConsecutive', avoidConsecutive ? '1' : '0');
+	const fillResurs = document.getElementById('fillResurs').checked;
+	localStorage.setItem('planning.fillResurs', fillResurs ? '1' : '0');
+	const keepPrefilled = document.getElementById('keepPrefilled').checked;
+	localStorage.setItem('planning.keepPrefilled', keepPrefilled ? '1' : '0');
+	const preferTrained = document.getElementById('preferTrained').checked;
+	localStorage.setItem('planning.preferTrained', preferTrained ? '1' : '0');
 
 	// ordered work slots
 	const slots = DB.timeSlots
 		.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
 		.sort((a, b)=>a.sort-b.sort);
+
+	if(!keepPrefilled){
+		const dateStr=getSelectedDateStr();
+		DB.assignments = DB.assignments.filter(a => !(
+			a.date===dateStr &&
+			a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType
+		));
+	}
 
 	// chosen stations: non-Resurs first; Resurs auto last
 	const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
@@ -2353,12 +2377,12 @@ function runRandomizer(){
 
 	// per slot: round-robin across non-Resurs
 	for(const sl of slots){
-		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive});
+		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
 	}
 	// then Resurs (if present)
-	if(res){
+	if(res && fillResurs){
 		for(const sl of slots){
-			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive});
+			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
 		}
 	}
 

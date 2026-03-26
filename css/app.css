@@ -237,6 +237,19 @@ body{ overflow:hidden; }
 }
 #randStations .form-check{ margin-bottom:.25rem; }
 #randGroups .form-check{ margin-bottom:.25rem; }
+.rand-section{
+	border:1px solid var(--bs-border-color);
+	border-radius:.65rem;
+	padding:.75rem .85rem;
+	background:color-mix(in srgb, var(--bs-tertiary-bg) 25%, var(--bs-body-bg) 75%);
+}
+.rand-section-title{
+	font-weight:600;
+	margin-bottom:.45rem;
+}
+.rand-help-text{
+	padding:0 .1rem;
+}
 
 
 .selector-group{
