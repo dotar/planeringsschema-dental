@@ -50,6 +50,34 @@ function shiftLabel(shift){
 	}
 }
 
+function capitalizeFirst(s){
+	const str=String(s||'').trim();
+	if(!str) return '';
+	return str.charAt(0).toUpperCase()+str.slice(1);
+}
+
+function getCurrentFactoryTitle(){
+	return DB.factories.find(f=>String(f.id)===String(currentFactoryId))?.title || String(currentFactoryId);
+}
+
+function renderSettingsInfoTexts(){
+	const factoryTitle=getCurrentFactoryTitle();
+	const shiftTitle=capitalizeFirst(shiftLabel(currentShift));
+	const withIcon=(text)=>`<i class="bi bi-info-circle-fill"></i> ${text}`;
+
+	const personnel=document.getElementById('personnelInfoText');
+	if(personnel) personnel.innerHTML=withIcon(`Dra för att flytta personer mellan grupper i ${factoryTitle} ${shiftTitle}`);
+
+	const groups=document.getElementById('groupsInfoText');
+	if(groups) groups.innerHTML=withIcon(`Dra för att ändra kolumnordningen för grupper i ${factoryTitle} ${shiftTitle}`);
+
+	const stations=document.getElementById('stationsInfoText');
+	if(stations) stations.innerHTML=withIcon(`Dra för att ändra kolumnordningen för stationer inom en grupp i ${factoryTitle}`);
+
+	const slots=document.getElementById('slotsInfoText');
+	if(slots) slots.innerHTML=withIcon(`Dra rader för att sortera tidsintervaller i ${factoryTitle} ${shiftTitle}. Använd format <strong>HH:MM</strong>.`);
+}
+
 const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
 const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
 const VIEWER_EDIT_KEY='planning.viewerCanEditAssignments';
@@ -2394,7 +2422,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncCoordAutoLogoutInput();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncCoordAutoLogoutInput();renderSettingsInfoTexts();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
