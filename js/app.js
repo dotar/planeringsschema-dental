@@ -1,7 +1,6 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
-let summaryInfoPopover=null,summaryInfoBound=false,summaryInfoHideTimerId=null;
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -1268,7 +1267,6 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			modeBadge.click();
 		}
 	});
-	setupSummaryInfoPopover();
 	syncDayChoiceFromDate();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
@@ -1337,68 +1335,10 @@ function clearSummaryHighlights(){
 	document.querySelectorAll('.cell.summary-highlight').forEach(c=>c.classList.remove('summary-highlight'));
 }
 
-function hideSummaryInfoPopover(){
-	if(summaryInfoHideTimerId){
-		clearTimeout(summaryInfoHideTimerId);
-		summaryInfoHideTimerId=null;
-	}
-	if(!summaryInfoPopover) return;
-	summaryInfoPopover.hide();
-}
-
-function scheduleSummaryInfoHide(delay=120){
-	if(summaryInfoHideTimerId){
-		clearTimeout(summaryInfoHideTimerId);
-		summaryInfoHideTimerId=null;
-	}
-	summaryInfoHideTimerId=window.setTimeout(()=>{
-		summaryInfoHideTimerId=null;
-		summaryInfoPopover?.hide();
-	}, delay);
-}
-
-function bindSummaryPopoverHoverHandlers(){
-	const pop=document.querySelector('.popover');
-	if(!pop || pop.dataset.summaryHoverBound==='1') return;
-	pop.dataset.summaryHoverBound='1';
-	pop.addEventListener('mouseenter',()=>{
-		if(summaryInfoHideTimerId){
-			clearTimeout(summaryInfoHideTimerId);
-			summaryInfoHideTimerId=null;
-		}
-	});
-	pop.addEventListener('mouseleave',()=>scheduleSummaryInfoHide(80));
-}
-
-function setupSummaryInfoPopover(){
-	if(summaryInfoBound) return;
+function hideSummaryInfoTooltip(){
 	const btn=document.getElementById('summaryInfoBtn');
-	if(!btn || !window.bootstrap?.Popover) return;
-	const content=[
-		'<div class="small">',
-		'<div><strong>Alla:</strong> unika celler med minst en varning.</div>',
-		'<div><strong>Kapacitet:</strong> celler där tilldelade ≠ kapacitet.</div>',
-		'<div><strong>Utbildning:</strong> celler med tilldelad person utan utbildning.</div>',
-		'<div><strong>Kompatibilitet:</strong> byt plats på en av dessa personer.</div>',
-		'</div>'
-	].join('');
-	summaryInfoPopover=bootstrap.Popover.getOrCreateInstance(btn,{
-		trigger:'manual',
-		container:'body',
-		html:true,
-		placement:'bottom',
-		content
-	});
-	btn.addEventListener('mouseenter',()=>{
-		if(summaryInfoHideTimerId){
-			clearTimeout(summaryInfoHideTimerId);
-			summaryInfoHideTimerId=null;
-		}
-		summaryInfoPopover?.show();
-		bindSummaryPopoverHoverHandlers();
-	});
-	btn.addEventListener('mouseleave',()=>scheduleSummaryInfoHide(120));
-	summaryInfoBound=true;
+	if(!btn) return;
+	bootstrap.Tooltip.getInstance(btn)?.hide();
 }
 
 function computeSummaryMetrics(){
@@ -1475,21 +1415,21 @@ function renderSummaryPanel(){
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
 	if(!warnBox) return;
-	if(mode!=='edit'){
-		warnBox.classList.add('d-none');
-		clearSummaryHighlights();
-		hideSummaryInfoPopover();
-		return;
-	}
+		if(mode!=='edit'){
+			warnBox.classList.add('d-none');
+			clearSummaryHighlights();
+			hideSummaryInfoTooltip();
+			return;
+		}
 	summaryData=computeSummaryMetrics();
 	const filterBar=document.getElementById('summaryFilterBar');
 	const totals=summaryData.totals;
-	if(totals.affectedCells===0){
-		warnBox.classList.add('d-none');
-		clearSummaryHighlights();
-		hideSummaryInfoPopover();
-		return;
-	}
+		if(totals.affectedCells===0){
+			warnBox.classList.add('d-none');
+			clearSummaryHighlights();
+			hideSummaryInfoTooltip();
+			return;
+		}
 	warnBox.classList.remove('d-none');
 	if(warnText){
 		const unit=totals.affectedCells===1?'varning':'varningar';
@@ -2473,8 +2413,8 @@ function renderPersonGroups(){
 							<th style="width:2.5%"></th>
 							<th style="width:22%">Namn</th>
 							<th style="width:18%">Grupp</th>
-							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Närvarande <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Personen kan användas i planeringen.<br><strong>Avaktiverad:</strong> Personen räknas som frånvarande och kan inte tilldelas."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Närvarande</span></button></span></th>
-							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Utbildning <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Öppnar och redigerar personens utbildningar per station.<br><strong>Avaktiverad:</strong> Ingen ändring av utbildningar görs."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Utbildning</span></button></span></th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Närvarande <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="left" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Personen kan användas i planeringen.<br><strong>Avaktiverad:</strong> Personen räknas som frånvarande och kan inte tilldelas."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Närvarande</span></button></span></th>
+							<th style="width:12%"><span class="d-inline-flex align-items-center gap-1">Utbildning <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="left" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Öppnar och redigerar personens utbildningar per station.<br><strong>Avaktiverad:</strong> Ingen ändring av utbildningar görs."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Utbildning</span></button></span></th>
 							<th style="width:10%"></th>
 						</tr>
 					</thead>
@@ -2690,7 +2630,7 @@ function renderStationsByGroup(){
 			<button class="btn btn-sm btn-light" data-action="addStation" data-group="${isRes ? '' : tok}"><i class="bi bi-plus"></i> Lägg till station</button>
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
-			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true" data-bs-content="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
+			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="left" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
@@ -3376,7 +3316,10 @@ let _lastMovedPersonId=null;
 new bootstrap.Tooltip(document.body, {
 	selector: '[data-bs-toggle="tooltip"]',
 	container: 'body',
-	boundary: 'viewport'
+	boundary: 'viewport',
+	html: true,
+	trigger: 'hover',
+	sanitize: false
 });
 new bootstrap.Popover(document.body, {
 	selector: '[data-bs-toggle="popover"]',

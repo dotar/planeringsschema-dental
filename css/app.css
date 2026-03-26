@@ -370,7 +370,10 @@ html[data-mode="viewer"] .hide-in-viewer{
 
 
 /* Multiline tooltip (join messages with "\n" from JS) */
-.tooltip .tooltip-inner{ white-space: pre-line; }
+.tooltip .tooltip-inner{
+	white-space: pre-line;
+	text-align:left;
+}
 
 /* Diagonal stripes when a cell has both warning colors */
 .cell.warn.invalid:not(.break){
