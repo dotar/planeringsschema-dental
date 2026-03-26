@@ -225,6 +225,7 @@ body{ overflow:hidden; }
 .credits .badge{ font-weight:600; }
 
 /* Randomizer modal polish */
+#randomizeModal .modal-dialog{max-width:min(1400px,96vw);}
 #randomizeModal .modal-body{padding-top:.75rem;}
 .rand-group-header{
 	display:flex; align-items:center; gap:.5rem;
@@ -340,6 +341,9 @@ html[data-mode="viewer"] .mode-badge:hover{
 	width:1.2rem;
 	height:1.2rem;
 	font-size:.72rem;
+}
+.popover .popover-body{
+	text-align:left;
 }
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
