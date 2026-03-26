@@ -323,6 +323,11 @@ html[data-mode="viewer"] .mode-badge:hover{
 	outline:none;
 	box-shadow:0 0 0 2px rgba(var(--bs-primary-rgb), .35);
 }
+.settings-info-btn{
+	width:1.2rem;
+	height:1.2rem;
+	font-size:.72rem;
+}
 .cell.summary-highlight{
 	outline:2px solid color-mix(in srgb, var(--bs-info) 72%, transparent);
 	outline-offset:-3px;
