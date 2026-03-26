@@ -47,7 +47,7 @@
 						<button id="btnTomorrow" class="btn btn-outline-secondary">Imorgon</button>
 					</div>
 					<select id="templateSel" class="form-select form-select-sm hide-in-viewer" style="width:220px"></select>
-					<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Randomisera</button>
+					<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Autogenerera</button>
 					<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
 					<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
 					<button id="themeBtn" class="btn btn-sm btn-outline-secondary" title="Tema"><i class="bi bi-circle-half"></i></button>
@@ -83,22 +83,62 @@
 		<div class="modal fade" id="randomizeModal" tabindex="-1">
 			<div class="modal-dialog modal-xl modal-dialog-scrollable">
 				<div class="modal-content">
-					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-shuffle"></i> Randomisera</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-header"><h5 class="modal-title"><i class="bi bi-shuffle"></i> Autogenerera</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
 					<div class="modal-body">
+						<div class="alert alert-info py-2 mb-3" role="alert">
+							<i class="bi bi-info-circle-fill me-1"></i>
+							Autogenerering fyller endast valda stationer med personal från valda grupper.
+						</div>
 						<div class="row g-3">
-							<div class="col-md-4">
-								<label class="form-label">Grupp(er)</label>
-								<div id="randGroups" class="vstack gap-2"></div>
-							</div>
-							<div class="col-md-8">
-								<label class="form-label">Stationer (operativa idag)</label>
-								<div id="randStations" class="row row-cols-2 g-2"></div>
-								<div class="form-text">Resurs fylls <em>sist</em> automatiskt.</div>
+							<div class="col-12">
+								<div class="rand-section">
+									<div class="rand-section-title">Personalurval</div>
+									<label class="form-label">Använd personal från dessa grupper:</label>
+									<div id="randGroups" class="vstack gap-2"></div>
+								</div>
 							</div>
 							<div class="col-12">
-								<div class="form-check">
-									<input id="avoidConsecutive" class="form-check-input" type="checkbox" checked>
-									<label class="form-check-label" for="avoidConsecutive">Undvik samma person två pass i rad på samma station</label>
+								<div class="rand-section">
+									<div class="rand-section-title">Stationsurval</div>
+									<label class="form-label">Stationer (operativa idag)</label>
+									<div id="randStations" class="row row-cols-2 g-2"></div>
+								</div>
+							</div>
+							<div class="col-12">
+								<div class="rand-section">
+									<div class="rand-section-title">Autogenereringsinställningar</div>
+									<div class="vstack gap-2">
+										<div class="form-check d-flex align-items-start gap-2">
+											<input id="fillResurs" class="form-check-input mt-1" type="checkbox" checked>
+											<label class="form-check-label" for="fillResurs">
+												Fyll resurs
+												<button type="button" class="settings-info-btn summary-info-btn small fw-semibold ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Om aktiverad fylls resurskolumnen efter att övriga valda stationer har fyllts."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Fyll resurs</span></button>
+											</label>
+										</div>
+										<div class="form-check d-flex align-items-start gap-2">
+											<input id="preferTrained" class="form-check-input mt-1" type="checkbox" checked>
+											<label class="form-check-label" for="preferTrained">
+												Kräv utbildad personal per station
+												<button type="button" class="settings-info-btn summary-info-btn small fw-semibold ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Om aktiverad används endast personal med utbildning för respektive station. Om avaktiverad kan all vald personal placeras oavsett utbildning."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om utbildningskrav</span></button>
+											</label>
+										</div>
+										<div class="form-check d-flex align-items-start gap-2">
+											<input id="keepPrefilled" class="form-check-input mt-1" type="checkbox" checked>
+											<label class="form-check-label" for="keepPrefilled">
+												Behåll manuellt tilldelad personal
+												<button type="button" class="settings-info-btn summary-info-btn small fw-semibold ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Om avaktiverad töms hela schemat för aktivt datum, fabrik och skift innan autogenerering körs."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om behåll manuellt tilldelad personal</span></button>
+											</label>
+										</div>
+										<div class="form-check d-flex align-items-start gap-2">
+											<input id="avoidConsecutive" class="form-check-input mt-1" type="checkbox" checked>
+											<label class="form-check-label" for="avoidConsecutive">Undvik samma person två pass i rad på samma station</label>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="col-12">
+								<div class="rand-help-text text-muted small">
+									Obs: Operativ-status för stationer styrs i Inställningar och delas mellan skiften.
 								</div>
 							</div>
 						</div>
