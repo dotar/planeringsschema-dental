@@ -475,7 +475,7 @@ html[data-mode="viewer"] .hide-in-viewer{
 /* Custom info tooltips */
 .info-tooltip {
   --bs-tooltip-bg: #ffe69c;
-  --bs-tooltip-color: #000);
+  --bs-tooltip-color: #000;
 }
 
 /* Confetti bubble effect for Bootstrap buttons (drop-in) */
