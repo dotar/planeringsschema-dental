@@ -1356,13 +1356,17 @@ function computeSummaryMetrics(){
 		byCell.set(key,arr);
 	});
 	const details=[];
-	let totals={required:0,assigned:0,capacityCells:0,trainingCells:0,compatibilityCells:0,affectedCells:0};
+	let totals={required:0,assigned:0,capacityCells:0,trainingCells:0,compatibilityCells:0,absentCells:0,absentAssignments:0,affectedCells:0};
 	for(const slot of slots){
 		for(const station of stationById.values()){
 			const required=slot.type==='Work' ? (station.defaultCapacity||1) : 0;
 			const people=(byCell.get(`${station.id}:${slot.id}`)||[]);
 			const assigned=people.length;
 			const untrainedAssigned=people.filter(pid=>!isPersonTrainedForStation(pid, station.id)).length;
+			const absentAssigned=people.filter(pid=>{
+				const person=getPlanningPersonById(pid, currentFactoryId);
+				return !!person && !person.present;
+			}).length;
 			let conflicts=0;
 			for(let i=0;i<people.length;i++){
 				for(let j=i+1;j<people.length;j++){
@@ -1372,14 +1376,17 @@ function computeSummaryMetrics(){
 			const capacityIssue=assigned!==required;
 			const trainingIssue=assigned>0 && untrainedAssigned>0;
 			const compatibilityIssue=conflicts>0;
-			const hasIssue=capacityIssue||trainingIssue||compatibilityIssue;
-			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,untrainedAssigned,compatibilityConflicts:conflicts,capacityIssue,trainingIssue,compatibilityIssue,hasIssue};
+			const absentIssue=absentAssigned>0;
+			const hasIssue=capacityIssue||trainingIssue||compatibilityIssue||absentIssue;
+			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,untrainedAssigned,absentAssigned,compatibilityConflicts:conflicts,capacityIssue,trainingIssue,compatibilityIssue,absentIssue,hasIssue};
 			details.push(row);
 			if(!hasIssue) continue;
 			totals.affectedCells++;
 			if(capacityIssue) totals.capacityCells++;
 			if(trainingIssue) totals.trainingCells++;
 			if(compatibilityIssue) totals.compatibilityCells++;
+			if(absentIssue) totals.absentCells++;
+			if(absentAssigned>0) totals.absentAssignments+=absentAssigned;
 		}
 	}
 	totals.required=details.reduce((s,x)=>s+x.required,0);
@@ -1393,6 +1400,7 @@ function getSummaryMatches(metric){
 		if(metric==='capacity') return r.capacityIssue;
 		if(metric==='training') return r.trainingIssue;
 		if(metric==='compatibility') return r.compatibilityIssue;
+		if(metric==='presence') return r.absentIssue;
 		return r.hasIssue;
 	});
 }
@@ -1431,14 +1439,24 @@ function renderSummaryPanel(){
 			return;
 		}
 	warnBox.classList.remove('d-none');
+	const hasPresenceErrors=totals.absentAssignments>0;
+	warnBox.classList.toggle('alert-danger', hasPresenceErrors);
+	warnBox.classList.toggle('alert-warning', !hasPresenceErrors);
 	if(warnText){
 		const unit=totals.affectedCells===1?'varning':'varningar';
-		warnText.textContent=`${totals.affectedCells} ${unit} i planeringen - Kapacitet ${totals.assigned}/${totals.required} tilldelade.`;
+		const baseText=`${totals.affectedCells} ${unit} i planeringen - Kapacitet ${totals.assigned}/${totals.required} tilldelade.`;
+		if(hasPresenceErrors){
+			const errUnit=totals.absentAssignments===1 ? 'frånvarande person är placerad' : 'frånvarande personer är placerade';
+			warnText.textContent=`Fel: ${totals.absentAssignments} ${errUnit}. ${baseText}`;
+		}else{
+			warnText.textContent=baseText;
+		}
 	}
 	const btns=[{metric:'all',label:`Alla (${totals.affectedCells})`,cls:'btn-outline-secondary'}];
 	if(totals.capacityCells>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.capacityCells})`,cls:'btn-outline-danger'});
 	if(totals.trainingCells>0) btns.push({metric:'training',label:`Utbildning (${totals.trainingCells})`,cls:'btn-outline-warning'});
 	if(totals.compatibilityCells>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityCells})`,cls:'btn-outline-info'});
+	if(totals.absentCells>0) btns.push({metric:'presence',label:`Frånvarande (${totals.absentCells})`,cls:'btn-outline-danger'});
 	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
 	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
 		btn.addEventListener('click',()=>applySummaryFilter(btn.dataset.metric));
@@ -2529,8 +2547,14 @@ function renderPersonGroups(){
 			const id = parseEntityId(el.dataset.id);
 			const p = DB.persons.find(x=>x.id===id);
 			if(!p) return;
-			if(el.dataset.bind==='name') p.name = el.value.trim();
-			if(el.dataset.bind==='present') p.present = el.checked;
+			if(el.dataset.bind==='name'){
+				p.name = el.value.trim();
+				rebuildAll();
+			}
+			if(el.dataset.bind==='present'){
+				p.present = el.checked;
+				rebuildAll();
+			}
 			if(el.dataset.bind==='groupId'){
 				const newG = parseEntityId(el.value);
 				if(p.groupId!==newG){
@@ -2713,7 +2737,7 @@ function renderStationsByGroup(){
 				const s=DB.stations.find(x=>x.id===id);
 				if(el.dataset.bind==='title') s.title=el.value.trim();
 				if(el.dataset.bind==='defcap') s.defaultCapacity=parseInt(el.value,10)||1;
-				if(el.dataset.bind==='op') s.operational=el.checked; return;
+				if(el.dataset.bind==='op') s.operational=el.checked;
 				if(el.dataset.bind==='resurs') s.isResurs=el.checked;
 				rebuildAll();
 			});
