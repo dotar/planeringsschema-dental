@@ -1896,6 +1896,17 @@ function movePersonTo(cell, station, slot, personId){
 
 function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});if(mode==='edit')validateBoard();}
 
+function formatPersonNameForPill(rawName){
+	const name = String(rawName ?? '').trim();
+	const m = name.match(/^(.*\S)\s+([A-Za-zÅÄÖåäö])$/u);
+	if(!m) return name;
+	const base = m[1].trim();
+	const suffix = m[2];
+	const keep = 5;
+	if(base.length<=keep) return name;
+	return `${base.slice(0, keep)}...${suffix}`;
+}
+
 function addPersonPill(cell, personId){
 	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
 	const pill = document.createElement('span');
@@ -1928,8 +1939,8 @@ function addPersonPill(cell, personId){
 		tip.setContent({ '.tooltip-inner': tipText });
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i> ${escapeHtml(p.name)} <i class="bi bi-x ms-1" role="button"></i>`;
-	pill.querySelector('.bi-x').addEventListener('click', ev=>{
+	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name">${escapeHtml(formatPersonNameForPill(p.name))}</span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;
 		removePersonPill(cell, personId);

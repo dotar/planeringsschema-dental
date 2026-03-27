@@ -204,12 +204,21 @@ body{ overflow:hidden; }
 
 /* Person pills slightly larger */
 .person-pill{
-	display:inline-flex; align-items:center;
+	display:inline-flex; align-items:center; gap:.25rem;
 	max-width:100%; min-width:0;
-	white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 	font-size:calc(11px*var(--font-comp));
 	line-height:1.15; padding:3px 8px; border-radius:.55rem;
 	color:var(--bs-gray-900) !important;
+}
+.person-pill .pill-name{
+	min-width:0;
+	overflow:hidden;
+	text-overflow:ellipsis;
+	white-space:nowrap;
+}
+.person-pill .pill-remove{
+	flex:0 0 auto;
+	cursor:pointer;
 }
 
 
