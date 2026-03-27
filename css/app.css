@@ -179,7 +179,8 @@ body{ overflow:hidden; }
 	z-index:1050; left:4px; top:4px;
 	width:auto; min-width:unset; max-width:90vw;
 	height:auto; max-height:90vh;
-	font-size:calc(8px * var(--font-comp));
+	/* Keep picker size visually stable regardless of grid scale */
+	font-size:14px;
 	line-height:1.35;
 }
 .person-picker option:disabled{ opacity:.5; }
