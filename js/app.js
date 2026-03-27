@@ -2529,8 +2529,14 @@ function renderPersonGroups(){
 			const id = parseEntityId(el.dataset.id);
 			const p = DB.persons.find(x=>x.id===id);
 			if(!p) return;
-			if(el.dataset.bind==='name') p.name = el.value.trim();
-			if(el.dataset.bind==='present') p.present = el.checked;
+			if(el.dataset.bind==='name'){
+				p.name = el.value.trim();
+				rebuildAll();
+			}
+			if(el.dataset.bind==='present'){
+				p.present = el.checked;
+				rebuildAll();
+			}
 			if(el.dataset.bind==='groupId'){
 				const newG = parseEntityId(el.value);
 				if(p.groupId!==newG){
@@ -2713,7 +2719,7 @@ function renderStationsByGroup(){
 				const s=DB.stations.find(x=>x.id===id);
 				if(el.dataset.bind==='title') s.title=el.value.trim();
 				if(el.dataset.bind==='defcap') s.defaultCapacity=parseInt(el.value,10)||1;
-				if(el.dataset.bind==='op') s.operational=el.checked; return;
+				if(el.dataset.bind==='op') s.operational=el.checked;
 				if(el.dataset.bind==='resurs') s.isResurs=el.checked;
 				rebuildAll();
 			});
