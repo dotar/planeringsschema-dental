@@ -211,6 +211,7 @@ body{ overflow:hidden; }
 	color:var(--bs-gray-900) !important;
 }
 .person-pill .pill-name{
+	flex:1 1 auto;
 	min-width:0;
 	overflow:hidden;
 	text-overflow:ellipsis;

@@ -1896,15 +1896,45 @@ function movePersonTo(cell, station, slot, personId){
 
 function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});if(mode==='edit')validateBoard();}
 
-function formatPersonNameForPill(rawName){
+const _pillMeasureCanvas = document.createElement('canvas');
+const _pillMeasureCtx = _pillMeasureCanvas.getContext('2d');
+
+function formatPersonNameForPill(rawName, maxWidthPx, font){
 	const name = String(rawName ?? '').trim();
+	if(!name) return '';
+	if(!_pillMeasureCtx || !Number.isFinite(maxWidthPx) || maxWidthPx<=0) return name;
+
 	const m = name.match(/^(.*\S)\s+([A-Za-zÅÄÖåäö])$/u);
 	if(!m) return name;
+
+	_pillMeasureCtx.font = font || getComputedStyle(document.body).font;
+	if(_pillMeasureCtx.measureText(name).width<=maxWidthPx) return name;
+
 	const base = m[1].trim();
 	const suffix = m[2];
-	const keep = 5;
-	if(base.length<=keep) return name;
-	return `${base.slice(0, keep)}...${suffix}`;
+	let lo = 0;
+	let hi = base.length;
+	let best = suffix;
+	while(lo<=hi){
+		const mid = Math.floor((lo+hi)/2);
+		const candidate = `${base.slice(0, mid)}...${suffix}`;
+		if(_pillMeasureCtx.measureText(candidate).width<=maxWidthPx){
+			best = candidate;
+			lo = mid + 1;
+		}else{
+			hi = mid - 1;
+		}
+	}
+	return best;
+}
+
+function fitPersonPillLabel(pill){
+	const nameEl = pill.querySelector('.pill-name');
+	if(!nameEl) return;
+	const fullName = nameEl.dataset.fullName || nameEl.textContent || '';
+	const maxWidth = nameEl.clientWidth;
+	const font = getComputedStyle(nameEl).font;
+	nameEl.textContent = formatPersonNameForPill(fullName, maxWidth, font);
 }
 
 function addPersonPill(cell, personId){
@@ -1939,7 +1969,10 @@ function addPersonPill(cell, personId){
 		tip.setContent({ '.tooltip-inner': tipText });
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name">${escapeHtml(formatPersonNameForPill(p.name))}</span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	const nameEl = pill.querySelector('.pill-name');
+	nameEl.dataset.fullName = String(p.name ?? '');
+	nameEl.textContent = nameEl.dataset.fullName;
 	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;
@@ -1950,6 +1983,7 @@ function addPersonPill(cell, personId){
 	pill.addEventListener('dragend', onDragEnd);
 
 	cell.querySelector('[data-role="person-list"]').appendChild(pill);
+	fitPersonPillLabel(pill);
 
 }
 
