@@ -129,6 +129,20 @@ body{ overflow:hidden; }
 	font-size:calc(var(--fz-sh) * var(--font-comp));
 	line-height: 1;
 }
+.cell,
+.time-cell,
+.station-header{
+	transition: background-color .12s ease, box-shadow .12s ease;
+}
+.cell.cell-hovered{
+	background:rgba(var(--bs-primary-rgb), .08);
+}
+.time-cell.cell-hover-time{
+	background:rgba(var(--bs-primary-rgb), .07);
+}
+.station-header.station-hover{
+	background:rgba(var(--bs-primary-rgb), .11);
+}
 
 /* Time column */
 .time-cell{
