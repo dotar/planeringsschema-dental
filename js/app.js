@@ -140,6 +140,7 @@ function applyViewerEditSetting(enabled,{persist=true}={}){
 
 function logoutCoordinator({reason='' }={}){
 	sessionStorage.removeItem('planning.coord');
+	clearModeBadgeTooltip();
 	applyMode('viewer');
 	renderSettings();
 	rebuildAll();
@@ -235,6 +236,13 @@ function dismissNativeTitleTooltip(el){
 	window.setTimeout(()=>{
 		if(document.contains(el)) el.setAttribute('title', ttl);
 	}, 80);
+}
+
+function clearModeBadgeTooltip(){
+	const badge=document.getElementById('modeBadge');
+	if(!badge) return;
+	bootstrap.Tooltip.getInstance(badge)?.hide();
+	badge.removeAttribute('aria-describedby');
 }
 
 function formatInactivityNoticeText(){
@@ -1116,6 +1124,14 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
 	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
 	applyCoordAutoLogoutSetting(getCoordAutoLogoutMinutes(),{persist:false});
+
+	const facSel=document.getElementById('factorySel');
+	const settingsFacSel=document.getElementById('settingsFactorySel');
+	const shiftSel=document.getElementById('shiftSel');
+	const settingsShiftSel=document.getElementById('settingsShiftSel');
+
+	initShiftData();
+	setShift(qs.get('shift')||'evening',{updateUrl:false});
 	applyMode(mode,{updateUrl:false});
 	updateToastAreaPosition();
 	if(mode==='edit'){
@@ -1127,14 +1143,6 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			}
 		});
 	}
-
-	const facSel=document.getElementById('factorySel');
-	const settingsFacSel=document.getElementById('settingsFactorySel');
-	const shiftSel=document.getElementById('shiftSel');
-	const settingsShiftSel=document.getElementById('settingsShiftSel');
-
-	initShiftData();
-	setShift(qs.get('shift')||'evening',{updateUrl:false});
 
 	function populateFactoryButtons(group){
 		if(!group) return;
@@ -1247,6 +1255,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
+		clearModeBadgeTooltip();
 		dismissNativeTitleTooltip(modeBadge);
 		modeBadge.blur();
 		if(mode==='edit'){
