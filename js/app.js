@@ -1117,6 +1117,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
 	applyCoordAutoLogoutSetting(getCoordAutoLogoutMinutes(),{persist:false});
 	applyMode(mode,{updateUrl:false});
+	updateToastAreaPosition();
 	if(mode==='edit'){
 		showCoordLogin({
 			onSuccess:()=>{
@@ -1273,6 +1274,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	updateHeaderContext();
 	rebuildAll();
 	window.addEventListener('resize',fitToViewport);
+	window.addEventListener('resize',updateToastAreaPosition);
 	document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});
 })();
 
@@ -3357,10 +3359,20 @@ function showWarn(msg){
 	setTimeout(()=>a.classList.add('d-none'),4000);
 }
 
+function updateToastAreaPosition(){
+	const area=document.getElementById('toastArea');
+	if(!area) return;
+	const topMenu=document.querySelector('nav.navbar.sticky-top');
+	const menuBottom=topMenu ? topMenu.getBoundingClientRect().bottom : 0;
+	const safeTop=Math.max(0, Math.ceil(menuBottom))+8;
+	area.style.top=`${safeTop}px`;
+}
+
 // Toasts
 function showToast(kind, title, msg, opts={}){
 	const area=document.getElementById('toastArea');
 	if(!area) return;
+	updateToastAreaPosition();
 	const icon = (kind==='danger') ? 'exclamation-octagon' : (kind==='warning' ? 'exclamation-triangle' : 'info-circle');
 
 	const el=document.createElement('div');
