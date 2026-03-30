@@ -1533,6 +1533,7 @@ function buildGrid(){
 			if(resurs){
 				const sh=cellDiv('station-header');
 				sh.classList.add('resurs-col');
+				sh.dataset.stationId=resurs.id;
 				sh.textContent=resurs.title;
 				grid.appendChild(sh);
 			}
@@ -1541,6 +1542,7 @@ function buildGrid(){
 		const sts=(grouped[tok]||[]).sort((a,b)=>a.sort-b.sort);
 		for(const s of sts){
 			const sh=cellDiv('station-header');
+			sh.dataset.stationId=s.id;
 			sh.textContent=s.title;
 			grid.appendChild(sh);
 		}
@@ -1647,11 +1649,41 @@ function buildGrid(){
 		}
 	}
 	scaler.appendChild(grid);
+	bindGridHoverHighlights(grid);
 	requestAnimationFrame(fitToViewport);
 	renderAssignments();
 	if(mode==='edit') validateBoard();
 
 
+}
+
+function bindGridHoverHighlights(grid){
+	let activeCell=null;
+	const clear=()=>{
+		grid.querySelectorAll('.cell-hovered, .cell-hover-time, .station-hover').forEach(el=>{
+			el.classList.remove('cell-hovered','cell-hover-time','station-hover');
+		});
+		activeCell=null;
+	};
+
+	const apply=(cell)=>{
+		const stationId=cell.dataset.stationId;
+		const slotId=cell.dataset.slotId;
+		if(!stationId || !slotId) return;
+		clear();
+		activeCell=cell;
+		cell.classList.add('cell-hovered');
+		grid.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`)?.classList.add('cell-hover-time');
+		grid.querySelector(`.station-header[data-station-id="${escapeDataId(stationId)}"]`)?.classList.add('station-hover');
+	};
+
+	grid.addEventListener('pointerover', ev=>{
+		const cell=ev.target.closest('.cell[data-station-id][data-slot-id]');
+		if(!cell || !grid.contains(cell) || cell===activeCell) return;
+		apply(cell);
+	});
+
+	grid.addEventListener('pointerleave', clear);
 }
 
 function renderAssignments(){const dateStr=getSelectedDateStr();const all=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);for(const a of all){const cell=findCell(a.stationId,a.timeSlotId);if(cell)addPersonPill(cell,a.personId);} }
