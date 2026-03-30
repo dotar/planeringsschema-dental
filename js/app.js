@@ -1065,8 +1065,16 @@ function roundRobinFill(stations, slot, opts = {}){
 
 			const candidates = generalists.filter(p => canPlace(p, s, slot, opts, takenThisSlot, remaining));
 			if(!candidates.length) continue;
-			shuffle(candidates);
-			const chosen = candidates[0];
+			const scored = candidates
+				.map(p => ({
+					person: p,
+					criticalNeed: countCriticalNeed(p, s, stations, slot, opts, takenThisSlot, remaining)
+				}))
+				.sort((a, b) => a.criticalNeed - b.criticalNeed);
+			const bestNeed = scored[0].criticalNeed;
+			const best = scored.filter(x => x.criticalNeed === bestNeed).map(x => x.person);
+			shuffle(best);
+			const chosen = best[0];
 
 			const cell = findCell(s.id, slot.id);
 			placePerson(cell, s, slot, chosen.id);
@@ -1075,6 +1083,22 @@ function roundRobinFill(stations, slot, opts = {}){
 			progressed = true;
 		}
 	}
+}
+
+function countCriticalNeed(person, currentStation, stations, slot, opts = {}, takenThisSlot, remaining){
+	let criticalNeed = 0;
+	for(const other of stations){
+		if(other.id===currentStation.id) continue;
+		if((remaining.get(other.id) || 0) <= 0) continue;
+		if(!canPlace(person, other, slot, opts, takenThisSlot, remaining)) continue;
+
+		const alternatives = getPlanningPersons(currentFactoryId).filter(p =>
+			p.id!==person.id &&
+			canPlace(p, other, slot, opts, takenThisSlot, remaining)
+		).length;
+		if(alternatives===0) criticalNeed++;
+	}
+	return criticalNeed;
 }
 
 
