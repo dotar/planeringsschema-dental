@@ -1736,7 +1736,7 @@ function openAssignDropdownOverlay(cell, station, slot){
 	// Build the select
 	const sel=document.createElement('select');
 	sel.className='form-select person-picker';
-	sel.size=20;
+	const maxPickerRows=20;
 
 	// strike-through: already assigned in same date+slot
 	const dateStr=getSelectedDateStr();
@@ -1784,6 +1784,8 @@ function openAssignDropdownOverlay(cell, station, slot){
 
 		sel.appendChild(og);
 	}
+	const optionCount=sel.querySelectorAll('option').length;
+	sel.size=Math.max(1, Math.min(maxPickerRows, optionCount));
 
 	card.appendChild(sel);
 	overlay.appendChild(card);
