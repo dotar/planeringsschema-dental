@@ -33,9 +33,9 @@
 				<div id="viewerUpdateNotice" class="badge text-bg-warning viewer-update-notice d-none mt-1 align-self-start" role="status" aria-live="polite"><i class="bi bi-clock-history me-1 notice-icon"></i><span class="notice-text"></span></div>
 				<div class="d-flex align-items-center gap-2 ms-auto">
 					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
-						<button type="button" class="btn btn-outline-secondary" data-value="day">Dag</button>
-						<button type="button" class="btn btn-outline-secondary" data-value="evening">Kväll</button>
-						<button type="button" class="btn btn-outline-secondary" data-value="night">Natt</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="day"><i class="bi bi-sun-fill"></i> Dag</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="evening"><i class="bi bi-cloud-moon-fill"></i> Kväll</button>
+						<button type="button" class="btn btn-outline-secondary" data-value="night"><i class="bi bi-moon-stars-fill"></i> Natt</button>
 					</div>
 					<div id="factorySel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj fabrik"></div>
 					<div class="input-group input-group-sm hide-in-viewer" style="width:220px">
@@ -43,8 +43,8 @@
 						<input id="dateInput" type="date" class="form-control">
 					</div>
 					<div class="btn-group btn-group-sm" role="group" aria-label="Day pick">
-						<button id="btnToday" class="btn btn-outline-secondary active">Idag</button>
-						<button id="btnTomorrow" class="btn btn-outline-secondary">Imorgon</button>
+						<button id="btnToday" class="btn btn-outline-secondary active"><i class="bi bi-calendar-date"></i> Idag</button>
+						<button id="btnTomorrow" class="btn btn-outline-secondary"><i class="bi bi-calendar-event"></i> Imorgon</button>
 					</div>
 					<select id="templateSel" class="form-select form-select-sm hide-in-viewer" style="width:220px"></select>
 					<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Autogenerera</button>
