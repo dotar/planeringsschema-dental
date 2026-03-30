@@ -211,7 +211,13 @@ function applyMode(nextMode,{updateUrl=true}={}){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
 		badge.classList.toggle('text-bg-success', mode==='edit');
 		badge.classList.toggle('text-bg-secondary', mode!=='edit');
-		badge.title=mode==='edit'?'Klicka för att logga ut':'Klicka för att logga in som koordinator';
+		const badgeTooltipText=mode==='edit'?'Klicka för att logga ut':'Klicka för att logga in som koordinator';
+		badge.setAttribute('data-bs-title', badgeTooltipText);
+		badge.removeAttribute('title');
+		const badgeTip=bootstrap.Tooltip.getInstance(badge);
+		if(badgeTip && typeof badgeTip.setContent==='function'){
+			badgeTip.setContent({ '.tooltip-inner': badgeTooltipText });
+		}
 	}
 	bindViewerActivityListeners(mode==='viewer');
 	bindCoordinatorActivityListeners(mode==='edit');
