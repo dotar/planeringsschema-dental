@@ -3374,7 +3374,7 @@ function updateToastAreaPosition(){
 	const topMenu=document.querySelector('nav.navbar.sticky-top');
 	const menuBottom=topMenu ? topMenu.getBoundingClientRect().bottom : 0;
 	const safeTop=Math.max(0, Math.ceil(menuBottom))+8;
-	area.style.top=`${safeTop}px`;
+	area.style.setProperty('top', `${safeTop}px`, 'important');
 }
 
 // Toasts
