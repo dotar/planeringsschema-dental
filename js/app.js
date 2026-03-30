@@ -1065,16 +1065,22 @@ function roundRobinFill(stations, slot, opts = {}){
 
 			const candidates = generalists.filter(p => canPlace(p, s, slot, opts, takenThisSlot, remaining));
 			if(!candidates.length) continue;
-			const scored = candidates
-				.map(p => ({
-					person: p,
-					criticalNeed: countCriticalNeed(p, s, stations, slot, opts, takenThisSlot, remaining)
-				}))
-				.sort((a, b) => a.criticalNeed - b.criticalNeed);
-			const bestNeed = scored[0].criticalNeed;
-			const best = scored.filter(x => x.criticalNeed === bestNeed).map(x => x.person);
-			shuffle(best);
-			const chosen = best[0];
+			let chosen;
+			if(opts.preferCriticalCoverage !== false){
+				const scored = candidates
+					.map(p => ({
+						person: p,
+						criticalNeed: countCriticalNeed(p, s, stations, slot, opts, takenThisSlot, remaining)
+					}))
+					.sort((a, b) => a.criticalNeed - b.criticalNeed);
+				const bestNeed = scored[0].criticalNeed;
+				const best = scored.filter(x => x.criticalNeed === bestNeed).map(x => x.person);
+				shuffle(best);
+				chosen = best[0];
+			}else{
+				shuffle(candidates);
+				chosen = candidates[0];
+			}
 
 			const cell = findCell(s.id, slot.id);
 			placePerson(cell, s, slot, chosen.id);
@@ -2327,6 +2333,9 @@ function openRandomizer(){
 	const preferTrainedSaved=localStorage.getItem('planning.preferTrained');
 	const preferTrained=(preferTrainedSaved===null)?true:(preferTrainedSaved==='1'||preferTrainedSaved==='true');
 	document.getElementById('preferTrained').checked=preferTrained;
+	const preferCriticalCoverageSaved=localStorage.getItem('planning.preferCriticalCoverage');
+	const preferCriticalCoverage=(preferCriticalCoverageSaved===null)?true:(preferCriticalCoverageSaved==='1'||preferCriticalCoverageSaved==='true');
+	document.getElementById('preferCriticalCoverage').checked=preferCriticalCoverage;
 
 	// ----- Groups (now: defines PEOPLE POOL) -----
 	const wrapG=document.getElementById('randGroups');
@@ -2436,6 +2445,8 @@ function runRandomizer(){
 	localStorage.setItem('planning.keepPrefilled', keepPrefilled ? '1' : '0');
 	const preferTrained = document.getElementById('preferTrained').checked;
 	localStorage.setItem('planning.preferTrained', preferTrained ? '1' : '0');
+	const preferCriticalCoverage = document.getElementById('preferCriticalCoverage').checked;
+	localStorage.setItem('planning.preferCriticalCoverage', preferCriticalCoverage ? '1' : '0');
 
 	// ordered work slots
 	const slots = DB.timeSlots
@@ -2458,12 +2469,12 @@ function runRandomizer(){
 
 	// per slot: round-robin across non-Resurs
 	for(const sl of slots){
-		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
+		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 	}
 	// then Resurs (if present)
 	if(res && fillResurs){
 		for(const sl of slots){
-			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained});
+			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 		}
 	}
 
