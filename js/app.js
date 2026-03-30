@@ -1791,7 +1791,10 @@ function openAssignDropdownOverlay(cell, station, slot){
 		sel.appendChild(og);
 	}
 	const optionCount=sel.querySelectorAll('option').length;
-	sel.size=Math.max(1, Math.min(maxPickerRows, optionCount));
+	const groupCount=sel.querySelectorAll('optgroup').length;
+	// Include group headers in the visible row count so short grouped lists don't get an inner scrollbar.
+	const visibleRowsNeeded=optionCount+groupCount;
+	sel.size=Math.max(1, Math.min(maxPickerRows, visibleRowsNeeded));
 
 	card.appendChild(sel);
 	overlay.appendChild(card);
