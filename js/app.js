@@ -7,7 +7,8 @@ let lastAutoGenerateContext=null;
 function formatUnassignedTooltipText(names){
 	if(!names || names.length===0) return '';
 	const unit=names.length===1 ? 'person' : 'personer';
-	return `${names.length} ej tilldelade ${unit}: ${names.join(', ')}`;
+	const lines=names.map(name=>`• ${name}`).join('\n');
+	return `${names.length} ej tilldelade ${unit}:\n${lines}`;
 }
 
 function getAutoGenerateUnassignedBySlot(){
@@ -38,6 +39,34 @@ function getAutoGenerateUnassignedBySlot(){
 		if(names.length>0) bySlot.set(String(slot.id), names);
 	}
 	return bySlot;
+}
+
+function refreshAutoGenerateWarnings(){
+	const grid=document.querySelector('.schedule-grid');
+	if(!grid) return;
+	const unassignedBySlot=getAutoGenerateUnassignedBySlot();
+	grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
+		const slotId=String(timeCell.dataset.slotId||'');
+		const missingNames=unassignedBySlot?.get(slotId)||[];
+		let indicator=timeCell.querySelector('.slot-unassigned-indicator');
+		if(missingNames.length===0){
+			if(indicator){
+				bootstrap.Tooltip.getInstance(indicator)?.dispose();
+				indicator.remove();
+			}
+			return;
+		}
+		if(!indicator){
+			indicator=document.createElement('span');
+			indicator.className='slot-unassigned-indicator';
+			indicator.innerHTML='<i class="bi bi-person-exclamation" aria-hidden="true"></i><span class="visually-hidden">Ej tilldelade personer</span>';
+			timeCell.appendChild(indicator);
+		}
+		const tipText=formatUnassignedTooltipText(missingNames);
+		indicator.setAttribute('title', tipText);
+		const tip=bootstrap.Tooltip.getOrCreateInstance(indicator,{trigger:'hover',placement:'auto'});
+		if(typeof tip.setContent==='function') tip.setContent({ '.tooltip-inner': tipText });
+	});
 }
 
 function parseFactoryId(v){
@@ -1752,6 +1781,7 @@ function buildGrid(){
 	bindGridHoverHighlights(grid);
 	requestAnimationFrame(fitToViewport);
 	renderAssignments();
+	refreshAutoGenerateWarnings();
 	if(mode==='edit') validateBoard();
 
 
@@ -2049,7 +2079,7 @@ function movePersonTo(cell, station, slot, personId){
 
 
 
-function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});if(mode==='edit')validateBoard();}
+function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();}
 
 const _pillMeasureCanvas = document.createElement('canvas');
 const _pillMeasureCtx = _pillMeasureCanvas.getContext('2d');
@@ -2152,6 +2182,7 @@ function removePersonPill(cell,personId){
 	const stationId=parseEntityId(cell.dataset.stationId);
 	DB.assignments=DB.assignments.filter(a=>!(a.date===dateStr&&a.timeSlotId===slotId&&a.stationId===stationId&&a.personId===personId&&a.dayType===currentDayType));
 	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
+	refreshAutoGenerateWarnings();
 	if(mode==='edit')validateBoard();
 }
 
