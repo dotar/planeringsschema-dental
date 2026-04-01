@@ -1050,12 +1050,20 @@ function placeOneRandom(station, slot, opts={}){
 			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
 			.sort((a, b)=>a.sort-b.sort);
 		const idx = workSlots.findIndex(x => x.id===slot.id);
-		const prevSlot = idx>0 ? workSlots[idx-1] : null;
-		if(prevSlot){
-			const prevAss = DB.assignments
-				.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===prevSlot.id)
+		const adjacentSlots = [
+			idx>0 ? workSlots[idx-1] : null,
+			idx>=0 && idx<workSlots.length-1 ? workSlots[idx+1] : null
+		].filter(Boolean);
+		if(adjacentSlots.length){
+			const adjacentAss = DB.assignments
+				.filter(a =>
+					a.date===dateStr &&
+					a.dayType===currentDayType &&
+					a.stationId===station.id &&
+					adjacentSlots.some(adj => adj.id===a.timeSlotId)
+				)
 				.map(a => a.personId);
-			if(prevAss.length) candidates = candidates.filter(c => !prevAss.includes(c.id));
+			if(adjacentAss.length) candidates = candidates.filter(c => !adjacentAss.includes(c.id));
 		}
 	}
 
@@ -1191,12 +1199,20 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
 			.sort((a, b) => a.sort - b.sort);
 		const idx = workSlots.findIndex(x => x.id === slot.id);
-		const prev = idx > 0 ? workSlots[idx-1] : null;
-		if(prev){
-			const prevAss = DB.assignments
-				.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===prev.id)
+		const adjacentSlots = [
+			idx > 0 ? workSlots[idx-1] : null,
+			idx >= 0 && idx < workSlots.length - 1 ? workSlots[idx+1] : null
+		].filter(Boolean);
+		if(adjacentSlots.length){
+			const adjacentAss = DB.assignments
+				.filter(a =>
+					a.date===dateStr &&
+					a.dayType===currentDayType &&
+					a.stationId===station.id &&
+					adjacentSlots.some(adj => adj.id===a.timeSlotId)
+				)
 				.map(a => a.personId);
-			if(prevAss.includes(person.id)) return false;
+			if(adjacentAss.includes(person.id)) return false;
 		}
 	}
 
