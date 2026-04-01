@@ -63,7 +63,9 @@ function refreshAutoGenerateWarnings(){
 			timeCell.appendChild(indicator);
 		}
 		const tipText=formatUnassignedTooltipText(missingNames);
-		indicator.setAttribute('title', tipText);
+		indicator.setAttribute('data-bs-toggle','tooltip');
+		indicator.setAttribute('data-bs-title', tipText);
+		indicator.removeAttribute('title');
 		const tip=bootstrap.Tooltip.getOrCreateInstance(indicator,{trigger:'hover',placement:'auto'});
 		if(typeof tip.setContent==='function') tip.setContent({ '.tooltip-inner': tipText });
 	});
@@ -1683,7 +1685,8 @@ function buildGrid(){
 		if(missingNames.length>0){
 			const indicator=document.createElement('span');
 			indicator.className='slot-unassigned-indicator';
-			indicator.setAttribute('title', formatUnassignedTooltipText(missingNames));
+			indicator.setAttribute('data-bs-toggle','tooltip');
+			indicator.setAttribute('data-bs-title', formatUnassignedTooltipText(missingNames));
 			indicator.innerHTML='<i class="bi bi-person-exclamation" aria-hidden="true"></i><span class="visually-hidden">Ej tilldelade personer</span>';
 			timeCell.appendChild(indicator);
 		}
