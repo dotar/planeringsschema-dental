@@ -1087,6 +1087,12 @@ function placeOneRandom(station, slot, opts={}){
 // NEW: round-robin fill over stations for one slot
 function roundRobinFill(stations, slot, opts = {}){
 	const dateStr = getSelectedDateStr();
+	const getStationDayLoad = (stationId)=>DB.assignments.filter(a =>
+		a.date===dateStr &&
+		a.dayType===currentDayType &&
+		a.stationId===stationId
+	).length;
+	const stationBaseOrder = new Map(stations.map((s, idx)=>[s.id, idx]));
 
 	const takenThisSlot = new Set(
 		DB.assignments
@@ -1124,6 +1130,11 @@ function roundRobinFill(stations, slot, opts = {}){
 	}
 
 	// 1) place specialists first
+	specialists.sort((a, b)=>{
+		const loadDiff = getStationDayLoad(a.s.id) - getStationDayLoad(b.s.id);
+		if(loadDiff!==0) return loadDiff;
+		return (stationBaseOrder.get(a.s.id) ?? 0) - (stationBaseOrder.get(b.s.id) ?? 0);
+	});
 	for(const {p, s} of specialists){
 		if(!canPlace(p, s, slot, opts, takenThisSlot, remaining)) continue;
 		const cell = findCell(s.id, slot.id);
@@ -1136,7 +1147,12 @@ function roundRobinFill(stations, slot, opts = {}){
 	let progressed = true;
 	while(progressed){
 		progressed = false;
-		for(const s of stations){
+		const stationOrder = stations.slice().sort((a, b)=>{
+			const loadDiff = getStationDayLoad(a.id) - getStationDayLoad(b.id);
+			if(loadDiff!==0) return loadDiff;
+			return (stationBaseOrder.get(a.id) ?? 0) - (stationBaseOrder.get(b.id) ?? 0);
+		});
+		for(const s of stationOrder){
 			const rem = remaining.get(s.id) || 0;
 			if(rem <= 0) continue;
 
@@ -1220,6 +1236,44 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 		.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===slot.id)
 		.map(a => a.personId);
 	if(existingHere.some(e => isIncompatible(e, person.id))) return false;
+
+	// Keep scarce trained candidates available for the next slot when consecutive-rule is active.
+	// This avoids overfilling an early slot (up to max capacity) when it would create avoidable gaps next.
+	if(opts.avoidConsecutive !== false && !opts._skipNextSlotReserve){
+		const workSlots = DB.timeSlots
+			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
+			.sort((a, b) => a.sort - b.sort);
+		const idx = workSlots.findIndex(x => x.id === slot.id);
+		const nextSlot = idx >= 0 && idx < workSlots.length - 1 ? workSlots[idx+1] : null;
+		if(nextSlot){
+			const nextCapacity = station.defaultCapacity || 1;
+			const nextAssignments = DB.assignments.filter(a =>
+				a.date===dateStr &&
+				a.dayType===currentDayType &&
+				a.stationId===station.id &&
+				a.timeSlotId===nextSlot.id
+			);
+			const nextNeed = Math.max(0, nextCapacity - nextAssignments.length);
+			if(nextNeed > 0){
+				const blockedByCurrent = new Set(existingHere);
+				const personCanTakeNext = !blockedByCurrent.has(person.id) &&
+					isPersonAllowedFor(person, station, nextSlot, {ignoreTraining: opts.requireTraining===false}) &&
+					!nextAssignments.some(a => isIncompatible(a.personId, person.id));
+				if(personCanTakeNext){
+					const availableOthers = getPlanningPersons(currentFactoryId).filter(p =>
+						p.id!==person.id &&
+						p.factoryId===currentFactoryId &&
+						p.present &&
+						(!opts.candidateGroupIds || opts.candidateGroupIds.has(p.groupId)) &&
+						!blockedByCurrent.has(p.id) &&
+						isPersonAllowedFor(p, station, nextSlot, {ignoreTraining: opts.requireTraining===false}) &&
+						!nextAssignments.some(a => isIncompatible(a.personId, p.id))
+					).length;
+					if(availableOthers < nextNeed) return false;
+				}
+			}
+		}
+	}
 
 	return true;
 }
