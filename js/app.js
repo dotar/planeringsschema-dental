@@ -1927,6 +1927,8 @@ function openAssignDropdownOverlay(cell, station, slot){
 	// Include group headers in the visible row count so short grouped lists don't get an inner scrollbar.
 	const visibleRowsNeeded=optionCount+groupCount;
 	sel.size=Math.max(1, Math.min(maxPickerRows, visibleRowsNeeded));
+	// Ensure nothing is pre-selected so clicking the first item also triggers "change".
+	sel.selectedIndex=-1;
 
 	card.appendChild(sel);
 	overlay.appendChild(card);
