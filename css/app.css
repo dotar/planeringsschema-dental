@@ -156,10 +156,27 @@ body{ overflow:hidden; }
 	top:50%; transform:translateY(-50%);   /* vertical center */
 	font-weight:600; line-height:1.05;
 }
+
 .time-cell .slot-kind{
 	position:absolute; left:.25rem; bottom:.25rem;
 	font-size:calc(var(--fz-kind) * var(--font-comp));
 	opacity:.4;
+}
+.time-cell .slot-unassigned-indicator{
+	position:absolute;
+	right:.25rem;
+	top:.2rem;
+	display:inline-flex;
+	align-items:center;
+	justify-content:center;
+	font-size:calc(12px * var(--font-comp));
+	line-height:1;
+	color:var(--bs-warning-text-emphasis);
+	opacity:.85;
+	cursor:help;
+}
+.time-cell .slot-unassigned-indicator:hover{
+	opacity:1;
 }
 
 /* Person list inside planning cells */
