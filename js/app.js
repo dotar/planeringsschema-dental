@@ -1,6 +1,44 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
+let lastAutoGenerateContext=null;
+
+
+function formatUnassignedTooltipText(names){
+	if(!names || names.length===0) return '';
+	const unit=names.length===1 ? 'person' : 'personer';
+	return `${names.length} ej tilldelade ${unit}: ${names.join(', ')}`;
+}
+
+function getAutoGenerateUnassignedBySlot(){
+	if(!lastAutoGenerateContext) return null;
+	const dateStr=getSelectedDateStr();
+	if(lastAutoGenerateContext.factoryId!==currentFactoryId ||
+		lastAutoGenerateContext.dayType!==currentDayType ||
+		lastAutoGenerateContext.date!==dateStr){
+		return null;
+	}
+	const candidateGroupIds=new Set(lastAutoGenerateContext.candidateGroupIds||[]);
+	const workSlots=DB.timeSlots
+		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
+		.sort((a,b)=>a.sort-b.sort);
+	const rows=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
+	const bySlot=new Map();
+	for(const slot of workSlots){
+		const available=getPlanningPersons(currentFactoryId).filter(p=>
+			p.factoryId===currentFactoryId &&
+			p.present &&
+			(candidateGroupIds.size===0 || candidateGroupIds.has(p.groupId))
+		);
+		const assigned=new Set(rows.filter(a=>a.timeSlotId===slot.id).map(a=>a.personId));
+		const names=available
+			.filter(p=>!assigned.has(p.id))
+			.map(p=>p.name)
+			.sort((a,b)=>a.localeCompare(b,'sv'));
+		if(names.length>0) bySlot.set(String(slot.id), names);
+	}
+	return bySlot;
+}
 
 function parseFactoryId(v){
 	const s=String(v ?? '');
@@ -1525,6 +1563,7 @@ function buildGrid(){
 	const groups=DB.groups.filter(g=>g.factoryId===currentFactoryId);
 	const {order,resurs,grouped}=orderedColumns();
 	const slots=DB.timeSlots.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType).sort((a,b)=>a.sort-b.sort);
+	const autoGenerateUnassignedBySlot=getAutoGenerateUnassignedBySlot();
 	let cols=['var(--time-col-w)'];
 	order.forEach(tok=>{
 		if(tok==='resurs'){
@@ -1611,6 +1650,14 @@ function buildGrid(){
 		timeCell.innerHTML =
 			`<div class="slot-time">${slot.start}<br>—<br>${slot.end}</div>` +
 			`<div class="slot-kind">${slot.type === 'Break' ? 'Rast' : 'Arbete'}</div>`;
+		const missingNames=autoGenerateUnassignedBySlot?.get(String(slot.id))||[];
+		if(missingNames.length>0){
+			const indicator=document.createElement('span');
+			indicator.className='slot-unassigned-indicator';
+			indicator.setAttribute('title', formatUnassignedTooltipText(missingNames));
+			indicator.innerHTML='<i class="bi bi-person-exclamation" aria-hidden="true"></i><span class="visually-hidden">Ej tilldelade personer</span>';
+			timeCell.appendChild(indicator);
+		}
 		grid.appendChild(timeCell);
 
 		const addStationCell = (station) => {
@@ -2483,6 +2530,13 @@ function runRandomizer(){
 			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 		}
 	}
+
+	lastAutoGenerateContext={
+		factoryId:currentFactoryId,
+		dayType:currentDayType,
+		date:getSelectedDateStr(),
+		candidateGroupIds:[...selectedGroupIds]
+	};
 
 	bootstrap.Modal.getInstance(document.getElementById('randomizeModal')).hide();
 	rebuildAll();
