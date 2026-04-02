@@ -20,6 +20,7 @@ function getAutoGenerateUnassignedBySlot(){
 		return null;
 	}
 	const candidateGroupIds=new Set(lastAutoGenerateContext.candidateGroupIds||[]);
+	const hasGroupFilter=Array.isArray(lastAutoGenerateContext.candidateGroupIds);
 	const workSlots=DB.timeSlots
 		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
 		.sort((a,b)=>a.sort-b.sort);
@@ -29,7 +30,7 @@ function getAutoGenerateUnassignedBySlot(){
 		const available=getPlanningPersons(currentFactoryId).filter(p=>
 			p.factoryId===currentFactoryId &&
 			p.present &&
-			(candidateGroupIds.size===0 || candidateGroupIds.has(p.groupId))
+			(!hasGroupFilter || candidateGroupIds.has(p.groupId))
 		);
 		const assigned=new Set(rows.filter(a=>a.timeSlotId===slot.id).map(a=>a.personId));
 		const names=available
@@ -50,12 +51,17 @@ function refreshAutoGenerateWarnings(){
 		const missingNames=unassignedBySlot?.get(slotId)||[];
 		let indicator=timeCell.querySelector('.slot-unassigned-indicator');
 		if(missingNames.length===0){
+			timeCell.classList.remove('slot-unassigned-highlight');
+			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
+			timeCell.removeAttribute('data-bs-toggle');
+			timeCell.removeAttribute('data-bs-title');
+			timeCell.removeAttribute('title');
 			if(indicator){
-				bootstrap.Tooltip.getInstance(indicator)?.dispose();
 				indicator.remove();
 			}
 			return;
 		}
+		timeCell.classList.add('slot-unassigned-highlight');
 		if(!indicator){
 			indicator=document.createElement('span');
 			indicator.className='slot-unassigned-indicator';
@@ -63,10 +69,10 @@ function refreshAutoGenerateWarnings(){
 			timeCell.appendChild(indicator);
 		}
 		const tipText=formatUnassignedTooltipText(missingNames);
-		indicator.setAttribute('data-bs-toggle','tooltip');
-		indicator.setAttribute('data-bs-title', tipText);
-		indicator.removeAttribute('title');
-		const tip=bootstrap.Tooltip.getOrCreateInstance(indicator,{trigger:'hover',placement:'auto'});
+		timeCell.setAttribute('data-bs-toggle','tooltip');
+		timeCell.setAttribute('data-bs-title', tipText);
+		timeCell.removeAttribute('title');
+		const tip=bootstrap.Tooltip.getOrCreateInstance(timeCell,{trigger:'hover',placement:'auto'});
 		if(typeof tip.setContent==='function') tip.setContent({ '.tooltip-inner': tipText });
 	});
 }
@@ -1148,6 +1154,11 @@ function roundRobinFill(stations, slot, opts = {}){
 	while(progressed){
 		progressed = false;
 		const stationOrder = stations.slice().sort((a, b)=>{
+			if(opts.preferCriticalCoverage !== false){
+				const aSupply = getStationCandidateSupply(a, slot, opts, takenThisSlot, remaining);
+				const bSupply = getStationCandidateSupply(b, slot, opts, takenThisSlot, remaining);
+				if(aSupply!==bSupply) return aSupply - bSupply; // scarcer first
+			}
 			const loadDiff = getStationDayLoad(a.id) - getStationDayLoad(b.id);
 			if(loadDiff!==0) return loadDiff;
 			return (stationBaseOrder.get(a.id) ?? 0) - (stationBaseOrder.get(b.id) ?? 0);
@@ -1182,6 +1193,61 @@ function roundRobinFill(stations, slot, opts = {}){
 			progressed = true;
 		}
 	}
+
+	// 3) utilization pass: if capacity remains, try to place as many people as possible in this slot.
+	// Keeps normal constraints (training, incompatibilities, double-booking, consecutive rule),
+	// but skips only the conservative next-slot reserve guard.
+	let utilizationProgressed = true;
+	while(utilizationProgressed){
+		utilizationProgressed = false;
+		const stationOrder = stations.slice().sort((a, b)=>{
+			if(opts.preferCriticalCoverage !== false){
+				const aSupply = getStationCandidateSupply(a, slot, {...opts, _skipNextSlotReserve:true}, takenThisSlot, remaining);
+				const bSupply = getStationCandidateSupply(b, slot, {...opts, _skipNextSlotReserve:true}, takenThisSlot, remaining);
+				if(aSupply!==bSupply) return aSupply - bSupply; // scarcer first
+			}
+			const loadDiff = getStationDayLoad(a.id) - getStationDayLoad(b.id);
+			if(loadDiff!==0) return loadDiff;
+			return (stationBaseOrder.get(a.id) ?? 0) - (stationBaseOrder.get(b.id) ?? 0);
+		});
+
+		for(const s of stationOrder){
+			const rem = remaining.get(s.id) || 0;
+			if(rem <= 0) continue;
+
+			const relaxedOpts = {...opts, _skipNextSlotReserve:true};
+			const candidates = getPlanningPersons(currentFactoryId).filter(p =>
+				p.factoryId===currentFactoryId &&
+				p.present &&
+				(!opts.candidateGroupIds || opts.candidateGroupIds.has(p.groupId)) &&
+				canPlace(p, s, slot, relaxedOpts, takenThisSlot, remaining)
+			);
+			if(!candidates.length) continue;
+
+			let chosen;
+			if(opts.preferCriticalCoverage !== false){
+				const scored = candidates
+					.map(p => ({
+						person: p,
+						criticalNeed: countCriticalNeed(p, s, stations, slot, relaxedOpts, takenThisSlot, remaining)
+					}))
+					.sort((a, b) => a.criticalNeed - b.criticalNeed);
+				const bestNeed = scored[0].criticalNeed;
+				const best = scored.filter(x => x.criticalNeed === bestNeed).map(x => x.person);
+				shuffle(best);
+				chosen = best[0];
+			}else{
+				shuffle(candidates);
+				chosen = candidates[0];
+			}
+
+			const cell = findCell(s.id, slot.id);
+			placePerson(cell, s, slot, chosen.id);
+			remaining.set(s.id, rem - 1);
+			takenThisSlot.add(chosen.id);
+			utilizationProgressed = true;
+		}
+	}
 }
 
 function countCriticalNeed(person, currentStation, stations, slot, opts = {}, takenThisSlot, remaining){
@@ -1198,6 +1264,16 @@ function countCriticalNeed(person, currentStation, stations, slot, opts = {}, ta
 		if(alternatives===0) criticalNeed++;
 	}
 	return criticalNeed;
+}
+
+function getStationCandidateSupply(station, slot, opts = {}, takenThisSlot, remaining){
+	if((remaining.get(station.id) || 0) <= 0) return Number.POSITIVE_INFINITY;
+	return getPlanningPersons(currentFactoryId).filter(p =>
+		p.factoryId===currentFactoryId &&
+		p.present &&
+		(!opts.candidateGroupIds || opts.candidateGroupIds.has(p.groupId)) &&
+		canPlace(p, station, slot, opts, takenThisSlot, remaining)
+	).length;
 }
 
 
@@ -2589,6 +2665,10 @@ function runRandomizer(){
 	const selectedGroupIds = new Set(
 		[...document.querySelectorAll('#randGroups input:checked')].map(i => parseEntityId(i.value))
 	);
+	if(selectedGroupIds.size===0){
+		showToast('warning','Validering','Välj minst en personalgrupp innan autogenerering körs.');
+		return;
+	}
 
 	// stations to fill
 	const selectedStationIds = new Set(
