@@ -162,6 +162,10 @@ body{ overflow:hidden; }
 	font-size:calc(var(--fz-kind) * var(--font-comp));
 	opacity:.4;
 }
+.time-cell.slot-unassigned-highlight{
+	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .28) 68%, var(--bs-body-bg) 32%);
+	box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--bs-warning) 35%, var(--bs-border-color));
+}
 .time-cell .slot-unassigned-indicator{
 	position:absolute;
 	right:.25rem;

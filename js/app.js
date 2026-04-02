@@ -51,12 +51,14 @@ function refreshAutoGenerateWarnings(){
 		const missingNames=unassignedBySlot?.get(slotId)||[];
 		let indicator=timeCell.querySelector('.slot-unassigned-indicator');
 		if(missingNames.length===0){
+			timeCell.classList.remove('slot-unassigned-highlight');
 			if(indicator){
 				bootstrap.Tooltip.getInstance(indicator)?.dispose();
 				indicator.remove();
 			}
 			return;
 		}
+		timeCell.classList.add('slot-unassigned-highlight');
 		if(!indicator){
 			indicator=document.createElement('span');
 			indicator.className='slot-unassigned-indicator';
