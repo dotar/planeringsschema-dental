@@ -2592,7 +2592,7 @@ function runRandomizer(){
 
 	// stations to fill
 	const selectedStationIds = new Set(
-		[...document.querySelectorAll('#randStations input[id^="rs"]:checked')].map(i => parseEntityId(i.value))
+		[...document.querySelectorAll('#randStations input[data-kind="station"]:checked')].map(i => parseEntityId(i.value))
 	);
 
 	// avoid consecutive toggle (persist)
