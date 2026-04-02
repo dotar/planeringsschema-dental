@@ -52,8 +52,11 @@ function refreshAutoGenerateWarnings(){
 		let indicator=timeCell.querySelector('.slot-unassigned-indicator');
 		if(missingNames.length===0){
 			timeCell.classList.remove('slot-unassigned-highlight');
+			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
+			timeCell.removeAttribute('data-bs-toggle');
+			timeCell.removeAttribute('data-bs-title');
+			timeCell.removeAttribute('title');
 			if(indicator){
-				bootstrap.Tooltip.getInstance(indicator)?.dispose();
 				indicator.remove();
 			}
 			return;
@@ -66,10 +69,10 @@ function refreshAutoGenerateWarnings(){
 			timeCell.appendChild(indicator);
 		}
 		const tipText=formatUnassignedTooltipText(missingNames);
-		indicator.setAttribute('data-bs-toggle','tooltip');
-		indicator.setAttribute('data-bs-title', tipText);
-		indicator.removeAttribute('title');
-		const tip=bootstrap.Tooltip.getOrCreateInstance(indicator,{trigger:'hover',placement:'auto'});
+		timeCell.setAttribute('data-bs-toggle','tooltip');
+		timeCell.setAttribute('data-bs-title', tipText);
+		timeCell.removeAttribute('title');
+		const tip=bootstrap.Tooltip.getOrCreateInstance(timeCell,{trigger:'hover',placement:'auto'});
 		if(typeof tip.setContent==='function') tip.setContent({ '.tooltip-inner': tipText });
 	});
 }
