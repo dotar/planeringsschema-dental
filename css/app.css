@@ -174,6 +174,10 @@ body{ overflow:hidden; }
 	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .28) 68%, var(--bs-body-bg) 32%);
 	box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--bs-warning) 35%, var(--bs-border-color));
 }
+.time-cell.slot-unassigned-highlight.cell-hover-time{
+	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .38) 74%, rgba(var(--bs-primary-rgb), .08) 26%);
+	box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--bs-warning) 50%, var(--bs-border-color));
+}
 .time-cell .slot-unassigned-indicator{
 	position:absolute;
 	right:.25rem;
@@ -267,9 +271,9 @@ body{ overflow:hidden; }
 
 
 /* Drag & drop */
-.cell.drop-ok{ outline:2px dashed var(--bs-success); outline-offset:-3px; }
-.cell.drop-bad{ outline:2px dashed var(--bs-danger); outline-offset:-3px; }
-.cell.drop-training{ outline:2px dashed var(--bs-orange); outline-offset:-3px; }
+.cell.drop-ok{ outline:2px dotted var(--bs-success) !important; outline-offset:-3px; }
+.cell.drop-bad{ outline:2px dotted var(--bs-danger) !important; outline-offset:-3px; }
+.cell.drop-training{ outline:2px dotted var(--bs-orange) !important; outline-offset:-3px; }
 .drag-handle{ cursor:grab; opacity:.6; }
 .drag-over{ outline:2px dashed var(--bs-primary); outline-offset:-4px; }
 
