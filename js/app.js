@@ -2282,7 +2282,31 @@ function fitPersonPillLabel(pill){
 	const fullName = nameEl.dataset.fullName || nameEl.textContent || '';
 	const maxWidth = nameEl.clientWidth;
 	const font = getComputedStyle(nameEl).font;
-	nameEl.textContent = formatPersonNameForPill(fullName, maxWidth, font);
+	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	nameEl.textContent = fittedName;
+	const isTruncated = fittedName !== fullName;
+	updatePersonPillTooltip(pill, { isTruncated });
+}
+
+function updatePersonPillTooltip(pill, opts={}){
+	if(!pill) return;
+	const nameEl = pill.querySelector('.pill-name');
+	const fullName = nameEl?.dataset.fullName || '';
+	const tipLines = [];
+	if(opts.isTruncated && fullName) tipLines.push(fullName);
+	if(pill.classList.contains('under-training')) tipLines.push('Ej utbildad/under utbildning');
+	const content = tipLines.join('\n').trim();
+	if(!content){
+		killPillTooltip(pill);
+		return;
+	}
+	pill.setAttribute('data-bs-toggle', 'tooltip');
+	pill.setAttribute('data-bs-title', content);
+	const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
+		container: 'body',
+		boundary: 'viewport'
+	});
+	if(typeof tip.setContent === 'function') tip.setContent({ '.tooltip-inner': content });
 }
 
 function addPersonPill(cell, personId){
@@ -2307,14 +2331,6 @@ function addPersonPill(cell, personId){
 	if(!trainedHere){
 
 		pill.classList.add('under-training');
-		const tipText = 'Ej utbildad/under utbildning';
-		pill.setAttribute('data-bs-toggle', 'tooltip');
-		pill.setAttribute('data-bs-title', tipText);
-		const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
-			container: 'body',
-			boundary: 'viewport'
-		});
-		tip.setContent({ '.tooltip-inner': tipText });
 	}
 
 	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
@@ -3746,6 +3762,27 @@ new bootstrap.Tooltip(document.body, {
 	html: true,
 	trigger: 'hover',
 	sanitize: false
+});
+
+document.addEventListener('show.bs.tooltip', ev=>{
+	const target = ev.target;
+	if(!(target instanceof Element)) return;
+	if(target.matches('.person-pill')){
+		const cell = target.closest('.cell');
+		if(cell){
+			const cellTip = bootstrap.Tooltip.getInstance(cell);
+			if(cellTip){
+				try{ cellTip.hide(); }catch(_){}
+			}
+		}
+	}
+	document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=>{
+		if(el===target) return;
+		const tip = bootstrap.Tooltip.getInstance(el);
+		if(tip){
+			try{ tip.hide(); }catch(_){}
+		}
+	});
 });
 new bootstrap.Popover(document.body, {
 	selector: '[data-bs-toggle="popover"]',
