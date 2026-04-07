@@ -34,6 +34,14 @@
 /* Layout shell */
 html,body{ height:100%; }
 body{ overflow:hidden; }
+
+/* Keep form fields editable/selectable even when app text is non-selectable */
+.user-select-none input,
+.user-select-none textarea,
+.user-select-none select,
+.user-select-none [contenteditable="true"]{
+	user-select:text;
+}
 #app{ height:93vh; display:flex; flex-direction:column; }
 #gridArea{ flex:1; min-height:0; padding:.25rem; }
 .grid-shell{
