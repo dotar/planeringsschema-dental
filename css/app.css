@@ -148,6 +148,9 @@ body{ overflow:hidden; }
 .time-cell.cell-hover-time{
 	background:rgba(var(--bs-primary-rgb), .07);
 }
+.time-cell.break.cell-hover-time{
+	background:rgba(var(--bs-primary-rgb), .13);
+}
 .station-header.station-hover{
 	background:rgba(var(--bs-primary-rgb), .11);
 }
@@ -271,9 +274,9 @@ body{ overflow:hidden; }
 
 
 /* Drag & drop */
-.cell.drop-ok{ outline:2px dotted var(--bs-success) !important; outline-offset:-3px; }
-.cell.drop-bad{ outline:2px dotted var(--bs-danger) !important; outline-offset:-3px; }
-.cell.drop-training{ outline:2px dotted var(--bs-orange) !important; outline-offset:-3px; }
+.cell.drop-ok{ outline:2px dashed var(--bs-success) !important; outline-offset:-3px; }
+.cell.drop-bad{ outline:2px dashed var(--bs-danger) !important; outline-offset:-3px; }
+.cell.drop-training{ outline:2px dashed var(--bs-orange) !important; outline-offset:-3px; }
 .drag-handle{ cursor:grab; opacity:.6; }
 .drag-over{ outline:2px dashed var(--bs-primary); outline-offset:-4px; }
 
