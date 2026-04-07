@@ -1284,7 +1284,10 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 	const dateStr = getSelectedDateStr();
 	if(takenThisSlot.has(person.id)) return false;
 	if((remaining.get(station.id) || 0) <= 0) return false;
-	if(!isPersonAllowedFor(person, station, slot, {ignoreTraining: opts.requireTraining===false})) return false;
+	if(!isPersonAllowedFor(person, station, slot, {
+		ignoreTraining: opts.requireTraining===false,
+		forceTrainingForResurs: !!opts.requireTraining
+	})) return false;
 
 	if(opts.avoidConsecutive !== false){
 		const workSlots = DB.timeSlots
@@ -1333,7 +1336,10 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 			if(nextNeed > 0){
 				const blockedByCurrent = new Set(existingHere);
 				const personCanTakeNext = !blockedByCurrent.has(person.id) &&
-					isPersonAllowedFor(person, station, nextSlot, {ignoreTraining: opts.requireTraining===false}) &&
+					isPersonAllowedFor(person, station, nextSlot, {
+						ignoreTraining: opts.requireTraining===false,
+						forceTrainingForResurs: !!opts.requireTraining
+					}) &&
 					!nextAssignments.some(a => isIncompatible(a.personId, person.id));
 				if(personCanTakeNext){
 					const availableOthers = getPlanningPersons(currentFactoryId).filter(p =>
@@ -1342,7 +1348,10 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 						p.present &&
 						(!opts.candidateGroupIds || opts.candidateGroupIds.has(p.groupId)) &&
 						!blockedByCurrent.has(p.id) &&
-						isPersonAllowedFor(p, station, nextSlot, {ignoreTraining: opts.requireTraining===false}) &&
+						isPersonAllowedFor(p, station, nextSlot, {
+							ignoreTraining: opts.requireTraining===false,
+							forceTrainingForResurs: !!opts.requireTraining
+						}) &&
 						!nextAssignments.some(a => isIncompatible(a.personId, p.id))
 					).length;
 					if(availableOthers < nextNeed) return false;
@@ -2147,9 +2156,12 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 		if(timeLess(slot.start, cutoff)) return false;
 	}
 
-	// Training requirement (can be ignored for manual placement/picker)
+	// Training requirement (can be ignored for manual placement/picker).
+	// Resurs can optionally enforce training via opts.forceTrainingForResurs
+	// (used by randomizer's "Kräv utbildad personal per station").
 	const ignoreTraining = !!opts.ignoreTraining;
-	if(!station.isResurs && !ignoreTraining){
+	const forceTrainingForResurs = !!opts.forceTrainingForResurs;
+	if(!ignoreTraining && (!station.isResurs || forceTrainingForResurs)){
 		const trained = isPersonTrainedForStation(person.id, station.id);
 		if(!trained) return false;
 	}
