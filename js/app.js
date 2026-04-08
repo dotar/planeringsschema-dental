@@ -2450,6 +2450,7 @@ function validateBoard(){
 			const cur = items[i], prev = items[i-1];
 			if(workSlotOrder.get(String(cur.timeSlotId)) === workSlotOrder.get(String(prev.timeSlotId)) + 1){
 				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, 'Samma person två pass i rad på denna station.');
+				markCellInvalid(cur.stationId, cur.timeSlotId, 'Samma person två pass i rad på denna station.', 'Dubbelpass');
 			}
 		}
 	}
@@ -3810,6 +3811,10 @@ new bootstrap.Tooltip(document.body, {
 document.addEventListener('show.bs.tooltip', ev=>{
 	const target = ev.target;
 	if(!(target instanceof Element)) return;
+	if(target.matches('.cell') && target.querySelector('.person-pill:hover')){
+		ev.preventDefault();
+		return;
+	}
 	if(target.matches('.person-pill')){
 		updatePersonPillTooltip(target, { isTruncated: target.dataset.nameTruncated === '1' });
 		const cell = target.closest('.cell');
@@ -3817,6 +3822,7 @@ document.addEventListener('show.bs.tooltip', ev=>{
 			const cellTip = bootstrap.Tooltip.getInstance(cell);
 			if(cellTip){
 				try{ cellTip.hide(); }catch(_){}
+				cellTip.dispose();
 			}
 		}
 	}
