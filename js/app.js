@@ -988,7 +988,7 @@ function _appendCellTooltip(cell, msg){
 	if(!list.includes(msg)) list.push(msg);
 	cell.dataset.warnList = JSON.stringify(list);
 
-	const content = list.join('\n'); // line breaks; CSS makes them visible
+	const content = formatTooltipBulletText(list);
 	cell.setAttribute('data-bs-toggle', 'tooltip');
 	cell.setAttribute('data-bs-title', content);
 
@@ -2285,13 +2285,14 @@ function fitPersonPillLabel(pill){
 	const font = getComputedStyle(nameEl).font;
 	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
 	nameEl.textContent = fittedName;
-	const isTruncated = fittedName !== fullName;
+	const isTruncated = (fittedName !== fullName) || (nameEl.scrollWidth > nameEl.clientWidth + 1);
 	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
 	updatePersonPillTooltip(pill, { isTruncated });
 }
 
 function updatePersonPillTooltip(pill, opts={}){
 	if(!pill) return;
+	const SAME_PERSON_WARNING_PART = 'är planerad på denna station föregående pass.';
 	const nameEl = pill.querySelector('.pill-name');
 	const fullName = nameEl?.dataset.fullName || '';
 	const tipLines = [];
@@ -2302,17 +2303,25 @@ function updatePersonPillTooltip(pill, opts={}){
 		seen.add(cleaned);
 		tipLines.push(cleaned);
 	};
-	if(opts.isTruncated && fullName) pushLine(fullName);
+	const isVisuallyTruncated = !!nameEl && (nameEl.scrollWidth > nameEl.clientWidth + 1);
+	const isTruncated = !!opts.isTruncated || isVisuallyTruncated;
+	if(isTruncated && fullName) pushLine(fullName);
 	if(pill.classList.contains('under-training')) pushLine('Ej utbildad/under utbildning');
+	let pillWarnings = [];
 	try{
-		JSON.parse(pill.dataset.warnList || '[]').forEach(pushLine);
+		pillWarnings = JSON.parse(pill.dataset.warnList || '[]');
 	}catch(_){}
+	pillWarnings.forEach(pushLine);
 	const cell = pill.closest('.cell');
 	if(cell){
 		const cellTip = (cell.getAttribute('data-bs-original-title') || cell.getAttribute('data-bs-title') || cell.getAttribute('title') || '').trim();
-		cellTip.split('\n').forEach(pushLine);
+		cellTip.split('\n').forEach(line=>{
+			const msg = String(line || '').replace(/^•\s*/, '').trim();
+			if(msg.includes(SAME_PERSON_WARNING_PART)) return;
+			pushLine(msg);
+		});
 	}
-	const content = tipLines.join('\n').trim();
+	const content = formatTooltipBulletText(tipLines);
 	if(!content){
 		killPillTooltip(pill);
 		return;
@@ -2443,17 +2452,27 @@ function validateBoard(){
 		rows.filter(a => workSlotOrder.has(String(a.timeSlotId))),
 		a => a.personId + '@' + a.stationId
 	);
+	const consecutiveByCell = new Map();
 
 	for(const [, items] of byPersonStation.entries()){
 		items.sort((a, b) => workSlotOrder.get(String(a.timeSlotId)) - workSlotOrder.get(String(b.timeSlotId)));
 		for(let i=1; i<items.length; i++){
 			const cur = items[i], prev = items[i-1];
 			if(workSlotOrder.get(String(cur.timeSlotId)) === workSlotOrder.get(String(prev.timeSlotId)) + 1){
-				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, 'Samma person två pass i rad på denna station.');
-				markCellInvalid(cur.stationId, cur.timeSlotId, 'Samma person två pass i rad på denna station.', 'Dubbelpass');
+				const personName = getPlanningPersonById(cur.personId)?.name || `Person ${cur.personId}`;
+				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, `${personName} är planerad på denna station föregående pass.`);
+				const key = cellKey(cur.stationId, cur.timeSlotId);
+				const list = consecutiveByCell.get(key) || [];
+				if(!list.includes(personName)) list.push(personName);
+				consecutiveByCell.set(key, list);
 			}
 		}
 	}
+	consecutiveByCell.forEach((names, key)=>{
+		const [stationId, slotId] = key.split(':');
+		const text = `${formatNameListSv(names)} är planerad på denna station föregående pass.`;
+		markCellInvalid(stationId, slotId, text, 'Dubbelpass');
+	});
 
 
 
@@ -2540,6 +2559,20 @@ function queuePillWarn(stationId, slotId, personId, msg){
 	_pendingPillStates.set(key, s);
 }
 
+function formatTooltipBulletText(lines){
+	const cleaned = lines
+		.map(line=>String(line || '').trim())
+		.filter(Boolean);
+	return cleaned.map(line=>`• ${line.replace(/^•\s*/, '')}`).join('\n');
+}
+
+function formatNameListSv(names){
+	const items = names.map(n=>String(n || '').trim()).filter(Boolean);
+	if(items.length<=1) return items[0] || '';
+	if(items.length===2) return `${items[0]} & ${items[1]}`;
+	return `${items.slice(0,-1).join(', ')} & ${items[items.length-1]}`;
+}
+
 function applyPillValidationDiff(){
 	_pendingPillStates.forEach((state, key)=>{
 		const [stationId, slotId, personId] = key.split(':');
@@ -2555,15 +2588,16 @@ function applyPillValidationDiff(){
 
 function setCellTooltipContent(cell, text){
 	const cur=(cell.getAttribute('data-bs-original-title')||cell.getAttribute('data-bs-title')||cell.getAttribute('title')||'').trim()
-	if((text||'').trim()===cur) return
-	if(!text){
+	const normalized = formatTooltipBulletText((text||'').split('\n'));
+	if(normalized===cur) return
+	if(!normalized){
 		disposeCellTooltip(cell)
 		return
 	}
 	cell.setAttribute('data-bs-toggle','tooltip')
-	cell.setAttribute('data-bs-title', text)
+	cell.setAttribute('data-bs-title', normalized)
 	const tip=bootstrap.Tooltip.getOrCreateInstance(cell,{container:'body', boundary:'viewport'})
-	if(tip && tip.setContent) tip.setContent({'.tooltip-inner': text})
+	if(tip && tip.setContent) tip.setContent({'.tooltip-inner': normalized})
 }
 
 function applyCellValidationDiff(prev){
