@@ -595,6 +595,7 @@ const HAS_CROSSFADE = CSS && CSS.supports && CSS.supports('background-image', 'c
 
 let _inValidation = false;
 let _pendingCellStates = new Map();
+let _pendingPillStates = new Map();
 
 function _isAnimIn(cell, kind){ return cell.dataset[`anim${kind}`]==='in'; }
 function _setAnimIn(cell, kind, on){ if(on){ cell.dataset[`anim${kind}`]='in'; } else { delete cell.dataset[`anim${kind}`]; } }
@@ -2282,7 +2283,47 @@ function fitPersonPillLabel(pill){
 	const fullName = nameEl.dataset.fullName || nameEl.textContent || '';
 	const maxWidth = nameEl.clientWidth;
 	const font = getComputedStyle(nameEl).font;
-	nameEl.textContent = formatPersonNameForPill(fullName, maxWidth, font);
+	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	nameEl.textContent = fittedName;
+	const isTruncated = fittedName !== fullName;
+	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
+	updatePersonPillTooltip(pill, { isTruncated });
+}
+
+function updatePersonPillTooltip(pill, opts={}){
+	if(!pill) return;
+	const nameEl = pill.querySelector('.pill-name');
+	const fullName = nameEl?.dataset.fullName || '';
+	const tipLines = [];
+	const seen = new Set();
+	const pushLine = line=>{
+		const cleaned = String(line || '').trim();
+		if(!cleaned || seen.has(cleaned)) return;
+		seen.add(cleaned);
+		tipLines.push(cleaned);
+	};
+	if(opts.isTruncated && fullName) pushLine(fullName);
+	if(pill.classList.contains('under-training')) pushLine('Ej utbildad/under utbildning');
+	try{
+		JSON.parse(pill.dataset.warnList || '[]').forEach(pushLine);
+	}catch(_){}
+	const cell = pill.closest('.cell');
+	if(cell){
+		const cellTip = (cell.getAttribute('data-bs-original-title') || cell.getAttribute('data-bs-title') || cell.getAttribute('title') || '').trim();
+		cellTip.split('\n').forEach(pushLine);
+	}
+	const content = tipLines.join('\n').trim();
+	if(!content){
+		killPillTooltip(pill);
+		return;
+	}
+	pill.setAttribute('data-bs-toggle', 'tooltip');
+	pill.setAttribute('data-bs-title', content);
+	const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
+		container: 'body',
+		boundary: 'viewport'
+	});
+	if(typeof tip.setContent === 'function') tip.setContent({ '.tooltip-inner': content });
 }
 
 function addPersonPill(cell, personId){
@@ -2307,14 +2348,6 @@ function addPersonPill(cell, personId){
 	if(!trainedHere){
 
 		pill.classList.add('under-training');
-		const tipText = 'Ej utbildad/under utbildning';
-		pill.setAttribute('data-bs-toggle', 'tooltip');
-		pill.setAttribute('data-bs-title', tipText);
-		const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
-			container: 'body',
-			boundary: 'viewport'
-		});
-		tip.setContent({ '.tooltip-inner': tipText });
 	}
 
 	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
@@ -2416,8 +2449,7 @@ function validateBoard(){
 		for(let i=1; i<items.length; i++){
 			const cur = items[i], prev = items[i-1];
 			if(workSlotOrder.get(String(cur.timeSlotId)) === workSlotOrder.get(String(prev.timeSlotId)) + 1){
-				// color + tooltip (warning), regardless of toggle
-				markCellInvalid(cur.stationId, cur.timeSlotId, 'Samma person två pass i rad på denna station.', 'Dubbelpass');
+				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, 'Samma person två pass i rad på denna station.');
 			}
 		}
 	}
@@ -2445,6 +2477,7 @@ function validateBoard(){
 		});
 	}
 	applyCellValidationDiff(_prevCellStates);
+	applyPillValidationDiff();
 	renderSummaryPanel();
 
 }
@@ -2459,7 +2492,13 @@ function getCellByKey(key){
 
 function beginCellValidation(){
 	_pendingCellStates.clear();
+	_pendingPillStates.clear();
 	_inValidation = true;
+	document.querySelectorAll('.person-pill[data-warn-list]').forEach(pill=>{
+		delete pill.dataset.warnList;
+		pill.classList.remove('pill-warn');
+		updatePersonPillTooltip(pill, { isTruncated: pill.dataset.nameTruncated === '1' });
+	});
 
 	const prev = new Map();
 	document.querySelectorAll('.cell').forEach(c=>{
@@ -2491,6 +2530,26 @@ function queueCellInvalid(stationId, slotId, msg){
 	s.invalid=true
 	if(msg && !s.msgs.includes(msg)) s.msgs.push(msg)
 	_pendingCellStates.set(key,s)
+}
+
+function queuePillWarn(stationId, slotId, personId, msg){
+	const key = `${stationId}:${slotId}:${personId}`;
+	const s = _pendingPillStates.get(key) || { msgs: [] };
+	if(msg && !s.msgs.includes(msg)) s.msgs.push(msg);
+	_pendingPillStates.set(key, s);
+}
+
+function applyPillValidationDiff(){
+	_pendingPillStates.forEach((state, key)=>{
+		const [stationId, slotId, personId] = key.split(':');
+		const pill = document.querySelector(
+			`.cell[data-station-id="${escapeDataId(stationId)}"][data-slot-id="${CSS.escape(String(slotId))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
+		);
+		if(!pill) return;
+		pill.dataset.warnList = JSON.stringify(state.msgs || []);
+		pill.classList.add('pill-warn');
+		updatePersonPillTooltip(pill, { isTruncated: pill.dataset.nameTruncated === '1' });
+	});
 }
 
 function setCellTooltipContent(cell, text){
@@ -3746,6 +3805,28 @@ new bootstrap.Tooltip(document.body, {
 	html: true,
 	trigger: 'hover',
 	sanitize: false
+});
+
+document.addEventListener('show.bs.tooltip', ev=>{
+	const target = ev.target;
+	if(!(target instanceof Element)) return;
+	if(target.matches('.person-pill')){
+		updatePersonPillTooltip(target, { isTruncated: target.dataset.nameTruncated === '1' });
+		const cell = target.closest('.cell');
+		if(cell){
+			const cellTip = bootstrap.Tooltip.getInstance(cell);
+			if(cellTip){
+				try{ cellTip.hide(); }catch(_){}
+			}
+		}
+	}
+	document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=>{
+		if(el===target) return;
+		const tip = bootstrap.Tooltip.getInstance(el);
+		if(tip){
+			try{ tip.hide(); }catch(_){}
+		}
+	});
 });
 new bootstrap.Popover(document.body, {
 	selector: '[data-bs-toggle="popover"]',
