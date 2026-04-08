@@ -2280,13 +2280,24 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 function fitPersonPillLabel(pill){
 	const nameEl = pill.querySelector('.pill-name');
 	const trackEl = pill.querySelector('.pill-name-track');
-	if(!nameEl || !trackEl) return;
-	const fullName = nameEl.dataset.fullName || trackEl.textContent || '';
-	trackEl.textContent = fullName;
-	const overflowPx = Math.max(0, trackEl.scrollWidth - nameEl.clientWidth);
-	const isTruncated = overflowPx > 6;
+	const staticEl = pill.querySelector('.pill-name-static');
+	if(!nameEl || !trackEl || !staticEl) return;
+	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
+	const font = getComputedStyle(nameEl).font;
+	const maxWidth = nameEl.clientWidth;
+	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	staticEl.textContent = fittedName;
+	const isTruncated = fittedName !== fullName;
+	if(isTruncated){
+		trackEl.textContent = `${fullName}${fullName}`;
+		_pillMeasureCtx.font = font;
+		const cycleWidth = _pillMeasureCtx.measureText(fullName).width;
+		pill.style.setProperty('--marquee-shift', `${Math.ceil(cycleWidth)}px`);
+	}else{
+		trackEl.textContent = '';
+		pill.style.setProperty('--marquee-shift', '0px');
+	}
 	pill.classList.toggle('can-marquee', isTruncated);
-	pill.style.setProperty('--marquee-shift', `${Math.ceil(overflowPx)}px`);
 	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
 	updatePersonPillTooltip(pill, { isTruncated });
 }
@@ -2355,10 +2366,10 @@ function addPersonPill(cell, personId){
 		pill.classList.add('under-training');
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"><span class="pill-name-track"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"><span class="pill-name-static"></span><span class="pill-name-track" aria-hidden="true"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
 	const nameEl = pill.querySelector('.pill-name');
 	nameEl.dataset.fullName = String(p.name ?? '');
-	pill.querySelector('.pill-name-track').textContent = nameEl.dataset.fullName;
+	pill.querySelector('.pill-name-static').textContent = nameEl.dataset.fullName;
 	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;

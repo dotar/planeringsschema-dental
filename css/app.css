@@ -266,8 +266,45 @@ body{ overflow:hidden; }
 	position:relative;
 	display:block;
 	overflow:hidden;
+}
+.person-pill .pill-name-static{
+	display:block;
+	overflow:hidden;
 	text-overflow:ellipsis;
 	white-space:nowrap;
+	transition:opacity .16s ease, transform .16s ease;
+}
+.person-pill .pill-name-track{
+	position:absolute;
+	left:0;
+	top:0;
+	display:inline-block;
+	white-space:nowrap;
+	will-change:transform;
+	transform:translateX(0);
+	opacity:0;
+	transition:opacity .18s ease;
+}
+.person-pill.can-marquee:hover .pill-name-track{
+	animation:pill-marquee 3.4s linear infinite;
+	opacity:1;
+}
+.person-pill.can-marquee:hover .pill-name-static{
+	opacity:0;
+	transform:translateY(-20%);
+}
+@keyframes pill-marquee{
+	0%, 22%{
+		transform:translateX(0);
+	}
+	100%{
+		transform:translateX(calc(-1 * var(--marquee-shift, 0px)));
+	}
+}
+@media (prefers-reduced-motion: reduce){
+	.person-pill.can-marquee:hover .pill-name-track{
+		animation:none;
+	}
 }
 .person-pill .pill-name-track{
 	display:inline-block;
