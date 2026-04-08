@@ -2279,13 +2279,14 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 
 function fitPersonPillLabel(pill){
 	const nameEl = pill.querySelector('.pill-name');
-	if(!nameEl) return;
-	const fullName = nameEl.dataset.fullName || nameEl.textContent || '';
-	const maxWidth = nameEl.clientWidth;
-	const font = getComputedStyle(nameEl).font;
-	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
-	nameEl.textContent = fittedName;
-	const isTruncated = (fittedName !== fullName) || (nameEl.scrollWidth > nameEl.clientWidth + 1);
+	const trackEl = pill.querySelector('.pill-name-track');
+	if(!nameEl || !trackEl) return;
+	const fullName = nameEl.dataset.fullName || trackEl.textContent || '';
+	trackEl.textContent = fullName;
+	const overflowPx = Math.max(0, trackEl.scrollWidth - nameEl.clientWidth);
+	const isTruncated = overflowPx > 6;
+	pill.classList.toggle('can-marquee', isTruncated);
+	pill.style.setProperty('--marquee-shift', `${Math.ceil(overflowPx)}px`);
 	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
 	updatePersonPillTooltip(pill, { isTruncated });
 }
@@ -2293,8 +2294,6 @@ function fitPersonPillLabel(pill){
 function updatePersonPillTooltip(pill, opts={}){
 	if(!pill) return;
 	const SAME_PERSON_WARNING_PART = 'är planerad på denna station föregående pass.';
-	const nameEl = pill.querySelector('.pill-name');
-	const fullName = nameEl?.dataset.fullName || '';
 	const tipLines = [];
 	const seen = new Set();
 	const pushLine = line=>{
@@ -2303,9 +2302,6 @@ function updatePersonPillTooltip(pill, opts={}){
 		seen.add(cleaned);
 		tipLines.push(cleaned);
 	};
-	const isVisuallyTruncated = !!nameEl && (nameEl.scrollWidth > nameEl.clientWidth + 1);
-	const isTruncated = !!opts.isTruncated || isVisuallyTruncated;
-	if(isTruncated && fullName) pushLine(fullName);
 	if(pill.classList.contains('under-training')) pushLine('Ej utbildad/under utbildning');
 	let pillWarnings = [];
 	try{
@@ -2359,10 +2355,10 @@ function addPersonPill(cell, personId){
 		pill.classList.add('under-training');
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"><span class="pill-name-track"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
 	const nameEl = pill.querySelector('.pill-name');
 	nameEl.dataset.fullName = String(p.name ?? '');
-	nameEl.textContent = nameEl.dataset.fullName;
+	pill.querySelector('.pill-name-track').textContent = nameEl.dataset.fullName;
 	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;
