@@ -306,6 +306,28 @@ body{ overflow:hidden; }
 		animation:none;
 	}
 }
+.person-pill .pill-name-track{
+	display:inline-block;
+	min-width:100%;
+	will-change:transform;
+	transform:translateX(0);
+}
+.person-pill.can-marquee:hover .pill-name-track{
+	animation:pill-marquee 4.8s ease-in-out infinite;
+}
+@keyframes pill-marquee{
+	0%, 18%{
+		transform:translateX(0);
+	}
+	82%, 100%{
+		transform:translateX(calc(-1 * var(--marquee-shift, 0px)));
+	}
+}
+@media (prefers-reduced-motion: reduce){
+	.person-pill.can-marquee:hover .pill-name-track{
+		animation:none;
+	}
+}
 .person-pill .pill-remove{
 	flex:0 0 auto;
 	cursor:pointer;
