@@ -2291,14 +2291,19 @@ function fitPersonPillLabel(pill){
 	staticEl.textContent = fittedName;
 	const isTruncated = fullNameWidth > (maxWidth + 2);
 	if(isTruncated){
-		const gap = '   ';
-		trackEl.textContent = `${fullName}${gap}${fullName}`;
-		const measurer = document.createElement('span');
-		measurer.className = 'pill-name-measure';
-		measurer.textContent = `${fullName}${gap}`;
-		nameEl.appendChild(measurer);
-		const cycleWidth = measurer.getBoundingClientRect().width;
-		measurer.remove();
+		const gap = '\u00A0\u00A0\u00A0';
+		trackEl.textContent = '';
+		const seg1 = document.createElement('span');
+		seg1.className = 'pill-name-seg';
+		seg1.textContent = fullName;
+		const spacer = document.createElement('span');
+		spacer.className = 'pill-name-gap';
+		spacer.textContent = gap;
+		const seg2 = document.createElement('span');
+		seg2.className = 'pill-name-seg';
+		seg2.textContent = fullName;
+		trackEl.append(seg1, spacer, seg2);
+		const cycleWidth = seg1.getBoundingClientRect().width + spacer.getBoundingClientRect().width;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 	}else{
 		trackEl.textContent = '';
