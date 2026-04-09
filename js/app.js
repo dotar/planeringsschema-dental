@@ -2293,8 +2293,13 @@ function fitPersonPillLabel(pill){
 	if(isTruncated){
 		const gap = '   ';
 		trackEl.textContent = `${fullName}${gap}${fullName}`;
-		const cycleWidth = _pillMeasureCtx.measureText(`${fullName}${gap}`).width;
-		pill.style.setProperty('--marquee-shift', `${Math.ceil(cycleWidth)}px`);
+		const measurer = document.createElement('span');
+		measurer.className = 'pill-name-measure';
+		measurer.textContent = `${fullName}${gap}`;
+		nameEl.appendChild(measurer);
+		const cycleWidth = measurer.getBoundingClientRect().width;
+		measurer.remove();
+		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 	}else{
 		trackEl.textContent = '';
 		pill.style.setProperty('--marquee-shift', '0px');

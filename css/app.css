@@ -274,7 +274,7 @@ body{ overflow:hidden; }
 	white-space:nowrap;
 	font:inherit;
 	line-height:inherit;
-	transition:opacity .16s ease, transform .16s ease;
+	transition:opacity .16s ease;
 }
 .person-pill .pill-name-track{
 	position:absolute;
@@ -289,13 +289,21 @@ body{ overflow:hidden; }
 	opacity:0;
 	transition:opacity .18s ease;
 }
+.person-pill .pill-name-measure{
+	position:absolute;
+	left:-9999px;
+	top:0;
+	white-space:nowrap;
+	font:inherit;
+	line-height:inherit;
+	visibility:hidden;
+}
 .person-pill.can-marquee:hover .pill-name-track{
 	animation:pill-marquee 3.4s linear infinite;
 	opacity:1;
 }
 .person-pill.can-marquee:hover .pill-name-static{
 	opacity:0;
-	transform:translateY(-20%);
 }
 @keyframes pill-marquee{
 	0%, 22%{
