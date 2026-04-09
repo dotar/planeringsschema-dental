@@ -2285,13 +2285,15 @@ function fitPersonPillLabel(pill){
 	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
 	const font = getComputedStyle(nameEl).font;
 	const maxWidth = nameEl.clientWidth;
+	_pillMeasureCtx.font = font;
+	const fullNameWidth = _pillMeasureCtx.measureText(fullName).width;
 	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
 	staticEl.textContent = fittedName;
-	const isTruncated = fittedName !== fullName;
+	const isTruncated = fullNameWidth > (maxWidth + 2);
 	if(isTruncated){
-		trackEl.textContent = `${fullName}${fullName}`;
-		_pillMeasureCtx.font = font;
-		const cycleWidth = _pillMeasureCtx.measureText(fullName).width;
+		const gap = '   ';
+		trackEl.textContent = `${fullName}${gap}${fullName}`;
+		const cycleWidth = _pillMeasureCtx.measureText(`${fullName}${gap}`).width;
 		pill.style.setProperty('--marquee-shift', `${Math.ceil(cycleWidth)}px`);
 	}else{
 		trackEl.textContent = '';

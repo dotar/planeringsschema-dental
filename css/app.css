@@ -272,6 +272,8 @@ body{ overflow:hidden; }
 	overflow:hidden;
 	text-overflow:ellipsis;
 	white-space:nowrap;
+	font:inherit;
+	line-height:inherit;
 	transition:opacity .16s ease, transform .16s ease;
 }
 .person-pill .pill-name-track{
@@ -280,6 +282,8 @@ body{ overflow:hidden; }
 	top:0;
 	display:inline-block;
 	white-space:nowrap;
+	font:inherit;
+	line-height:inherit;
 	will-change:transform;
 	transform:translateX(0);
 	opacity:0;
@@ -298,28 +302,6 @@ body{ overflow:hidden; }
 		transform:translateX(0);
 	}
 	100%{
-		transform:translateX(calc(-1 * var(--marquee-shift, 0px)));
-	}
-}
-@media (prefers-reduced-motion: reduce){
-	.person-pill.can-marquee:hover .pill-name-track{
-		animation:none;
-	}
-}
-.person-pill .pill-name-track{
-	display:inline-block;
-	min-width:100%;
-	will-change:transform;
-	transform:translateX(0);
-}
-.person-pill.can-marquee:hover .pill-name-track{
-	animation:pill-marquee 4.8s ease-in-out infinite;
-}
-@keyframes pill-marquee{
-	0%, 18%{
-		transform:translateX(0);
-	}
-	82%, 100%{
 		transform:translateX(calc(-1 * var(--marquee-shift, 0px)));
 	}
 }
