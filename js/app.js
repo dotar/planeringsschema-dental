@@ -595,6 +595,7 @@ const HAS_CROSSFADE = CSS && CSS.supports && CSS.supports('background-image', 'c
 
 let _inValidation = false;
 let _pendingCellStates = new Map();
+let _pendingPillStates = new Map();
 
 function _isAnimIn(cell, kind){ return cell.dataset[`anim${kind}`]==='in'; }
 function _setAnimIn(cell, kind, on){ if(on){ cell.dataset[`anim${kind}`]='in'; } else { delete cell.dataset[`anim${kind}`]; } }
@@ -987,7 +988,7 @@ function _appendCellTooltip(cell, msg){
 	if(!list.includes(msg)) list.push(msg);
 	cell.dataset.warnList = JSON.stringify(list);
 
-	const content = list.join('\n'); // line breaks; CSS makes them visible
+	const content = formatTooltipBulletText(list);
 	cell.setAttribute('data-bs-toggle', 'tooltip');
 	cell.setAttribute('data-bs-title', content);
 
@@ -2278,11 +2279,69 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 
 function fitPersonPillLabel(pill){
 	const nameEl = pill.querySelector('.pill-name');
-	if(!nameEl) return;
-	const fullName = nameEl.dataset.fullName || nameEl.textContent || '';
-	const maxWidth = nameEl.clientWidth;
+	const trackEl = pill.querySelector('.pill-name-track');
+	const staticEl = pill.querySelector('.pill-name-static');
+	if(!nameEl || !trackEl || !staticEl) return;
+	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
 	const font = getComputedStyle(nameEl).font;
-	nameEl.textContent = formatPersonNameForPill(fullName, maxWidth, font);
+	const maxWidth = nameEl.clientWidth;
+	_pillMeasureCtx.font = font;
+	const fullNameWidth = _pillMeasureCtx.measureText(fullName).width;
+	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	staticEl.textContent = fittedName;
+	const isTruncated = fullNameWidth > (maxWidth + 2);
+	if(isTruncated){
+		const gap = '   ';
+		trackEl.textContent = `${fullName}${gap}${fullName}`;
+		const cycleWidth = _pillMeasureCtx.measureText(`${fullName}${gap}`).width;
+		pill.style.setProperty('--marquee-shift', `${Math.ceil(cycleWidth)}px`);
+	}else{
+		trackEl.textContent = '';
+		pill.style.setProperty('--marquee-shift', '0px');
+	}
+	pill.classList.toggle('can-marquee', isTruncated);
+	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
+	updatePersonPillTooltip(pill, { isTruncated });
+}
+
+function updatePersonPillTooltip(pill, opts={}){
+	if(!pill) return;
+	const SAME_PERSON_WARNING_PART = 'är planerad på denna station föregående pass.';
+	const tipLines = [];
+	const seen = new Set();
+	const pushLine = line=>{
+		const cleaned = String(line || '').trim();
+		if(!cleaned || seen.has(cleaned)) return;
+		seen.add(cleaned);
+		tipLines.push(cleaned);
+	};
+	if(pill.classList.contains('under-training')) pushLine('Ej utbildad/under utbildning');
+	let pillWarnings = [];
+	try{
+		pillWarnings = JSON.parse(pill.dataset.warnList || '[]');
+	}catch(_){}
+	pillWarnings.forEach(pushLine);
+	const cell = pill.closest('.cell');
+	if(cell){
+		const cellTip = (cell.getAttribute('data-bs-original-title') || cell.getAttribute('data-bs-title') || cell.getAttribute('title') || '').trim();
+		cellTip.split('\n').forEach(line=>{
+			const msg = String(line || '').replace(/^•\s*/, '').trim();
+			if(msg.includes(SAME_PERSON_WARNING_PART)) return;
+			pushLine(msg);
+		});
+	}
+	const content = formatTooltipBulletText(tipLines);
+	if(!content){
+		killPillTooltip(pill);
+		return;
+	}
+	pill.setAttribute('data-bs-toggle', 'tooltip');
+	pill.setAttribute('data-bs-title', content);
+	const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
+		container: 'body',
+		boundary: 'viewport'
+	});
+	if(typeof tip.setContent === 'function') tip.setContent({ '.tooltip-inner': content });
 }
 
 function addPersonPill(cell, personId){
@@ -2307,20 +2366,12 @@ function addPersonPill(cell, personId){
 	if(!trainedHere){
 
 		pill.classList.add('under-training');
-		const tipText = 'Ej utbildad/under utbildning';
-		pill.setAttribute('data-bs-toggle', 'tooltip');
-		pill.setAttribute('data-bs-title', tipText);
-		const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
-			container: 'body',
-			boundary: 'viewport'
-		});
-		tip.setContent({ '.tooltip-inner': tipText });
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"><span class="pill-name-static"></span><span class="pill-name-track" aria-hidden="true"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
 	const nameEl = pill.querySelector('.pill-name');
 	nameEl.dataset.fullName = String(p.name ?? '');
-	nameEl.textContent = nameEl.dataset.fullName;
+	pill.querySelector('.pill-name-static').textContent = nameEl.dataset.fullName;
 	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;
@@ -2410,17 +2461,27 @@ function validateBoard(){
 		rows.filter(a => workSlotOrder.has(String(a.timeSlotId))),
 		a => a.personId + '@' + a.stationId
 	);
+	const consecutiveByCell = new Map();
 
 	for(const [, items] of byPersonStation.entries()){
 		items.sort((a, b) => workSlotOrder.get(String(a.timeSlotId)) - workSlotOrder.get(String(b.timeSlotId)));
 		for(let i=1; i<items.length; i++){
 			const cur = items[i], prev = items[i-1];
 			if(workSlotOrder.get(String(cur.timeSlotId)) === workSlotOrder.get(String(prev.timeSlotId)) + 1){
-				// color + tooltip (warning), regardless of toggle
-				markCellInvalid(cur.stationId, cur.timeSlotId, 'Samma person två pass i rad på denna station.', 'Dubbelpass');
+				const personName = getPlanningPersonById(cur.personId)?.name || `Person ${cur.personId}`;
+				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, `${personName} är planerad på denna station föregående pass.`);
+				const key = cellKey(cur.stationId, cur.timeSlotId);
+				const list = consecutiveByCell.get(key) || [];
+				if(!list.includes(personName)) list.push(personName);
+				consecutiveByCell.set(key, list);
 			}
 		}
 	}
+	consecutiveByCell.forEach((names, key)=>{
+		const [stationId, slotId] = key.split(':');
+		const text = `${formatNameListSv(names)} är planerad på denna station föregående pass.`;
+		markCellInvalid(stationId, slotId, text, 'Dubbelpass');
+	});
 
 
 
@@ -2445,6 +2506,7 @@ function validateBoard(){
 		});
 	}
 	applyCellValidationDiff(_prevCellStates);
+	applyPillValidationDiff();
 	renderSummaryPanel();
 
 }
@@ -2459,7 +2521,13 @@ function getCellByKey(key){
 
 function beginCellValidation(){
 	_pendingCellStates.clear();
+	_pendingPillStates.clear();
 	_inValidation = true;
+	document.querySelectorAll('.person-pill[data-warn-list]').forEach(pill=>{
+		delete pill.dataset.warnList;
+		pill.classList.remove('pill-warn');
+		updatePersonPillTooltip(pill, { isTruncated: pill.dataset.nameTruncated === '1' });
+	});
 
 	const prev = new Map();
 	document.querySelectorAll('.cell').forEach(c=>{
@@ -2493,17 +2561,52 @@ function queueCellInvalid(stationId, slotId, msg){
 	_pendingCellStates.set(key,s)
 }
 
+function queuePillWarn(stationId, slotId, personId, msg){
+	const key = `${stationId}:${slotId}:${personId}`;
+	const s = _pendingPillStates.get(key) || { msgs: [] };
+	if(msg && !s.msgs.includes(msg)) s.msgs.push(msg);
+	_pendingPillStates.set(key, s);
+}
+
+function formatTooltipBulletText(lines){
+	const cleaned = lines
+		.map(line=>String(line || '').trim())
+		.filter(Boolean);
+	return cleaned.map(line=>`• ${line.replace(/^•\s*/, '')}`).join('\n');
+}
+
+function formatNameListSv(names){
+	const items = names.map(n=>String(n || '').trim()).filter(Boolean);
+	if(items.length<=1) return items[0] || '';
+	if(items.length===2) return `${items[0]} & ${items[1]}`;
+	return `${items.slice(0,-1).join(', ')} & ${items[items.length-1]}`;
+}
+
+function applyPillValidationDiff(){
+	_pendingPillStates.forEach((state, key)=>{
+		const [stationId, slotId, personId] = key.split(':');
+		const pill = document.querySelector(
+			`.cell[data-station-id="${escapeDataId(stationId)}"][data-slot-id="${CSS.escape(String(slotId))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
+		);
+		if(!pill) return;
+		pill.dataset.warnList = JSON.stringify(state.msgs || []);
+		pill.classList.add('pill-warn');
+		updatePersonPillTooltip(pill, { isTruncated: pill.dataset.nameTruncated === '1' });
+	});
+}
+
 function setCellTooltipContent(cell, text){
 	const cur=(cell.getAttribute('data-bs-original-title')||cell.getAttribute('data-bs-title')||cell.getAttribute('title')||'').trim()
-	if((text||'').trim()===cur) return
-	if(!text){
+	const normalized = formatTooltipBulletText((text||'').split('\n'));
+	if(normalized===cur) return
+	if(!normalized){
 		disposeCellTooltip(cell)
 		return
 	}
 	cell.setAttribute('data-bs-toggle','tooltip')
-	cell.setAttribute('data-bs-title', text)
+	cell.setAttribute('data-bs-title', normalized)
 	const tip=bootstrap.Tooltip.getOrCreateInstance(cell,{container:'body', boundary:'viewport'})
-	if(tip && tip.setContent) tip.setContent({'.tooltip-inner': text})
+	if(tip && tip.setContent) tip.setContent({'.tooltip-inner': normalized})
 }
 
 function applyCellValidationDiff(prev){
@@ -3746,6 +3849,33 @@ new bootstrap.Tooltip(document.body, {
 	html: true,
 	trigger: 'hover',
 	sanitize: false
+});
+
+document.addEventListener('show.bs.tooltip', ev=>{
+	const target = ev.target;
+	if(!(target instanceof Element)) return;
+	if(target.matches('.cell') && target.querySelector('.person-pill:hover')){
+		ev.preventDefault();
+		return;
+	}
+	if(target.matches('.person-pill')){
+		updatePersonPillTooltip(target, { isTruncated: target.dataset.nameTruncated === '1' });
+		const cell = target.closest('.cell');
+		if(cell){
+			const cellTip = bootstrap.Tooltip.getInstance(cell);
+			if(cellTip){
+				try{ cellTip.hide(); }catch(_){}
+				cellTip.dispose();
+			}
+		}
+	}
+	document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=>{
+		if(el===target) return;
+		const tip = bootstrap.Tooltip.getInstance(el);
+		if(tip){
+			try{ tip.hide(); }catch(_){}
+		}
+	});
 });
 new bootstrap.Popover(document.body, {
 	selector: '[data-bs-toggle="popover"]',
