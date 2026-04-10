@@ -2303,7 +2303,9 @@ function fitPersonPillLabel(pill){
 		seg2.className = 'pill-name-seg';
 		seg2.textContent = fullName;
 		trackEl.append(seg1, spacer, seg2);
-		const cycleWidth = seg1.getBoundingClientRect().width + spacer.getBoundingClientRect().width;
+		const seg1Rect = seg1.getBoundingClientRect();
+		const seg2Rect = seg2.getBoundingClientRect();
+		const cycleWidth = seg2Rect.left - seg1Rect.left;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 	}else{
 		trackEl.textContent = '';
