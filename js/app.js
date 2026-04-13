@@ -2307,13 +2307,59 @@ function fitPersonPillLabel(pill){
 		const seg2Rect = seg2.getBoundingClientRect();
 		const cycleWidth = seg2Rect.left - seg1Rect.left;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
+		pill.dataset.marqueeCycle = String(cycleWidth);
 	}else{
 		trackEl.textContent = '';
 		pill.style.setProperty('--marquee-shift', '0px');
+		delete pill.dataset.marqueeCycle;
 	}
 	pill.classList.toggle('can-marquee', isTruncated);
 	pill.dataset.nameTruncated = isTruncated ? '1' : '0';
 	updatePersonPillTooltip(pill, { isTruncated });
+}
+
+const _pillMarqueeState = new WeakMap();
+
+function stopPillMarquee(pill){
+	if(!pill) return;
+	const state = _pillMarqueeState.get(pill);
+	if(state?.rafId) cancelAnimationFrame(state.rafId);
+	_pillMarqueeState.delete(pill);
+	const track = pill.querySelector('.pill-name-track');
+	if(track) track.style.transform = 'translateX(0px)';
+}
+
+function startPillMarquee(pill){
+	if(!pill || !pill.classList.contains('can-marquee')) return;
+	if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+	stopPillMarquee(pill);
+	const track = pill.querySelector('.pill-name-track');
+	if(!track) return;
+	const cycle = parseFloat(pill.dataset.marqueeCycle || '0');
+	if(!(cycle > 0)) return;
+	const speedPxPerSec = 62;
+	const pauseMs = 520;
+	const state = { x:0, lastTs:0, holdUntil:performance.now() + pauseMs, rafId:0 };
+	const tick = (ts)=>{
+		if(!document.body.contains(pill) || !pill.matches(':hover')){
+			stopPillMarquee(pill);
+			return;
+		}
+		if(!state.lastTs) state.lastTs = ts;
+		const dt = (ts - state.lastTs) / 1000;
+		state.lastTs = ts;
+		if(ts >= state.holdUntil){
+			state.x -= speedPxPerSec * dt;
+			if(state.x <= -cycle){
+				state.x += cycle;
+				state.holdUntil = ts + pauseMs;
+			}
+		}
+		track.style.transform = `translateX(${state.x}px)`;
+		state.rafId = requestAnimationFrame(tick);
+	};
+	state.rafId = requestAnimationFrame(tick);
+	_pillMarqueeState.set(pill, state);
 }
 
 function updatePersonPillTooltip(pill, opts={}){
@@ -2392,6 +2438,8 @@ function addPersonPill(cell, personId){
 
 	pill.addEventListener('dragstart', onDragStart);
 	pill.addEventListener('dragend', onDragEnd);
+	pill.addEventListener('mouseenter', ()=>startPillMarquee(pill));
+	pill.addEventListener('mouseleave', ()=>stopPillMarquee(pill));
 
 	cell.querySelector('[data-role="person-list"]').appendChild(pill);
 	fitPersonPillLabel(pill);
@@ -2402,7 +2450,10 @@ function addPersonPill(cell, personId){
 
 function removePersonPill(cell,personId){
 	const pill=cell.querySelector(`.person-pill[data-person-id="${escapeDataId(personId)}"]`);
-	if(pill) killPillTooltip(pill);
+	if(pill){
+		killPillTooltip(pill);
+		stopPillMarquee(pill);
+	}
 	const dateStr=getSelectedDateStr();
 	const slotId=cell.dataset.slotId;
 	const stationId=parseEntityId(cell.dataset.stationId);
@@ -2418,7 +2469,10 @@ function onDragStart(ev){
 		return;
 	}
 	const pill=ev.target.closest('.person-pill');
-	if(pill) killPillTooltip(pill);
+	if(pill){
+		killPillTooltip(pill);
+		stopPillMarquee(pill);
+	}
 	draggingPersonId=parseEntityId(ev.target.dataset.personId);
 	ev.dataTransfer.setData('text/plain',ev.target.dataset.personId);
 	ev.dataTransfer.effectAllowed='move';

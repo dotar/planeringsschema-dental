@@ -296,23 +296,17 @@ body{ overflow:hidden; }
 	line-height:inherit;
 }
 .person-pill.can-marquee:hover .pill-name-track{
-	animation:pill-marquee 3.4s linear infinite;
 	opacity:1;
 }
 .person-pill.can-marquee:hover .pill-name-static{
 	opacity:0;
 }
-@keyframes pill-marquee{
-	0%, 22%{
-		transform:translateX(0);
-	}
-	100%{
-		transform:translateX(calc(-1 * var(--marquee-shift, 0px)));
-	}
-}
 @media (prefers-reduced-motion: reduce){
 	.person-pill.can-marquee:hover .pill-name-track{
-		animation:none;
+		opacity:0;
+	}
+	.person-pill.can-marquee:hover .pill-name-static{
+		opacity:1;
 	}
 }
 .person-pill .pill-remove{
