@@ -263,9 +263,51 @@ body{ overflow:hidden; }
 .person-pill .pill-name{
 	flex:1 1 auto;
 	min-width:0;
+	position:relative;
+	display:block;
+	overflow:hidden;
+}
+.person-pill .pill-name-static{
+	display:block;
 	overflow:hidden;
 	text-overflow:ellipsis;
 	white-space:nowrap;
+	font:inherit;
+	line-height:inherit;
+	transition:opacity .16s ease;
+}
+.person-pill .pill-name-track{
+	position:absolute;
+	left:0;
+	top:0;
+	display:inline-block;
+	white-space:nowrap;
+	font:inherit;
+	line-height:inherit;
+	will-change:transform;
+	transform:translateX(0);
+	opacity:0;
+	transition:opacity .18s ease;
+}
+.person-pill .pill-name-track .pill-name-seg,
+.person-pill .pill-name-track .pill-name-gap{
+	display:inline-block;
+	font:inherit;
+	line-height:inherit;
+}
+.person-pill.can-marquee:hover .pill-name-track{
+	opacity:1;
+}
+.person-pill.can-marquee:hover .pill-name-static{
+	opacity:0;
+}
+@media (prefers-reduced-motion: reduce){
+	.person-pill.can-marquee:hover .pill-name-track{
+		opacity:0;
+	}
+	.person-pill.can-marquee:hover .pill-name-static{
+		opacity:1;
+	}
 }
 .person-pill .pill-remove{
 	flex:0 0 auto;
@@ -449,6 +491,9 @@ html[data-mode="viewer"] .hide-in-viewer{
 /* Person is under training on this station */
 .person-pill.under-training{
 	border:2px dashed var(--bs-orange) !important;
+}
+.person-pill.pill-warn{
+	box-shadow:inset 0 0 0 2px rgba(var(--bs-danger-rgb), .45);
 }
 
 /* Untrained (selectable) items appear grey */
