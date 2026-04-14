@@ -2283,28 +2283,30 @@ function fitPersonPillLabel(pill){
 	const staticEl = pill.querySelector('.pill-name-static');
 	if(!nameEl || !trackEl || !staticEl) return;
 	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
-	const font = getComputedStyle(nameEl).font;
-	const maxWidth = nameEl.clientWidth;
-	_pillMeasureCtx.font = font;
-	const fullNameWidth = _pillMeasureCtx.measureText(fullName).width;
-	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	const computed = getComputedStyle(nameEl);
+	const font = computed.font && computed.font.trim()
+		? computed.font
+		: `${computed.fontStyle} ${computed.fontVariant} ${computed.fontWeight} ${computed.fontSize}/${computed.lineHeight} ${computed.fontFamily}`;
+	const maxWidth = nameEl.getBoundingClientRect().width || nameEl.clientWidth;
+	const gap = '\u00A0\u00A0\u00A0';
+	trackEl.textContent = '';
+	const seg1 = document.createElement('span');
+	seg1.className = 'pill-name-seg';
+	seg1.textContent = fullName;
+	const spacer = document.createElement('span');
+	spacer.className = 'pill-name-gap';
+	spacer.textContent = gap;
+	const seg2 = document.createElement('span');
+	seg2.className = 'pill-name-seg';
+	seg2.textContent = fullName;
+	trackEl.append(seg1, spacer, seg2);
+	const seg1Rect = seg1.getBoundingClientRect();
+	const seg2Rect = seg2.getBoundingClientRect();
+	const fullNameWidth = seg1Rect.width;
+	const isTruncated = fullNameWidth > (maxWidth + 1);
+	const fittedName = isTruncated ? formatPersonNameForPill(fullName, maxWidth, font) : fullName;
 	staticEl.textContent = fittedName;
-	const isTruncated = fullNameWidth > (maxWidth + 2);
 	if(isTruncated){
-		const gap = '\u00A0\u00A0\u00A0';
-		trackEl.textContent = '';
-		const seg1 = document.createElement('span');
-		seg1.className = 'pill-name-seg';
-		seg1.textContent = fullName;
-		const spacer = document.createElement('span');
-		spacer.className = 'pill-name-gap';
-		spacer.textContent = gap;
-		const seg2 = document.createElement('span');
-		seg2.className = 'pill-name-seg';
-		seg2.textContent = fullName;
-		trackEl.append(seg1, spacer, seg2);
-		const seg1Rect = seg1.getBoundingClientRect();
-		const seg2Rect = seg2.getBoundingClientRect();
 		const cycleWidth = seg2Rect.left - seg1Rect.left;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 		pill.dataset.marqueeCycle = String(cycleWidth);
@@ -2348,7 +2350,7 @@ function startPillMarquee(pill){
 	const cycle = parseFloat(pill.dataset.marqueeCycle || '0');
 	if(!(cycle > 0)) return;
 	const speedPxPerSec = 62;
-	const pauseMs = 520;
+	const pauseMs = 180;
 	const travelMs = (cycle / speedPxPerSec) * 1000;
 	const periodMs = pauseMs + travelMs;
 	const debugLog = (...args)=>{
