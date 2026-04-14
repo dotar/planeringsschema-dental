@@ -2264,6 +2264,10 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 	let lo = 0;
 	let hi = base.length;
 	let best = suffix;
+	const minCandidate = `${base.charAt(0)}...${suffix}`;
+	if(base && _pillMeasureCtx.measureText(minCandidate).width<=maxWidthPx){
+		best = minCandidate;
+	}
 	while(lo<=hi){
 		const mid = Math.floor((lo+hi)/2);
 		const candidate = `${base.slice(0, mid)}...${suffix}`;
@@ -2284,10 +2288,12 @@ function fitPersonPillLabel(pill){
 	if(!nameEl || !trackEl || !staticEl) return;
 	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
 	const computed = getComputedStyle(nameEl);
-	const font = computed.font && computed.font.trim()
-		? computed.font
-		: `${computed.fontStyle} ${computed.fontVariant} ${computed.fontWeight} ${computed.fontSize}/${computed.lineHeight} ${computed.fontFamily}`;
-	const maxWidth = nameEl.getBoundingClientRect().width || nameEl.clientWidth;
+	const font = computed.font || getComputedStyle(document.body).font;
+	const maxWidth = nameEl.clientWidth;
+	if(maxWidth<=0){
+		requestAnimationFrame(()=>fitPersonPillLabel(pill));
+		return;
+	}
 	const gap = '\u00A0\u00A0\u00A0';
 	trackEl.textContent = '';
 	const seg1 = document.createElement('span');
@@ -2358,23 +2364,36 @@ function startPillMarquee(pill){
 		console.debug('[pill-marquee]', ...args);
 	};
 	const now = performance.now();
-	const state = { x:0, rafId:0, startTs:now, resetCount:0, lastLogTs:0 };
+	const state = {
+		x:0,
+		rafId:0,
+		phase:'pause-at-start',
+		pauseUntilTs:now + pauseMs,
+		travelStartTs:0,
+		resetCount:0,
+		lastLogTs:0
+	};
 	debugLog('metrics', { cycle, speedPxPerSec, pauseMs, travelMs, periodMs, threshold:-cycle });
 	const tick = (ts)=>{
 		if(!document.body.contains(pill) || !pill.matches(':hover')){
 			stopPillMarquee(pill);
 			return;
 		}
-		const elapsed = Math.max(0, ts - state.startTs);
-		const cyclePos = elapsed % periodMs;
-		if(cyclePos <= pauseMs){
+		if(state.phase === 'pause-at-start'){
 			state.x = 0;
-		}else{
-			const travelPos = cyclePos - pauseMs;
-			const progress = Math.min(1, travelPos / travelMs);
+			if(ts >= state.pauseUntilTs){
+				state.phase = 'travel';
+				state.travelStartTs = ts;
+			}
+		}else if(state.phase === 'travel'){
+			const progress = Math.min(1, Math.max(0, (ts - state.travelStartTs) / travelMs));
 			state.x = -cycle * progress;
-		}
-		if(elapsed >= (state.resetCount + 1) * periodMs){
+			if(progress >= 1){
+				// Keep the end position rendered for one frame before reset.
+				state.x = -cycle;
+				state.phase = 'wrap-next-frame';
+			}
+		}else if(state.phase === 'wrap-next-frame'){
 			state.resetCount += 1;
 			debugLog('cycle reset', {
 				resetCount: state.resetCount,
@@ -2382,12 +2401,15 @@ function startPillMarquee(pill){
 				currentX: state.x,
 				resetThreshold: -cycle
 			});
+			state.x = 0;
+			state.phase = 'pause-at-start';
+			state.pauseUntilTs = ts + pauseMs;
+			state.travelStartTs = 0;
 		}
 		if(DEBUG_PILL_MARQUEE && (ts - state.lastLogTs) >= 300){
 			debugLog('frame', {
 				x: state.x,
-				cyclePos,
-				elapsed,
+				phase: state.phase,
 				resetThreshold: -cycle
 			});
 			state.lastLogTs = ts;
