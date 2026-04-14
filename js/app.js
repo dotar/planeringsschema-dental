@@ -2319,6 +2319,7 @@ function fitPersonPillLabel(pill){
 }
 
 const _pillMarqueeState = new WeakMap();
+const DEBUG_PILL_MARQUEE = false;
 
 function stopPillMarquee(pill){
 	if(!pill) return;
@@ -2339,23 +2340,40 @@ function startPillMarquee(pill){
 	if(!(cycle > 0)) return;
 	const speedPxPerSec = 62;
 	const pauseMs = 520;
-	const state = { x:0, lastTs:0, holdUntil:performance.now() + pauseMs, rafId:0 };
+	const travelMs = (cycle / speedPxPerSec) * 1000;
+	const debugLog = (...args)=>{
+		if(!DEBUG_PILL_MARQUEE) return;
+		console.debug('[pill-marquee]', ...args);
+	};
+	const now = performance.now();
+	const state = { x:0, phase:'pause-at-start', pauseUntilTs:now + pauseMs, travelStartTs:0, rafId:0 };
+	debugLog('cycle width', cycle);
 	const tick = (ts)=>{
 		if(!document.body.contains(pill) || !pill.matches(':hover')){
 			stopPillMarquee(pill);
 			return;
 		}
-		if(!state.lastTs) state.lastTs = ts;
-		const dt = (ts - state.lastTs) / 1000;
-		state.lastTs = ts;
-		if(ts >= state.holdUntil){
-			state.x -= speedPxPerSec * dt;
-			if(state.x <= -cycle){
+		let progress = 0;
+		if(state.phase === 'pause-at-start'){
+			state.x = 0;
+			if(ts >= state.pauseUntilTs){
+				state.phase = 'travel';
+				state.travelStartTs = ts;
+			}
+		}else if(state.phase === 'travel'){
+			progress = Math.min(1, Math.max(0, (ts - state.travelStartTs) / travelMs));
+			state.x = -cycle * progress;
+			if(progress >= 1){
+				debugLog('reset trigger timestamp', ts);
 				state.x = 0;
-				state.holdUntil = ts + pauseMs;
+				state.phase = 'pause-at-start';
+				state.pauseUntilTs = ts + pauseMs;
+				state.travelStartTs = 0;
+				progress = 0;
 			}
 		}
-		track.style.transform = `translateX(${Math.round(state.x)}px)`;
+		debugLog('x', state.x, 'phase/progress', `${state.phase}/${progress}`);
+		track.style.transform = `translate3d(${state.x}px,0,0)`;
 		state.rafId = requestAnimationFrame(tick);
 	};
 	state.rafId = requestAnimationFrame(tick);
