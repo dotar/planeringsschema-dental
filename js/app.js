@@ -2351,11 +2351,11 @@ function startPillMarquee(pill){
 		if(ts >= state.holdUntil){
 			state.x -= speedPxPerSec * dt;
 			if(state.x <= -cycle){
-				state.x += cycle;
+				state.x = 0;
 				state.holdUntil = ts + pauseMs;
 			}
 		}
-		track.style.transform = `translateX(${state.x}px)`;
+		track.style.transform = `translateX(${Math.round(state.x)}px)`;
 		state.rafId = requestAnimationFrame(tick);
 	};
 	state.rafId = requestAnimationFrame(tick);
