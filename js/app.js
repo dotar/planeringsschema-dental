@@ -2289,38 +2289,38 @@ function fitPersonPillLabel(pill){
 	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
 	const computed = getComputedStyle(nameEl);
 	const font = computed.font || getComputedStyle(document.body).font;
-	const maxWidth = nameEl.clientWidth;
+	const maxWidth = staticEl.clientWidth || nameEl.clientWidth;
 	if(maxWidth<=0){
 		requestAnimationFrame(()=>fitPersonPillLabel(pill));
 		return;
 	}
 	const gap = '\u00A0\u00A0\u00A0';
-	trackEl.textContent = '';
-	const seg1 = document.createElement('span');
-	seg1.className = 'pill-name-seg';
-	seg1.textContent = fullName;
-	const spacer = document.createElement('span');
-	spacer.className = 'pill-name-gap';
-	spacer.textContent = gap;
-	const seg2 = document.createElement('span');
-	seg2.className = 'pill-name-seg';
-	seg2.textContent = fullName;
-	trackEl.append(seg1, spacer, seg2);
-	const seg1Rect = seg1.getBoundingClientRect();
-	const seg2Rect = seg2.getBoundingClientRect();
-	const fullNameWidth = seg1Rect.width;
-	const isTruncated = fullNameWidth > (maxWidth + 1);
+	staticEl.textContent = fullName;
+	const isTruncated = staticEl.scrollWidth > (maxWidth + 1);
 	const fittedName = isTruncated ? formatPersonNameForPill(fullName, maxWidth, font) : fullName;
 	staticEl.textContent = fittedName;
 	if(isTruncated){
-		const cycleWidth = seg2Rect.left - seg1Rect.left;
+		trackEl.textContent = '';
+		const seg1 = document.createElement('span');
+		seg1.className = 'pill-name-seg';
+		seg1.textContent = fullName;
+		const spacer = document.createElement('span');
+		spacer.className = 'pill-name-gap';
+		spacer.textContent = gap;
+		const seg2 = document.createElement('span');
+		seg2.className = 'pill-name-seg';
+		seg2.textContent = fullName;
+		trackEl.append(seg1, spacer, seg2);
+		const seg1Rect = seg1.getBoundingClientRect();
+		const spacerRect = spacer.getBoundingClientRect();
+		const cycleWidth = seg1Rect.width + spacerRect.width;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 		pill.dataset.marqueeCycle = String(cycleWidth);
 		if(DEBUG_PILL_MARQUEE){
 			console.debug('[pill-marquee]', 'fit metrics', {
 				fullName,
 				maxWidth,
-				fullNameWidth,
+				fullNameWidth: seg1Rect.width,
 				seg1Width: seg1Rect.width,
 				cycleWidth
 			});
