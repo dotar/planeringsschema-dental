@@ -2265,7 +2265,7 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 	let hi = base.length;
 	let best = suffix;
 	const minCandidate = `${base.charAt(0)}...${suffix}`;
-	if(base && _pillMeasureCtx.measureText(minCandidate).width<=maxWidthPx){
+	if(base){
 		best = minCandidate;
 	}
 	while(lo<=hi){
@@ -2312,8 +2312,8 @@ function fitPersonPillLabel(pill){
 		seg2.textContent = fullName;
 		trackEl.append(seg1, spacer, seg2);
 		const seg1Rect = seg1.getBoundingClientRect();
-		const spacerRect = spacer.getBoundingClientRect();
-		const cycleWidth = seg1Rect.width + spacerRect.width;
+			const seg2Rect = seg2.getBoundingClientRect();
+			const cycleWidth = seg2Rect.left - seg1Rect.left;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 		pill.dataset.marqueeCycle = String(cycleWidth);
 		if(DEBUG_PILL_MARQUEE){
