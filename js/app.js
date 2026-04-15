@@ -2264,6 +2264,10 @@ function formatPersonNameForPill(rawName, maxWidthPx, font){
 	let lo = 0;
 	let hi = base.length;
 	let best = suffix;
+	const minCandidate = `${base.charAt(0)}...${suffix}`;
+	if(base && _pillMeasureCtx.measureText(minCandidate).width<=maxWidthPx){
+		best = minCandidate;
+	}
 	while(lo<=hi){
 		const mid = Math.floor((lo+hi)/2);
 		const candidate = `${base.slice(0, mid)}...${suffix}`;
@@ -2283,15 +2287,19 @@ function fitPersonPillLabel(pill){
 	const staticEl = pill.querySelector('.pill-name-static');
 	if(!nameEl || !trackEl || !staticEl) return;
 	const fullName = nameEl.dataset.fullName || staticEl.textContent || '';
-	const font = getComputedStyle(nameEl).font;
-	const maxWidth = nameEl.clientWidth;
-	_pillMeasureCtx.font = font;
-	const fullNameWidth = _pillMeasureCtx.measureText(fullName).width;
-	const fittedName = formatPersonNameForPill(fullName, maxWidth, font);
+	const computed = getComputedStyle(nameEl);
+	const font = computed.font || getComputedStyle(document.body).font;
+	const maxWidth = staticEl.clientWidth || nameEl.clientWidth;
+	if(maxWidth<=0){
+		requestAnimationFrame(()=>fitPersonPillLabel(pill));
+		return;
+	}
+	const gap = '\u00A0\u00A0\u00A0';
+	staticEl.textContent = fullName;
+	const isTruncated = staticEl.scrollWidth > (maxWidth + 1);
+	const fittedName = isTruncated ? formatPersonNameForPill(fullName, maxWidth, font) : fullName;
 	staticEl.textContent = fittedName;
-	const isTruncated = fullNameWidth > (maxWidth + 2);
 	if(isTruncated){
-		const gap = '\u00A0\u00A0\u00A0';
 		trackEl.textContent = '';
 		const seg1 = document.createElement('span');
 		seg1.className = 'pill-name-seg';
@@ -2304,10 +2312,19 @@ function fitPersonPillLabel(pill){
 		seg2.textContent = fullName;
 		trackEl.append(seg1, spacer, seg2);
 		const seg1Rect = seg1.getBoundingClientRect();
-		const seg2Rect = seg2.getBoundingClientRect();
-		const cycleWidth = seg2Rect.left - seg1Rect.left;
+		const spacerRect = spacer.getBoundingClientRect();
+		const cycleWidth = seg1Rect.width + spacerRect.width;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 		pill.dataset.marqueeCycle = String(cycleWidth);
+		if(DEBUG_PILL_MARQUEE){
+			console.debug('[pill-marquee]', 'fit metrics', {
+				fullName,
+				maxWidth,
+				fullNameWidth: seg1Rect.width,
+				seg1Width: seg1Rect.width,
+				cycleWidth
+			});
+		}
 	}else{
 		trackEl.textContent = '';
 		pill.style.setProperty('--marquee-shift', '0px');
@@ -2319,7 +2336,7 @@ function fitPersonPillLabel(pill){
 }
 
 const _pillMarqueeState = new WeakMap();
-const DEBUG_PILL_MARQUEE = false;
+const DEBUG_PILL_MARQUEE = localStorage.getItem('planning.debugPillMarquee') === '1';
 
 function stopPillMarquee(pill){
 	if(!pill) return;
@@ -2339,21 +2356,29 @@ function startPillMarquee(pill){
 	const cycle = parseFloat(pill.dataset.marqueeCycle || '0');
 	if(!(cycle > 0)) return;
 	const speedPxPerSec = 62;
-	const pauseMs = 520;
+	const pauseMs = 180;
 	const travelMs = (cycle / speedPxPerSec) * 1000;
+	const periodMs = pauseMs + travelMs;
 	const debugLog = (...args)=>{
 		if(!DEBUG_PILL_MARQUEE) return;
 		console.debug('[pill-marquee]', ...args);
 	};
 	const now = performance.now();
-	const state = { x:0, phase:'pause-at-start', pauseUntilTs:now + pauseMs, travelStartTs:0, rafId:0 };
-	debugLog('cycle width', cycle);
+	const state = {
+		x:0,
+		rafId:0,
+		phase:'pause-at-start',
+		pauseUntilTs:now + pauseMs,
+		travelStartTs:0,
+		resetCount:0,
+		lastLogTs:0
+	};
+	debugLog('metrics', { cycle, speedPxPerSec, pauseMs, travelMs, periodMs, threshold:-cycle });
 	const tick = (ts)=>{
 		if(!document.body.contains(pill) || !pill.matches(':hover')){
 			stopPillMarquee(pill);
 			return;
 		}
-		let progress = 0;
 		if(state.phase === 'pause-at-start'){
 			state.x = 0;
 			if(ts >= state.pauseUntilTs){
@@ -2361,19 +2386,35 @@ function startPillMarquee(pill){
 				state.travelStartTs = ts;
 			}
 		}else if(state.phase === 'travel'){
-			progress = Math.min(1, Math.max(0, (ts - state.travelStartTs) / travelMs));
+			const progress = Math.min(1, Math.max(0, (ts - state.travelStartTs) / travelMs));
 			state.x = -cycle * progress;
 			if(progress >= 1){
-				debugLog('reset trigger timestamp', ts);
-				state.x = 0;
-				state.phase = 'pause-at-start';
-				state.pauseUntilTs = ts + pauseMs;
-				state.travelStartTs = 0;
-				progress = 0;
+				// Keep the end position rendered for one frame before reset.
+				state.x = -cycle;
+				state.phase = 'wrap-next-frame';
 			}
+		}else if(state.phase === 'wrap-next-frame'){
+			state.resetCount += 1;
+			debugLog('cycle reset', {
+				resetCount: state.resetCount,
+				atTs: ts,
+				currentX: state.x,
+				resetThreshold: -cycle
+			});
+			state.x = 0;
+			state.phase = 'pause-at-start';
+			state.pauseUntilTs = ts + pauseMs;
+			state.travelStartTs = 0;
 		}
-		debugLog('x', state.x, 'phase/progress', `${state.phase}/${progress}`);
-		track.style.transform = `translate3d(${state.x}px,0,0)`;
+		if(DEBUG_PILL_MARQUEE && (ts - state.lastLogTs) >= 300){
+			debugLog('frame', {
+				x: state.x,
+				phase: state.phase,
+				resetThreshold: -cycle
+			});
+			state.lastLogTs = ts;
+		}
+		track.style.transform = `translateX(${state.x}px)`;
 		state.rafId = requestAnimationFrame(tick);
 	};
 	state.rafId = requestAnimationFrame(tick);

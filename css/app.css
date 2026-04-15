@@ -266,6 +266,9 @@ body{ overflow:hidden; }
 	position:relative;
 	display:block;
 	overflow:hidden;
+	font:inherit;
+	letter-spacing:inherit;
+	font-kerning:normal;
 }
 .person-pill .pill-name-static{
 	display:block;
@@ -274,6 +277,8 @@ body{ overflow:hidden; }
 	white-space:nowrap;
 	font:inherit;
 	line-height:inherit;
+	letter-spacing:inherit;
+	font-weight:inherit;
 	transition:opacity .16s ease;
 }
 .person-pill .pill-name-track{
@@ -284,12 +289,12 @@ body{ overflow:hidden; }
 	white-space:nowrap;
 	font:inherit;
 	line-height:inherit;
+	letter-spacing:inherit;
+	font-weight:inherit;
 	will-change:transform;
 	transform:translateX(0);
 	opacity:0;
 	transition:opacity .18s ease;
-	text-rendering:geometricPrecision;
-	-webkit-font-smoothing:antialiased;
 }
 .person-pill .pill-name-track .pill-name-seg,
 .person-pill .pill-name-track .pill-name-gap{
