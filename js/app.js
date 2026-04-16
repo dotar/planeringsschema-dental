@@ -897,7 +897,19 @@ function playFadeOut(cell, tintClass, onDone){
 	});
 }
 
-function closeAnyPicker(){
+function applyHoverHighlightForCell(cell){
+	if(!cell || !document.contains(cell)) return;
+	const stationId=cell.dataset.stationId;
+	const slotId=cell.dataset.slotId;
+	if(!stationId || !slotId) return;
+	const grid=cell.closest('.schedule-grid');
+	if(!grid) return;
+	cell.classList.add('cell-hovered');
+	grid.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`)?.classList.add('cell-hover-time');
+	grid.querySelector(`.station-header[data-station-id="${escapeDataId(stationId)}"]`)?.classList.add('station-hover');
+}
+
+function closeAnyPicker({preserveHoverCell=null}={}){
 	document.querySelectorAll('.picker-overlay').forEach(el=>el.remove());
 	document.querySelectorAll('.cell.picker-target').forEach(el=>{
 		el.classList.remove('picker-target');
@@ -908,6 +920,7 @@ function closeAnyPicker(){
 	});
 	_pickerOpenCell=null;
 	document.removeEventListener('keydown', _onPickerKeydown, true);
+	if(preserveHoverCell) applyHoverHighlightForCell(preserveHoverCell);
 }
 
 function _onPickerKeydown(e){
@@ -2002,7 +2015,7 @@ function openAssignDropdownOverlay(cell, station, slot){
 	if(!canModifyAssignments()) return;
 	// Toggle: close if this cell is already open
 	if(_pickerOpenCell===cell || cell.dataset.pickerOpen==='1'){
-		closeAnyPicker();
+		closeAnyPicker({preserveHoverCell:cell});
 		return;
 	}
 
