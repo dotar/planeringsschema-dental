@@ -897,14 +897,30 @@ function playFadeOut(cell, tintClass, onDone){
 	});
 }
 
-function closeAnyPicker(){
+function applyHoverHighlightForCell(cell){
+	if(!cell || !document.contains(cell)) return;
+	const stationId=cell.dataset.stationId;
+	const slotId=cell.dataset.slotId;
+	if(!stationId || !slotId) return;
+	const grid=cell.closest('.schedule-grid');
+	if(!grid) return;
+	cell.classList.add('cell-hovered');
+	grid.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`)?.classList.add('cell-hover-time');
+	grid.querySelector(`.station-header[data-station-id="${escapeDataId(stationId)}"]`)?.classList.add('station-hover');
+}
+
+function closeAnyPicker({preserveHoverCell=null}={}){
 	document.querySelectorAll('.picker-overlay').forEach(el=>el.remove());
 	document.querySelectorAll('.cell.picker-target').forEach(el=>{
 		el.classList.remove('picker-target');
 		el.removeAttribute('data-picker-open');
 	});
+	document.querySelectorAll('.cell-hovered, .cell-hover-time, .station-hover').forEach(el=>{
+		el.classList.remove('cell-hovered','cell-hover-time','station-hover');
+	});
 	_pickerOpenCell=null;
 	document.removeEventListener('keydown', _onPickerKeydown, true);
+	if(preserveHoverCell) applyHoverHighlightForCell(preserveHoverCell);
 }
 
 function _onPickerKeydown(e){
@@ -1948,10 +1964,22 @@ function buildGrid(){
 
 function bindGridHoverHighlights(grid){
 	let activeCell=null;
-	const clear=()=>{
+	const clearVisualState=()=>{
 		grid.querySelectorAll('.cell-hovered, .cell-hover-time, .station-hover').forEach(el=>{
 			el.classList.remove('cell-hovered','cell-hover-time','station-hover');
 		});
+	};
+	const getLockedCell=()=>{
+		if(!_pickerOpenCell || !grid.contains(_pickerOpenCell)) return null;
+		return _pickerOpenCell;
+	};
+	const clear=()=>{
+		const lockedCell=getLockedCell();
+		if(lockedCell){
+			apply(lockedCell);
+			return;
+		}
+		clearVisualState();
 		activeCell=null;
 	};
 
@@ -1959,7 +1987,7 @@ function bindGridHoverHighlights(grid){
 		const stationId=cell.dataset.stationId;
 		const slotId=cell.dataset.slotId;
 		if(!stationId || !slotId) return;
-		clear();
+		clearVisualState();
 		activeCell=cell;
 		cell.classList.add('cell-hovered');
 		grid.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`)?.classList.add('cell-hover-time');
@@ -1967,6 +1995,7 @@ function bindGridHoverHighlights(grid){
 	};
 
 	grid.addEventListener('pointerover', ev=>{
+		if(getLockedCell()) return;
 		const cell=ev.target.closest('.cell[data-station-id][data-slot-id]');
 		if(!cell || !grid.contains(cell) || cell===activeCell) return;
 		apply(cell);
@@ -1986,7 +2015,7 @@ function openAssignDropdownOverlay(cell, station, slot){
 	if(!canModifyAssignments()) return;
 	// Toggle: close if this cell is already open
 	if(_pickerOpenCell===cell || cell.dataset.pickerOpen==='1'){
-		closeAnyPicker();
+		closeAnyPicker({preserveHoverCell:cell});
 		return;
 	}
 
@@ -2000,7 +2029,14 @@ function openAssignDropdownOverlay(cell, station, slot){
 	overlay.style.inset='0';
 	overlay.style.background='transparent';
 	overlay.addEventListener('click', ev=>{
-		if(ev.target===overlay) closeAnyPicker(); // click outside closes
+		if(ev.target!==overlay) return;
+		const cellRect=cell.getBoundingClientRect();
+		const clickedOnTargetCell=
+			ev.clientX>=cellRect.left &&
+			ev.clientX<=cellRect.right &&
+			ev.clientY>=cellRect.top &&
+			ev.clientY<=cellRect.bottom;
+		closeAnyPicker(clickedOnTargetCell ? {preserveHoverCell:cell} : undefined);
 	});
 
 	// The picker "card"
