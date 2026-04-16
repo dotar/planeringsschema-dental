@@ -2295,6 +2295,40 @@ function splitNameWithSingleLetterSuffix(name){
 	return { base, suffix:suffixToken };
 }
 
+function elementTextFitsWidth(el, text, maxWidthPx){
+	if(!el) return false;
+	el.textContent = text;
+	return el.scrollWidth <= (maxWidthPx + 1);
+}
+
+function formatSuffixCompactNameForElement(rawName, maxWidthPx, staticEl){
+	const name = String(rawName ?? '').trim();
+	if(!name) return '';
+	if(!staticEl || !Number.isFinite(maxWidthPx) || maxWidthPx<=0) return name;
+	const parts = splitNameWithSingleLetterSuffix(name);
+	if(!parts) return name;
+	if(elementTextFitsWidth(staticEl, name, maxWidthPx)) return name;
+	const { base, suffix } = parts;
+	if(!elementTextFitsWidth(staticEl, `...${suffix}`, maxWidthPx)){
+		if(elementTextFitsWidth(staticEl, suffix, maxWidthPx)) return suffix;
+		return '';
+	}
+	let lo = 0;
+	let hi = base.length;
+	let best = `...${suffix}`;
+	while(lo<=hi){
+		const mid = Math.floor((lo+hi)/2);
+		const candidate = `${base.slice(0, mid)}...${suffix}`;
+		if(elementTextFitsWidth(staticEl, candidate, maxWidthPx)){
+			best = candidate;
+			lo = mid + 1;
+		}else{
+			hi = mid - 1;
+		}
+	}
+	return best;
+}
+
 function formatPersonNameForPill(rawName, maxWidthPx, sampleEl){
 	const name = String(rawName ?? '').trim();
 	if(!name) return '';
@@ -2386,9 +2420,12 @@ function fitPersonPillLabel(pill){
 	const gap = '\u00A0\u00A0\u00A0';
 	staticEl.textContent = fullName;
 	const isTruncated = staticEl.scrollWidth > (maxWidth + 1);
-	const fittedName = isTruncated ? formatPersonNameForPill(fullName, maxWidth, staticEl) : fullName;
+	const suffixParts = splitNameWithSingleLetterSuffix(fullName);
+	const fittedName = isTruncated
+		? (suffixParts ? formatSuffixCompactNameForElement(fullName, maxWidth, staticEl) : formatPersonNameForPill(fullName, maxWidth, staticEl))
+		: fullName;
 	staticEl.textContent = fittedName;
-	if(isTruncated && fittedName.includes('...')){
+	if(isTruncated && suffixParts && fittedName.includes('...')){
 		staticEl.textContent = tightenCompactLabelToFit(staticEl, maxWidth, fittedName);
 	}
 	if(isTruncated){
