@@ -2298,7 +2298,7 @@ function splitNameWithSingleLetterSuffix(name){
 function elementTextFitsWidth(el, text, maxWidthPx){
 	if(!el) return false;
 	el.textContent = text;
-	return el.scrollWidth <= (maxWidthPx + 1);
+	return el.scrollWidth <= maxWidthPx;
 }
 
 function formatSuffixCompactNameForElement(rawName, maxWidthPx, staticEl){
@@ -2392,17 +2392,17 @@ function tightenCompactLabelToFit(staticEl, maxWidthPx, compactLabel){
 	let prefix = m[1];
 	const suffix = m[2];
 	staticEl.textContent = compactLabel;
-	if(staticEl.scrollWidth<=maxWidthPx+1) return compactLabel;
+	if(staticEl.scrollWidth<=maxWidthPx) return compactLabel;
 	while(prefix.length>0){
 		prefix = prefix.slice(0, -1);
 		const candidate = `${prefix}...${suffix}`;
 		staticEl.textContent = candidate;
-		if(staticEl.scrollWidth<=maxWidthPx+1) return candidate;
+		if(staticEl.scrollWidth<=maxWidthPx) return candidate;
 	}
 	staticEl.textContent = `...${suffix}`;
-	if(staticEl.scrollWidth<=maxWidthPx+1) return `...${suffix}`;
+	if(staticEl.scrollWidth<=maxWidthPx) return `...${suffix}`;
 	staticEl.textContent = suffix;
-	if(staticEl.scrollWidth<=maxWidthPx+1) return suffix;
+	if(staticEl.scrollWidth<=maxWidthPx) return suffix;
 	return '';
 }
 
@@ -2419,7 +2419,7 @@ function fitPersonPillLabel(pill){
 	}
 	const gap = '\u00A0\u00A0\u00A0';
 	staticEl.textContent = fullName;
-	const isTruncated = staticEl.scrollWidth > (maxWidth + 1);
+	const isTruncated = staticEl.scrollWidth > maxWidth;
 	const suffixParts = splitNameWithSingleLetterSuffix(fullName);
 	const fittedName = isTruncated
 		? (suffixParts ? formatSuffixCompactNameForElement(fullName, maxWidth, staticEl) : formatPersonNameForPill(fullName, maxWidth, staticEl))
