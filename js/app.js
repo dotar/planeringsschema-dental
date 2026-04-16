@@ -2029,7 +2029,14 @@ function openAssignDropdownOverlay(cell, station, slot){
 	overlay.style.inset='0';
 	overlay.style.background='transparent';
 	overlay.addEventListener('click', ev=>{
-		if(ev.target===overlay) closeAnyPicker(); // click outside closes
+		if(ev.target!==overlay) return;
+		const cellRect=cell.getBoundingClientRect();
+		const clickedOnTargetCell=
+			ev.clientX>=cellRect.left &&
+			ev.clientX<=cellRect.right &&
+			ev.clientY>=cellRect.top &&
+			ev.clientY<=cellRect.bottom;
+		closeAnyPicker(clickedOnTargetCell ? {preserveHoverCell:cell} : undefined);
 	});
 
 	// The picker "card"
