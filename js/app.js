@@ -903,6 +903,9 @@ function closeAnyPicker(){
 		el.classList.remove('picker-target');
 		el.removeAttribute('data-picker-open');
 	});
+	document.querySelectorAll('.cell-hovered, .cell-hover-time, .station-hover').forEach(el=>{
+		el.classList.remove('cell-hovered','cell-hover-time','station-hover');
+	});
 	_pickerOpenCell=null;
 	document.removeEventListener('keydown', _onPickerKeydown, true);
 }
@@ -1948,10 +1951,22 @@ function buildGrid(){
 
 function bindGridHoverHighlights(grid){
 	let activeCell=null;
-	const clear=()=>{
+	const clearVisualState=()=>{
 		grid.querySelectorAll('.cell-hovered, .cell-hover-time, .station-hover').forEach(el=>{
 			el.classList.remove('cell-hovered','cell-hover-time','station-hover');
 		});
+	};
+	const getLockedCell=()=>{
+		if(!_pickerOpenCell || !grid.contains(_pickerOpenCell)) return null;
+		return _pickerOpenCell;
+	};
+	const clear=()=>{
+		const lockedCell=getLockedCell();
+		if(lockedCell){
+			apply(lockedCell);
+			return;
+		}
+		clearVisualState();
 		activeCell=null;
 	};
 
@@ -1959,7 +1974,7 @@ function bindGridHoverHighlights(grid){
 		const stationId=cell.dataset.stationId;
 		const slotId=cell.dataset.slotId;
 		if(!stationId || !slotId) return;
-		clear();
+		clearVisualState();
 		activeCell=cell;
 		cell.classList.add('cell-hovered');
 		grid.querySelector(`.time-cell[data-slot-id="${CSS.escape(String(slotId))}"]`)?.classList.add('cell-hover-time');
@@ -1967,6 +1982,7 @@ function bindGridHoverHighlights(grid){
 	};
 
 	grid.addEventListener('pointerover', ev=>{
+		if(getLockedCell()) return;
 		const cell=ev.target.closest('.cell[data-station-id][data-slot-id]');
 		if(!cell || !grid.contains(cell) || cell===activeCell) return;
 		apply(cell);
