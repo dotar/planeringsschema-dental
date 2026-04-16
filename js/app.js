@@ -2265,29 +2265,73 @@ function measurePillTextWidth(sampleEl, text){
 	return w;
 }
 
+function parseTranslateX(transformValue){
+	if(!transformValue || transformValue==='none') return 0;
+	const m2d = transformValue.match(/^matrix\((.+)\)$/);
+	if(m2d){
+		const parts = m2d[1].split(',').map(v=>Number.parseFloat(v.trim()));
+		return Number.isFinite(parts[4]) ? parts[4] : 0;
+	}
+	const m3d = transformValue.match(/^matrix3d\((.+)\)$/);
+	if(m3d){
+		const parts = m3d[1].split(',').map(v=>Number.parseFloat(v.trim()));
+		return Number.isFinite(parts[12]) ? parts[12] : 0;
+	}
+	return 0;
+}
+
 function formatPersonNameForPill(rawName, maxWidthPx, sampleEl){
 	const name = String(rawName ?? '').trim();
 	if(!name) return '';
 	if(!Number.isFinite(maxWidthPx) || maxWidthPx<=0) return name;
-	if(measurePillTextWidth(sampleEl, name)<=maxWidthPx) return name;
+	const debugLog = (...args)=>{
+		if(!DEBUG_PILL_MARQUEE) return;
+		console.debug('[pill-marquee]', ...args);
+	};
+	const fullWidth = measurePillTextWidth(sampleEl, name);
+	if(fullWidth<=maxWidthPx){
+		debugLog('label-fit', { rawName, name, maxWidthPx, fullWidth, outcome:name, reason:'fits-full' });
+		return name;
+	}
 
-	const m = name.match(/^(.*\S)\s+([A-Za-zÅÄÖåäö])$/u);
-	if(!m) return name;
+	const m = name.match(/^(.*\S)\s+([\p{L}])$/u);
+	if(!m){
+		debugLog('label-fit', { rawName, name, maxWidthPx, fullWidth, outcome:name, reason:'pattern-miss' });
+		return name;
+	}
 	const base = m[1].trim();
 	const suffix = m[2];
-	let lo = 1;
+	const minimalCompact = `...${suffix}`;
+	if(measurePillTextWidth(sampleEl, minimalCompact)>maxWidthPx){
+		const suffixOnly = suffix;
+		const fallback = measurePillTextWidth(sampleEl, suffixOnly)<=maxWidthPx ? suffixOnly : '';
+		debugLog('label-fit', {
+			rawName,
+			name,
+			maxWidthPx,
+			fullWidth,
+			outcome:fallback,
+			reason:'insufficient-width-for-compact',
+			minimalCompactWidth: measurePillTextWidth(sampleEl, minimalCompact),
+			suffixWidth: measurePillTextWidth(sampleEl, suffixOnly)
+		});
+		return fallback;
+	}
+	let lo = 0;
 	let hi = base.length;
-	let best = `${base.slice(0,1)}...${suffix}`;
+	let best = minimalCompact;
 	while(lo<=hi){
 		const mid = Math.floor((lo+hi)/2);
 		const candidate = `${base.slice(0, mid)}...${suffix}`;
-		if(measurePillTextWidth(sampleEl, candidate)<=maxWidthPx){
+		const candidateWidth = measurePillTextWidth(sampleEl, candidate);
+		if(candidateWidth<=maxWidthPx){
 			best = candidate;
 			lo = mid + 1;
 		}else{
 			hi = mid - 1;
 		}
 	}
+	debugLog('label-fit', { rawName, name, maxWidthPx, fullWidth, outcome:best, reason:'suffix-preserve', base, suffix });
 	return best;
 }
 
@@ -2320,8 +2364,8 @@ function fitPersonPillLabel(pill){
 		seg2.textContent = fullName;
 		trackEl.append(seg1, spacer, seg2);
 		const seg1Rect = seg1.getBoundingClientRect();
-			const seg2Rect = seg2.getBoundingClientRect();
-			const cycleWidth = seg2Rect.left - seg1Rect.left;
+		const spacerRect = spacer.getBoundingClientRect();
+		const cycleWidth = seg1Rect.width + spacerRect.width;
 		pill.style.setProperty('--marquee-shift', `${cycleWidth}px`);
 		pill.dataset.marqueeCycle = String(cycleWidth);
 		if(DEBUG_PILL_MARQUEE){
@@ -2329,7 +2373,11 @@ function fitPersonPillLabel(pill){
 				fullName,
 				maxWidth,
 				fullNameWidth: seg1Rect.width,
+				staticScrollWidth: staticEl.scrollWidth,
+				fittedName,
+				fittedWidth: measurePillTextWidth(staticEl, fittedName),
 				seg1Width: seg1Rect.width,
+				spacerWidth: spacerRect.width,
 				cycleWidth
 			});
 		}
@@ -2350,6 +2398,7 @@ function stopPillMarquee(pill){
 	if(!pill) return;
 	const state = _pillMarqueeState.get(pill);
 	state?.animation?.cancel();
+	if(state?.rafId) cancelAnimationFrame(state.rafId);
 	_pillMarqueeState.delete(pill);
 	const track = pill.querySelector('.pill-name-track');
 	if(track) track.style.transform = 'translateX(0px)';
@@ -2371,11 +2420,11 @@ function startPillMarquee(pill){
 		if(!DEBUG_PILL_MARQUEE) return;
 		console.debug('[pill-marquee]', ...args);
 	};
-	const pauseOffset = Math.min(0.95, Math.max(0, pauseMs / periodMs));
+	const travelOffset = periodMs>0 ? Math.min(1, Math.max(0, travelMs / periodMs)) : 1;
 	const animation = track.animate(
 		[
 			{ transform:'translateX(0px)', offset:0 },
-			{ transform:'translateX(0px)', offset:pauseOffset },
+			{ transform:`translateX(${-cycle}px)`, offset:travelOffset },
 			{ transform:`translateX(${-cycle}px)`, offset:1 }
 		],
 		{
@@ -2385,10 +2434,25 @@ function startPillMarquee(pill){
 			fill: 'both'
 		}
 	);
-	const state = { animation };
+	const state = { animation, rafId:0, lastLocalTime:0 };
 	debugLog('metrics', { cycle, speedPxPerSec, pauseMs, travelMs, periodMs, threshold:-cycle });
 	if(DEBUG_PILL_MARQUEE){
-		debugLog('keyframes', { pauseOffset });
+		debugLog('keyframes', { travelOffset });
+		const monitor=()=>{
+			const timing=animation.effect?.getComputedTiming?.();
+			const currentTime=animation.currentTime||0;
+			const duration=timing?.duration||periodMs;
+			const localTime = duration>0 ? (currentTime % duration) : 0;
+			const tx = parseTranslateX(getComputedStyle(track).transform);
+			if(localTime < state.lastLocalTime){
+				debugLog('cycle-boundary', { previousLocalTime:state.lastLocalTime, localTime, tx, expectedMin:-cycle, expectedMax:0 });
+			}else{
+				debugLog('tick', { localTime, tx });
+			}
+			state.lastLocalTime=localTime;
+			state.rafId=requestAnimationFrame(monitor);
+		};
+		state.rafId=requestAnimationFrame(monitor);
 	}
 	_pillMarqueeState.set(pill, state);
 }
