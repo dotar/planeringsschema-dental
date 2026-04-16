@@ -3954,9 +3954,27 @@ function enablePersonCrossDrop(tbody, targetGroupId){
 
 
 
+function armHandleOnlyRowDrag(tr){
+	const handle=tr.querySelector('.drag-handle');
+	if(!handle){
+		tr.draggable=true;
+		return;
+	}
+	tr.draggable=false;
+	const disarm=()=>{ tr.draggable=false; };
+	handle.addEventListener('pointerdown',()=>{
+		tr.draggable=true;
+		window.addEventListener('pointerup', disarm, { once:true, capture:true });
+		window.addEventListener('pointercancel', disarm, { once:true, capture:true });
+	});
+	tr.addEventListener('dragend', disarm);
+	tr.addEventListener('drop', disarm);
+}
+
 function enableRowDrag(tbody, onReorder){
 	let dragId=null;
 	tbody.querySelectorAll('tr').forEach(tr=>{
+		armHandleOnlyRowDrag(tr);
 		tr.addEventListener('dragstart',ev=>{
 			dragId=String(tr.dataset.id);	// <- keep full id
 			ev.dataTransfer.effectAllowed='move';
@@ -3989,6 +4007,7 @@ function enableRowDrag(tbody, onReorder){
 function enableRowDragKeys(tbody,onReorder){
 	let dragKey=null;
 	tbody.querySelectorAll('tr').forEach(tr=>{
+		armHandleOnlyRowDrag(tr);
 		tr.addEventListener('dragstart',ev=>{dragKey=tr.dataset.key;ev.dataTransfer.effectAllowed='move';});
 		tr.addEventListener('dragover',ev=>{ev.preventDefault();tr.classList.add('drag-over');});
 		tr.addEventListener('dragleave',()=>tr.classList.remove('drag-over'));
