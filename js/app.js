@@ -2269,16 +2269,15 @@ function formatPersonNameForPill(rawName, maxWidthPx, sampleEl){
 	const name = String(rawName ?? '').trim();
 	if(!name) return '';
 	if(!Number.isFinite(maxWidthPx) || maxWidthPx<=0) return name;
+	if(measurePillTextWidth(sampleEl, name)<=maxWidthPx) return name;
 
 	const m = name.match(/^(.*\S)\s+([A-Za-zÅÄÖåäö])$/u);
 	if(!m) return name;
-	if(measurePillTextWidth(sampleEl, name)<=maxWidthPx) return name;
-
 	const base = m[1].trim();
 	const suffix = m[2];
-	let lo = 0;
+	let lo = 1;
 	let hi = base.length;
-	let best = `${base.charAt(0)}...${suffix}`;
+	let best = `${base.slice(0,1)}...${suffix}`;
 	while(lo<=hi){
 		const mid = Math.floor((lo+hi)/2);
 		const candidate = `${base.slice(0, mid)}...${suffix}`;
@@ -2365,7 +2364,7 @@ function startPillMarquee(pill){
 	const cycle = parseFloat(pill.dataset.marqueeCycle || '0');
 	if(!(cycle > 0)) return;
 	const speedPxPerSec = 62;
-	const pauseMs = 180;
+	const pauseMs = 0;
 	const travelMs = (cycle / speedPxPerSec) * 1000;
 	const periodMs = pauseMs + travelMs;
 	const debugLog = (...args)=>{
