@@ -145,6 +145,10 @@ body{ overflow:hidden; }
 .cell.cell-hovered{
 	background:rgba(var(--bs-primary-rgb), .08);
 }
+.cell.break.cell-hovered,
+.cell.resurs-col.cell-hovered{
+	background:rgba(var(--bs-primary-rgb), .13);
+}
 .time-cell.cell-hover-time{
 	background:rgba(var(--bs-primary-rgb), .07);
 }
@@ -153,6 +157,9 @@ body{ overflow:hidden; }
 }
 .station-header.station-hover{
 	background:rgba(var(--bs-primary-rgb), .11);
+}
+.station-header.resurs-col.station-hover{
+	background:rgba(var(--bs-primary-rgb), .13);
 }
 
 /* Time column */
