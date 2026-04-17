@@ -158,6 +158,9 @@ body{ overflow:hidden; }
 .station-header.station-hover{
 	background:rgba(var(--bs-primary-rgb), .11);
 }
+.station-header.resurs-col.station-hover{
+	background:rgba(var(--bs-primary-rgb), .13);
+}
 
 /* Time column */
 .time-cell{
