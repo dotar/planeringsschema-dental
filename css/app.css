@@ -145,6 +145,10 @@ body{ overflow:hidden; }
 .cell.cell-hovered{
 	background:rgba(var(--bs-primary-rgb), .08);
 }
+.cell.break.cell-hovered,
+.cell.resurs-col.cell-hovered{
+	background:rgba(var(--bs-primary-rgb), .13);
+}
 .time-cell.cell-hover-time{
 	background:rgba(var(--bs-primary-rgb), .07);
 }
