@@ -1,5 +1,5 @@
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
-let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
+let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerShowWarnings=true,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
 let lastAutoGenerateContext=null;
 let summaryWarningRefitRafId=0;
@@ -49,7 +49,7 @@ function getAutoGenerateUnassignedBySlot(){
 function refreshAutoGenerateWarnings(){
 	const grid=document.querySelector('.schedule-grid');
 	if(!grid) return;
-	if(mode!=='edit'){
+	if(!shouldValidateBoardForMode()){
 		grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
 			timeCell.classList.remove('slot-unassigned-highlight');
 			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
@@ -170,6 +170,7 @@ function renderSettingsInfoTexts(){
 const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
 const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
 const VIEWER_EDIT_KEY='planning.viewerCanEditAssignments';
+const VIEWER_WARNINGS_KEY='planning.viewerShowWarnings';
 const COORD_AUTO_LOGOUT_KEY='planning.coordAutoLogoutMinutes';
 const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
 
@@ -189,6 +190,13 @@ function getViewerEditSetting(){
 	const fromSettings=DB?.appSettings?.ViewerCanEditAssignments;
 	if(typeof fromSettings==='boolean') return fromSettings;
 	return localStorage.getItem(VIEWER_EDIT_KEY)==='1';
+}
+
+function getViewerWarningsSetting(){
+	const fromSettings=DB?.appSettings?.ViewerShowWarnings;
+	if(typeof fromSettings==='boolean') return fromSettings;
+	const raw=localStorage.getItem(VIEWER_WARNINGS_KEY);
+	return raw===null ? true : raw==='1';
 }
 
 function getCoordAutoLogoutMinutes(){
@@ -213,6 +221,11 @@ function syncViewerEditSettingInput(){
 	if(input) input.checked=!!viewerCanEditAssignments;
 }
 
+function syncViewerWarningsSettingInput(){
+	const input=document.getElementById('viewerShowWarnings');
+	if(input) input.checked=!!viewerShowWarnings;
+}
+
 function syncCoordAutoLogoutInput(){
 	const input=document.getElementById('coordAutoLogoutMinutes');
 	if(input) input.value=String(coordAutoLogoutMinutes);
@@ -227,6 +240,25 @@ function applyViewerEditSetting(enabled,{persist=true}={}){
 	}
 	syncViewerEditSettingInput();
 	refreshPersonPillVariants({animate:true});
+}
+
+function shouldValidateBoardForMode(){
+	return mode==='edit' || (mode==='viewer' && viewerShowWarnings);
+}
+
+function shouldShowCompatibilityWarnings(){
+	return mode==='edit';
+}
+
+function applyViewerWarningsSetting(enabled,{persist=true,rerender=true}={}){
+	viewerShowWarnings=!!enabled;
+	if(!DB.appSettings) DB.appSettings={};
+	if(persist){
+		DB.appSettings.ViewerShowWarnings=viewerShowWarnings;
+		localStorage.setItem(VIEWER_WARNINGS_KEY, viewerShowWarnings ? '1' : '0');
+	}
+	syncViewerWarningsSettingInput();
+	if(rerender) rebuildAll();
 }
 
 function logoutCoordinator({reason='' }={}){
@@ -1478,6 +1510,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	mode=qs.get('mode')==='edit'?'edit':'viewer';
 	currentFactoryId=parseFactoryId(qs.get('factory')||'1');
 	applyViewerEditSetting(getViewerEditSetting(),{persist:false});
+	applyViewerWarningsSetting(getViewerWarningsSetting(),{persist:false,rerender:false});
 	applyCoordAutoLogoutSetting(getCoordAutoLogoutMinutes(),{persist:false});
 
 	const facSel=document.getElementById('factorySel');
@@ -1609,6 +1642,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('idleResetMinutes')?.addEventListener('change',e=>applyInactivityResetSetting(e.target.value));
 	document.getElementById('viewerShiftLeadMinutes')?.addEventListener('change',e=>applyViewerShiftLeadSetting(e.target.value));
 	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
+	document.getElementById('viewerShowWarnings')?.addEventListener('change',e=>applyViewerWarningsSetting(e.target.checked));
 	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
@@ -2212,7 +2246,7 @@ function buildGrid(){
 	requestAnimationFrame(fitToViewport);
 	renderAssignments();
 	refreshAutoGenerateWarnings();
-	if(mode==='edit') validateBoard();
+	if(shouldValidateBoardForMode()) validateBoard();
 
 
 }
@@ -2534,7 +2568,7 @@ function movePersonTo(cell, station, slot, personId){
 
 
 
-function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();renderDerivedReport();}
+function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(shouldValidateBoardForMode())validateBoard();renderDerivedReport();}
 
 function measurePillTextWidth(sampleEl, text){
 	if(!sampleEl) return 0;
@@ -2922,7 +2956,7 @@ function removePersonPill(cell,personId){
 	DB.assignments=DB.assignments.filter(a=>!(a.date===dateStr&&a.timeSlotId===slotId&&a.stationId===stationId&&a.personId===personId&&a.dayType===currentDayType));
 	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
 	refreshAutoGenerateWarnings();
-	if(mode==='edit')validateBoard();
+	if(shouldValidateBoardForMode())validateBoard();
 	renderDerivedReport();
 }
 
@@ -2968,12 +3002,14 @@ function validateBoard(){
 			}
 		}
 		// 2) Pair rule: avoid certain pairs on the SAME station & slot
-		const byStation = groupArray(arr, x => x.stationId);
-		for (const [stationId, list] of byStation.entries()) {
-			for (let i = 0; i < list.length; i++) {
-				for (let j = i + 1; j < list.length; j++) {
-					if (isIncompatible(list[i].personId, list[j].personId)) {
-						markCellWarn(stationId, slotId, 'Byt plats på en av dessa personer.', 'Tips');
+		if(shouldShowCompatibilityWarnings()){
+			const byStation = groupArray(arr, x => x.stationId);
+			for (const [stationId, list] of byStation.entries()) {
+				for (let i = 0; i < list.length; i++) {
+					for (let j = i + 1; j < list.length; j++) {
+						if (isIncompatible(list[i].personId, list[j].personId)) {
+							markCellWarn(stationId, slotId, 'Byt plats på en av dessa personer.', 'Tips');
+						}
 					}
 				}
 			}
@@ -3428,7 +3464,7 @@ async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
 }
 
-function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncCoordAutoLogoutInput();renderSettingsInfoTexts();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
+function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncViewerWarningsSettingInput();syncCoordAutoLogoutInput();renderSettingsInfoTexts();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
