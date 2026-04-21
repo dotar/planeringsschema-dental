@@ -171,95 +171,95 @@ const DB={
 		"stationId": 505
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 527
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 521
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 522
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 524
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 528
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 507
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 503
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 501
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 502
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 508
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 509
 	  },
 	  {
-		"personId": 4,
+		"personId": 105,
 		"stationId": 505
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 527
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 521
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 522
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 524
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 526
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 528
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 507
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 503
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 501
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 502
 	  },
 	  {
-		"personId": 12,
+		"personId": 119,
 		"stationId": 508
 	  },
 	  {
@@ -407,66 +407,6 @@ const DB={
 		"stationId": 509
 	  },
 	  {
-		"personId": 11,
-		"stationId": 523
-	  },
-	  {
-		"personId": 11,
-		"stationId": 521
-	  },
-	  {
-		"personId": 11,
-		"stationId": 522
-	  },
-	  {
-		"personId": 11,
-		"stationId": 524
-	  },
-	  {
-		"personId": 11,
-		"stationId": 526
-	  },
-	  {
-		"personId": 11,
-		"stationId": 528
-	  },
-	  {
-		"personId": 11,
-		"stationId": 507
-	  },
-	  {
-		"personId": 11,
-		"stationId": 503
-	  },
-	  {
-		"personId": 11,
-		"stationId": 501
-	  },
-	  {
-		"personId": 11,
-		"stationId": 502
-	  },
-	  {
-		"personId": 11,
-		"stationId": 508
-	  },
-	  {
-		"personId": 11,
-		"stationId": 506
-	  },
-	  {
-		"personId": 11,
-		"stationId": 509
-	  },
-	  {
-		"personId": 11,
-		"stationId": 505
-	  },
-	  {
-		"personId": 110,
-		"stationId": 527
-	  },
-	  {
 		"personId": 110,
 		"stationId": 523
 	  },
@@ -492,10 +432,6 @@ const DB={
 	  },
 	  {
 		"personId": 110,
-		"stationId": 525
-	  },
-	  {
-		"personId": 110,
 		"stationId": 507
 	  },
 	  {
@@ -523,179 +459,243 @@ const DB={
 		"stationId": 509
 	  },
 	  {
-		"personId": 111,
-		"stationId": 523
-	  },
-	  {
-		"personId": 111,
-		"stationId": 521
-	  },
-	  {
-		"personId": 111,
-		"stationId": 522
-	  },
-	  {
-		"personId": 111,
-		"stationId": 524
-	  },
-	  {
-		"personId": 111,
-		"stationId": 526
-	  },
-	  {
-		"personId": 111,
-		"stationId": 525
-	  },
-	  {
-		"personId": 111,
-		"stationId": 507
-	  },
-	  {
-		"personId": 111,
-		"stationId": 503
-	  },
-	  {
-		"personId": 111,
-		"stationId": 501
-	  },
-	  {
-		"personId": 111,
-		"stationId": 506
-	  },
-	  {
-		"personId": 111,
-		"stationId": 509
-	  },
-	  {
-		"personId": 112,
-		"stationId": 523
-	  },
-	  {
-		"personId": 112,
-		"stationId": 521
-	  },
-	  {
-		"personId": 112,
-		"stationId": 522
-	  },
-	  {
-		"personId": 112,
-		"stationId": 526
-	  },
-	  {
-		"personId": 112,
-		"stationId": 503
-	  },
-	  {
-		"personId": 112,
-		"stationId": 501
-	  },
-	  {
-		"personId": 112,
-		"stationId": 502
-	  },
-	  {
-		"personId": 103,
-		"stationId": 527
-	  },
-	  {
-		"personId": 103,
-		"stationId": 523
-	  },
-	  {
-		"personId": 103,
-		"stationId": 521
-	  },
-	  {
-		"personId": 103,
-		"stationId": 522
-	  },
-	  {
-		"personId": 103,
-		"stationId": 524
-	  },
-	  {
-		"personId": 103,
-		"stationId": 526
-	  },
-	  {
-		"personId": 103,
-		"stationId": 507
-	  },
-	  {
-		"personId": 103,
-		"stationId": 503
-	  },
-	  {
-		"personId": 103,
-		"stationId": 501
-	  },
-	  {
-		"personId": 103,
-		"stationId": 502
-	  },
-	  {
-		"personId": 103,
+		"personId": 110,
 		"stationId": 505
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 527
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 523
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 521
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 522
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 524
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 526
 	  },
 	  {
-		"personId": 10,
-		"stationId": 529
+		"personId": 110,
+		"stationId": 528
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 525
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 507
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 503
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 501
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 502
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 508
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
 		"stationId": 506
 	  },
 	  {
-		"personId": 10,
+		"personId": 110,
+		"stationId": 509
+	  },
+	  {
+		"personId": 111,
+		"stationId": 523
+	  },
+	  {
+		"personId": 111,
+		"stationId": 521
+	  },
+	  {
+		"personId": 111,
+		"stationId": 522
+	  },
+	  {
+		"personId": 111,
+		"stationId": 524
+	  },
+	  {
+		"personId": 111,
+		"stationId": 526
+	  },
+	  {
+		"personId": 111,
+		"stationId": 525
+	  },
+	  {
+		"personId": 111,
+		"stationId": 507
+	  },
+	  {
+		"personId": 111,
+		"stationId": 503
+	  },
+	  {
+		"personId": 111,
+		"stationId": 501
+	  },
+	  {
+		"personId": 111,
+		"stationId": 506
+	  },
+	  {
+		"personId": 111,
+		"stationId": 509
+	  },
+	  {
+		"personId": 112,
+		"stationId": 523
+	  },
+	  {
+		"personId": 112,
+		"stationId": 521
+	  },
+	  {
+		"personId": 112,
+		"stationId": 522
+	  },
+	  {
+		"personId": 112,
+		"stationId": 526
+	  },
+	  {
+		"personId": 112,
+		"stationId": 503
+	  },
+	  {
+		"personId": 112,
+		"stationId": 501
+	  },
+	  {
+		"personId": 112,
+		"stationId": 502
+	  },
+	  {
+		"personId": 106,
+		"stationId": 527
+	  },
+	  {
+		"personId": 106,
+		"stationId": 523
+	  },
+	  {
+		"personId": 106,
+		"stationId": 521
+	  },
+	  {
+		"personId": 106,
+		"stationId": 522
+	  },
+	  {
+		"personId": 106,
+		"stationId": 524
+	  },
+	  {
+		"personId": 106,
+		"stationId": 526
+	  },
+	  {
+		"personId": 106,
+		"stationId": 507
+	  },
+	  {
+		"personId": 106,
+		"stationId": 503
+	  },
+	  {
+		"personId": 106,
+		"stationId": 501
+	  },
+	  {
+		"personId": 106,
+		"stationId": 502
+	  },
+	  {
+		"personId": 106,
+		"stationId": 505
+	  },
+	  {
+		"personId": 114,
+		"stationId": 527
+	  },
+	  {
+		"personId": 114,
+		"stationId": 523
+	  },
+	  {
+		"personId": 114,
+		"stationId": 521
+	  },
+	  {
+		"personId": 114,
+		"stationId": 522
+	  },
+	  {
+		"personId": 114,
+		"stationId": 524
+	  },
+	  {
+		"personId": 114,
+		"stationId": 526
+	  },
+	  {
+		"personId": 114,
+		"stationId": 529
+	  },
+	  {
+		"personId": 114,
+		"stationId": 525
+	  },
+	  {
+		"personId": 114,
+		"stationId": 507
+	  },
+	  {
+		"personId": 114,
+		"stationId": 503
+	  },
+	  {
+		"personId": 114,
+		"stationId": 501
+	  },
+	  {
+		"personId": 114,
+		"stationId": 502
+	  },
+	  {
+		"personId": 114,
+		"stationId": 508
+	  },
+	  {
+		"personId": 114,
+		"stationId": 506
+	  },
+	  {
+		"personId": 114,
 		"stationId": 509
 	  },
 	  {
@@ -743,31 +743,31 @@ const DB={
 		"stationId": 509
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 521
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 522
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 526
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 507
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 503
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 501
 	  },
 	  {
-		"personId": 104,
+		"personId": 112,
 		"stationId": 502
 	  },
 	  {
@@ -835,31 +835,31 @@ const DB={
 		"stationId": 505
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 525
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 507
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 503
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 501
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 506
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 509
 	  },
 	  {
-		"personId": 3,
+		"personId": 120,
 		"stationId": 505
 	  },
 	  {
@@ -935,51 +935,51 @@ const DB={
 		"stationId": 505
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 523
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 521
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 522
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 526
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 525
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 507
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 503
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 501
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 502
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 506
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 509
 	  },
 	  {
-		"personId": 7,
+		"personId": 121,
 		"stationId": 505
 	  },
 	  {
@@ -1183,23 +1183,23 @@ const DB={
 		"stationId": 505
 	  },
 	  {
-		"personId": 2,
+		"personId": 122,
 		"stationId": 526
 	  },
 	  {
-		"personId": 2,
+		"personId": 122,
 		"stationId": 525
 	  },
 	  {
-		"personId": 2,
+		"personId": 122,
 		"stationId": 507
 	  },
 	  {
-		"personId": 2,
+		"personId": 122,
 		"stationId": 503
 	  },
 	  {
-		"personId": 2,
+		"personId": 122,
 		"stationId": 501
 	  },
 	  {
@@ -1255,6 +1255,7 @@ const DB={
 	timeSlots:[],
 	assignments:[]
 };
+const RAW_DB=JSON.parse(JSON.stringify(DB));
 
 function collectForeignKeyIssues(datasetLabel, data){
 	const issues=[];
@@ -1298,13 +1299,33 @@ function getMockDataIntegrityIssues(db=DB){
 	return issues;
 }
 
-function reconcileTrainingForeignKeys(db=DB){
+function reconcileTrainingForeignKeys(db=DB,options={}){
+	const {datasetLabel='default',throwOnInvalid=false,logInvalidRows=true}=options;
 	const personIds=new Set((db.persons||[]).map(p=>p.id));
 	const stationIds=new Set((db.stations||[]).map(s=>s.id));
-	db.training=(db.training||[]).filter(row=>personIds.has(row.personId)&&stationIds.has(row.stationId));
+	const invalidRows=[];
+	db.training=(db.training||[]).filter((row,index)=>{
+		const valid=personIds.has(row.personId)&&stationIds.has(row.stationId);
+		if(!valid){
+			invalidRows.push({index,personId:row.personId,stationId:row.stationId});
+		}
+		return valid;
+	});
+	if(invalidRows.length){
+		const summary=`[mockdata] ${datasetLabel} dropped ${invalidRows.length} invalid training row(s): ${invalidRows.map(row=>row.index).join(', ')}`;
+		if(throwOnInvalid){
+			throw new Error(summary);
+		}
+		if(logInvalidRows&&typeof console!=='undefined'&&typeof console.warn==='function'){
+			console.warn(summary, invalidRows);
+		}
+	}
+	return invalidRows;
 }
 
-reconcileTrainingForeignKeys(DB);
+const shouldThrowOnInvalidTrainingRows=
+	typeof process!=='undefined'&&process&&process.env&&process.env.NODE_ENV==='development';
+reconcileTrainingForeignKeys(DB,{datasetLabel:'default',throwOnInvalid:shouldThrowOnInvalidTrainingRows});
 (function initShiftMockData(){
 	const clone=v=>JSON.parse(JSON.stringify(v));
 	const shifts=['day','evening','night'];
@@ -1368,5 +1389,5 @@ reconcileTrainingForeignKeys(DB);
 })();
 
 if(typeof module!=='undefined'&&module.exports){
-	module.exports={DB,getMockDataIntegrityIssues,reconcileTrainingForeignKeys};
+	module.exports={DB,RAW_DB,getMockDataIntegrityIssues,reconcileTrainingForeignKeys};
 }
