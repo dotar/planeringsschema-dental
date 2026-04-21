@@ -343,6 +343,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
+	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	const badge=document.getElementById('modeBadge');
 	if(badge){
