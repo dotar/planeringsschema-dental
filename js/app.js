@@ -49,6 +49,17 @@ function getAutoGenerateUnassignedBySlot(){
 function refreshAutoGenerateWarnings(){
 	const grid=document.querySelector('.schedule-grid');
 	if(!grid) return;
+	if(mode!=='edit'){
+		grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
+			timeCell.classList.remove('slot-unassigned-highlight');
+			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
+			timeCell.removeAttribute('data-bs-toggle');
+			timeCell.removeAttribute('data-bs-title');
+			timeCell.removeAttribute('title');
+			timeCell.querySelector('.slot-unassigned-indicator')?.remove();
+		});
+		return;
+	}
 	const unassignedBySlot=getAutoGenerateUnassignedBySlot();
 	grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
 		const slotId=String(timeCell.dataset.slotId||'');
@@ -347,6 +358,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	document.body.classList.toggle('viewer',mode!=='edit');
 	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
+	refreshAutoGenerateWarnings();
 	const badge=document.getElementById('modeBadge');
 	if(badge){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
