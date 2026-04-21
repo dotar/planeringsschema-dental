@@ -2,6 +2,8 @@ const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',N
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
 let lastAutoGenerateContext=null;
+let summaryWarningRefitRafId=0;
+let summaryWarningRefitUntil=0;
 
 
 function formatUnassignedTooltipText(names){
@@ -343,6 +345,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
+	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	const badge=document.getElementById('modeBadge');
 	if(badge){
@@ -1779,26 +1782,47 @@ function applySummaryFilter(metric='all'){
 	});
 }
 
+function scheduleSummaryWarningRefit(durationMs=320){
+	const now=performance.now();
+	summaryWarningRefitUntil=Math.max(summaryWarningRefitUntil, now+durationMs);
+	if(summaryWarningRefitRafId) return;
+	const tick=(ts)=>{
+		fitToViewport();
+		if(ts<summaryWarningRefitUntil){
+			summaryWarningRefitRafId=requestAnimationFrame(tick);
+			return;
+		}
+		summaryWarningRefitRafId=0;
+		summaryWarningRefitUntil=0;
+	};
+	summaryWarningRefitRafId=requestAnimationFrame(tick);
+}
+
 function renderSummaryPanel(){
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
 	if(!warnBox) return;
-		if(mode!=='edit'){
-			warnBox.classList.add('d-none');
-			clearSummaryHighlights();
-			hideSummaryInfoTooltip();
-			return;
-		}
+	const shouldHideForMode=mode!=='edit';
+	const wasCollapsed=warnBox.classList.contains('is-collapsed');
+	if(shouldHideForMode){
+		warnBox.classList.toggle('is-collapsed', true);
+		if(!wasCollapsed) scheduleSummaryWarningRefit();
+		clearSummaryHighlights();
+		hideSummaryInfoTooltip();
+		return;
+	}
 	summaryData=computeSummaryMetrics();
 	const filterBar=document.getElementById('summaryFilterBar');
 	const totals=summaryData.totals;
-		if(totals.affectedCells===0){
-			warnBox.classList.add('d-none');
-			clearSummaryHighlights();
-			hideSummaryInfoTooltip();
-			return;
-		}
-	warnBox.classList.remove('d-none');
+	const shouldHide=totals.affectedCells===0;
+	warnBox.classList.toggle('is-collapsed', shouldHide);
+	const isCollapsed=warnBox.classList.contains('is-collapsed');
+	if(wasCollapsed!==isCollapsed) scheduleSummaryWarningRefit();
+	if(shouldHide){
+		clearSummaryHighlights();
+		hideSummaryInfoTooltip();
+		return;
+	}
 	const hasPresenceErrors=totals.absentAssignments>0;
 	warnBox.classList.toggle('alert-danger', hasPresenceErrors);
 	warnBox.classList.toggle('alert-warning', !hasPresenceErrors);
