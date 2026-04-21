@@ -343,6 +343,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
+	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	const badge=document.getElementById('modeBadge');
 	if(badge){
@@ -1783,22 +1784,23 @@ function renderSummaryPanel(){
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
 	if(!warnBox) return;
-		if(mode!=='edit'){
-			warnBox.classList.add('d-none');
-			clearSummaryHighlights();
-			hideSummaryInfoTooltip();
-			return;
-		}
+	const shouldHideForMode=mode!=='edit';
+	if(shouldHideForMode){
+		warnBox.classList.toggle('is-collapsed', true);
+		clearSummaryHighlights();
+		hideSummaryInfoTooltip();
+		return;
+	}
 	summaryData=computeSummaryMetrics();
 	const filterBar=document.getElementById('summaryFilterBar');
 	const totals=summaryData.totals;
-		if(totals.affectedCells===0){
-			warnBox.classList.add('d-none');
-			clearSummaryHighlights();
-			hideSummaryInfoTooltip();
-			return;
-		}
-	warnBox.classList.remove('d-none');
+	const shouldHide=totals.affectedCells===0;
+	warnBox.classList.toggle('is-collapsed', shouldHide);
+	if(shouldHide){
+		clearSummaryHighlights();
+		hideSummaryInfoTooltip();
+		return;
+	}
 	const hasPresenceErrors=totals.absentAssignments>0;
 	warnBox.classList.toggle('alert-danger', hasPresenceErrors);
 	warnBox.classList.toggle('alert-warning', !hasPresenceErrors);
