@@ -336,22 +336,22 @@ body{ overflow:hidden; }
 }
 .person-pill .pill-remove{
 	flex:0 0 auto;
+	display:inline-flex;
+	align-items:center;
+	justify-content:center;
+	width:1em;
+	overflow:hidden;
 	cursor:pointer;
 	opacity:1;
 	transform:translateX(0);
 	margin-left:0;
-	transition:opacity .2s ease, transform .2s ease, margin .2s ease;
+	transition:opacity .2s ease, transform .2s ease, margin .2s ease, width .2s ease;
 }
 .person-pill[data-pill-variant="compact"] .pill-remove{
 	opacity:0;
 	transform:translateX(4px) scale(.92);
-	margin-left:-.55rem;
-	pointer-events:none;
-}
-.person-pill[data-pill-variant="compact"] .pill-icon{
-	opacity:0;
-	transform:translateX(-4px) scale(.92);
-	margin-right:-.35rem;
+	margin-left:0;
+	width:0;
 	pointer-events:none;
 }
 .person-pill[data-pill-variant="compact"] .pill-name{
