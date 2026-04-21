@@ -6,9 +6,11 @@ let lastAutoGenerateContext=null;
 
 function formatUnassignedTooltipText(names){
 	if(!names || names.length===0) return '';
-	const unit=names.length===1 ? 'person' : 'personer';
+	const count=names.length;
+	const adjective=count===1 ? 'tilldelad' : 'tilldelade';
+	const unit=count===1 ? 'person' : 'personer';
 	const lines=names.map(name=>`• ${name}`).join('\n');
-	return `${names.length} ej tilldelade ${unit}:\n${lines}`;
+	return `${count} ej ${adjective} ${unit}:\n${lines}`;
 }
 
 function getAutoGenerateUnassignedBySlot(){
