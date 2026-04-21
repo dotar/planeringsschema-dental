@@ -49,7 +49,7 @@ function getAutoGenerateUnassignedBySlot(){
 function refreshAutoGenerateWarnings(){
 	const grid=document.querySelector('.schedule-grid');
 	if(!grid) return;
-	if(mode!=='edit'){
+	if(!shouldValidateBoardForMode()){
 		grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
 			timeCell.classList.remove('slot-unassigned-highlight');
 			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
