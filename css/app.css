@@ -536,9 +536,26 @@ html[data-mode="viewer"] .mode-badge:hover{
 	display:block;
 }
 
-/* Hide edit-only controls in viewer mode */
-html[data-mode="viewer"] .hide-in-viewer{
+/* Animate edit-only navbar controls when switching mode */
+.navbar .hide-in-viewer{
+	opacity:1;
+	transform:translateX(0);
+	transition:opacity .22s ease, transform .28s ease;
+	will-change:opacity, transform;
+}
+.navbar .hide-in-viewer.mode-hidden{
 	display:none !important;
+}
+.navbar .hide-in-viewer.mode-slide-fade-enter,
+.navbar .hide-in-viewer.mode-slide-fade-leave{
+	opacity:0;
+	transform:translateX(14px);
+	pointer-events:none;
+}
+@media (prefers-reduced-motion: reduce){
+	.navbar .hide-in-viewer{
+		transition:none !important;
+	}
 }
 
 
