@@ -327,6 +327,12 @@ body{ overflow:hidden; }
 	flex:0 0 auto;
 	cursor:pointer;
 }
+.person-pill[data-pill-variant="compact"] .pill-remove{
+	display:none;
+}
+.person-pill[data-pill-variant="compact"] .pill-name{
+	flex:1 1 100%;
+}
 
 
 /* Drag & drop */

@@ -213,6 +213,7 @@ function applyViewerEditSetting(enabled,{persist=true}={}){
 		localStorage.setItem(VIEWER_EDIT_KEY, viewerCanEditAssignments ? '1' : '0');
 	}
 	syncViewerEditSettingInput();
+	refreshPersonPillDisplayVariants();
 }
 
 function logoutCoordinator({reason='' }={}){
@@ -263,8 +264,29 @@ function applyCoordAutoLogoutSetting(value,{persist=true}={}){
 	scheduleCoordinatorAutoLogout();
 }
 
+function getPersonPillDisplayVariant(){
+	return (mode==='edit' || (mode==='viewer' && viewerCanEditAssignments)) ? 'removable' : 'compact';
+}
+
 function canModifyAssignments(){
-	return mode==='edit' || viewerCanEditAssignments;
+	return getPersonPillDisplayVariant()==='removable';
+}
+
+function applyPersonPillDisplayVariant(pill){
+	if(!pill) return;
+	const variant=getPersonPillDisplayVariant();
+	pill.dataset.pillVariant=variant;
+	pill.draggable=variant==='removable';
+	const removeEl=pill.querySelector('.pill-remove');
+	if(removeEl){
+		const removable=variant==='removable';
+		removeEl.setAttribute('aria-hidden', removable ? 'false' : 'true');
+	}
+	fitPersonPillLabel(pill);
+}
+
+function refreshPersonPillDisplayVariants(scope=document){
+	scope.querySelectorAll('.person-pill').forEach(applyPersonPillDisplayVariant);
 }
 
 function bindViewerActivityListeners(enabled){
@@ -283,6 +305,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
+	refreshPersonPillDisplayVariants();
 	const badge=document.getElementById('modeBadge');
 	if(badge){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
@@ -2771,7 +2794,6 @@ function addPersonPill(cell, personId){
 	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
 	const pill = document.createElement('span');
 	pill.className = 'person-pill';
-	pill.draggable = canModifyAssignments();
 	pill.dataset.personId = personId;
 
 	// Soft background derived from group's color
@@ -2795,7 +2817,8 @@ function addPersonPill(cell, personId){
 	const nameEl = pill.querySelector('.pill-name');
 	nameEl.dataset.fullName = String(p.name ?? '');
 	pill.querySelector('.pill-name-static').textContent = nameEl.dataset.fullName;
-	pill.querySelector('.pill-remove').addEventListener('click', ev=>{
+	const removeEl = pill.querySelector('.pill-remove');
+	removeEl.addEventListener('click', ev=>{
 		ev.stopPropagation();
 		if(!canModifyAssignments()) return;
 		removePersonPill(cell, personId);
@@ -2807,7 +2830,7 @@ function addPersonPill(cell, personId){
 	pill.addEventListener('mouseleave', ()=>stopPillMarquee(pill));
 
 	cell.querySelector('[data-role="person-list"]').appendChild(pill);
-	fitPersonPillLabel(pill);
+	applyPersonPillDisplayVariant(pill);
 
 }
 
