@@ -1,17 +1,35 @@
 #!/usr/bin/env node
-const { DB, getMockDataIntegrityIssues } = require('../js/mockdata.js');
+const { RAW_DB, getMockDataIntegrityIssues, reconcileTrainingForeignKeys } = require('../js/mockdata.js');
 
-const issues = getMockDataIntegrityIssues(DB);
+const rawIssues = getMockDataIntegrityIssues(RAW_DB);
 
-if (!issues.length) {
-  console.log('✅ Mock data integrity check passed: no orphaned person/station references found.');
-  process.exit(0);
+if (rawIssues.length) {
+  console.error(`❌ Mock data integrity check failed with ${rawIssues.length} orphaned reference(s) in raw source data:`);
+  for (const issue of rawIssues) {
+    console.error(
+      `- [${issue.dataset}] ${issue.type} at training[${issue.index}] (personId=${issue.personId}, stationId=${issue.stationId})`
+    );
+  }
+  process.exit(1);
 }
 
-console.error(`❌ Mock data integrity check failed with ${issues.length} orphaned reference(s):`);
-for (const issue of issues) {
-  console.error(
-    `- [${issue.dataset}] ${issue.type} at training[${issue.index}] (personId=${issue.personId}, stationId=${issue.stationId})`
-  );
+const reconciled = JSON.parse(JSON.stringify(RAW_DB));
+const droppedRows = reconcileTrainingForeignKeys(reconciled, {
+  datasetLabel: 'validate:raw',
+  logInvalidRows: false
+});
+const reconciledIssues = getMockDataIntegrityIssues(reconciled);
+
+if (droppedRows.length || reconciledIssues.length) {
+  console.error('❌ Reconciliation check failed unexpectedly.');
+  if (droppedRows.length) {
+    console.error(`- droppedRows=${droppedRows.length}`);
+  }
+  if (reconciledIssues.length) {
+    console.error(`- reconciledIssues=${reconciledIssues.length}`);
+  }
+  process.exit(1);
 }
-process.exit(1);
+
+console.log('✅ Mock data integrity check passed on raw source data and reconciliation remains clean.');
+process.exit(0);
