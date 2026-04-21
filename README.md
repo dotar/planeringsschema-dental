@@ -9,6 +9,7 @@ The app is a lightweight frontend project (HTML, CSS, JavaScript) that uses Boot
 - Select factory, shift context (day/evening/night), date, and shift template.
 - Assign personnel via drag-and-drop or picker overlays.
 - View validation states for capacity, training, and compatibility conflicts.
+- Open a derived metrics report modal from top navigation with täckning %, untrained assignments, understaffed stations, and conflict count.
 - Use randomizer controls to auto-place personnel by group/station rules.
 - Manage personnel, groups, stations, time slots, and collaboration rules in settings.
 - Switch theme (light/dark) and use built-in toasts, tooltips, and modals.
@@ -39,6 +40,18 @@ The coordinator warning summary uses **unique grid cells** as its counting unit.
 - **Kompatibilitet**: cells with at least one incompatible person pair assigned together.
 
 The text `Kapacitet x/y tilldelade` in the summary describes total assigned capacity (`x`) versus total required capacity (`y`) across the visible planning grid.
+
+
+## Derived report metrics
+
+The **Rapport** button in the top navigation opens a modal with derived KPIs for the active date/factory/template context.
+
+- **Täckning %**: `assigned / required` across all operational stations and work slots in the visible context.
+- **Untrained assignments**: assigned rows where `DB.training` lacks the `personId + stationId` mapping.
+- **Understaffed stations**: unique stations that have one or more work slots with `assigned < defaultCapacity`.
+- **Conflict count**: number of "två pass i rad" findings plus "samarbetsregel" pair findings in the active context.
+
+The modal also includes station-level breakdown and conflict details and recalculates when the report modal is opened.
 
 ## Current limitations
 

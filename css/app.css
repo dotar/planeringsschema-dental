@@ -673,3 +673,12 @@ html[data-mode="viewer"] .hide-in-viewer{
 		background-size:0% 0%,0% 0%,0% 0%,0% 0%,0% 0%,0% 0%
 	}
 }
+
+#reportModal .card{
+	border-color:color-mix(in srgb, var(--bs-primary) 18%, var(--bs-border-color));
+	background:color-mix(in srgb, var(--bs-body-bg) 88%, var(--bs-primary-bg-subtle) 12%);
+}
+#reportModal .report-table thead th{
+	white-space:nowrap;
+	font-size:.78rem;
+}
