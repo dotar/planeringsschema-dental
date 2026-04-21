@@ -266,6 +266,7 @@ body{ overflow:hidden; }
 	font-size:calc(11px*var(--font-comp));
 	line-height:1.15; padding:3px 8px; border-radius:.55rem;
 	color:var(--bs-gray-900) !important;
+	transition:gap .2s ease;
 }
 .person-pill .pill-name{
 	flex:1 1 auto;
@@ -276,6 +277,16 @@ body{ overflow:hidden; }
 	font:inherit;
 	letter-spacing:inherit;
 	font-kerning:normal;
+}
+.person-pill .pill-icon{
+	flex:0 0 auto;
+	min-width:auto;
+	position:static;
+	display:inline-block;
+	overflow:visible;
+	opacity:1;
+	transform:translateX(0);
+	transition:opacity .2s ease, transform .2s ease, margin .2s ease;
 }
 .person-pill .pill-name-static{
 	display:block;
@@ -326,12 +337,28 @@ body{ overflow:hidden; }
 .person-pill .pill-remove{
 	flex:0 0 auto;
 	cursor:pointer;
+	opacity:1;
+	transform:translateX(0);
+	margin-left:0;
+	transition:opacity .2s ease, transform .2s ease, margin .2s ease;
 }
 .person-pill[data-pill-variant="compact"] .pill-remove{
-	display:none;
+	opacity:0;
+	transform:translateX(4px) scale(.92);
+	margin-left:-.55rem;
+	pointer-events:none;
+}
+.person-pill[data-pill-variant="compact"] .pill-icon{
+	opacity:0;
+	transform:translateX(-4px) scale(.92);
+	margin-right:-.35rem;
+	pointer-events:none;
 }
 .person-pill[data-pill-variant="compact"] .pill-name{
 	flex:1 1 100%;
+}
+.person-pill.is-variant-transitioning{
+	pointer-events:none;
 }
 
 
