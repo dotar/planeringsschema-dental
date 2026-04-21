@@ -1523,6 +1523,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
+	document.getElementById('reportBtn')?.addEventListener('click',()=>renderDerivedReport());
 	applyInactivityResetSetting(getInactivityResetMinutes(),{persist:false});
 	applyViewerShiftLeadSetting(getViewerShiftLeadMinutes(),{persist:false});
 	renderSettings();
@@ -1622,6 +1623,7 @@ function rebuildAll(){
 	setupTooltips();
 	fitToViewport();
 	renderSummaryPanel();
+	renderDerivedReport();
 	window.addEventListener('resize', fitToViewport);
 }
 
@@ -1757,6 +1759,130 @@ function renderSummaryPanel(){
 	});
 	if(activeSummaryFilter!=='all' && !btns.some(b=>b.metric===activeSummaryFilter)) activeSummaryFilter='all';
 	applySummaryFilter(activeSummaryFilter);
+}
+
+function computeDerivedReportMetrics(){
+	const dateStr=getSelectedDateStr();
+	const slots=DB.timeSlots
+		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
+		.sort((a,b)=>a.sort-b.sort);
+	const stations=DB.stations.filter(s=>s.factoryId===currentFactoryId&&s.operational!==false);
+	const assignments=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
+	const stationById=new Map(stations.map(s=>[String(s.id),s]));
+	const trainingSet=new Set((DB.training||[]).map(t=>`${t.personId}:${t.stationId}`));
+
+	const byStationSlot=new Map();
+	for(const row of assignments){
+		if(!stationById.has(String(row.stationId))) continue;
+		const key=`${row.stationId}:${row.timeSlotId}`;
+		const arr=byStationSlot.get(key)||[];
+		arr.push(row.personId);
+		byStationSlot.set(key,arr);
+	}
+
+	const stationStats=[];
+	let totalRequired=0;
+	let totalAssigned=0;
+	let untrainedAssignments=0;
+	let understaffedCellCount=0;
+	for(const station of stations){
+		let stationRequired=0;
+		let stationAssigned=0;
+		let stationUntrained=0;
+		let understaffedSlots=0;
+		for(const slot of slots){
+			const required=Math.max(0, Number(station.defaultCapacity||0));
+			const people=byStationSlot.get(`${station.id}:${slot.id}`)||[];
+			const assigned=people.length;
+			const untrained=people.filter(pid=>!trainingSet.has(`${pid}:${station.id}`)).length;
+			stationRequired+=required;
+			stationAssigned+=assigned;
+			stationUntrained+=untrained;
+			if(assigned<required){
+				understaffedSlots++;
+				understaffedCellCount++;
+			}
+		}
+		totalRequired+=stationRequired;
+		totalAssigned+=stationAssigned;
+		untrainedAssignments+=stationUntrained;
+		if(stationRequired>0 || stationAssigned>0){
+			stationStats.push({
+				stationId:String(station.id),
+				stationTitle:station.title,
+				required:stationRequired,
+				assigned:stationAssigned,
+				untrained:stationUntrained,
+				understaffedSlots,
+				coveragePct:stationRequired>0 ? (stationAssigned/stationRequired)*100 : 0
+			});
+		}
+	}
+
+	const byPersonSlot=new Map();
+	for(const row of assignments){
+		const key=`${row.personId}:${row.timeSlotId}`;
+		const arr=byPersonSlot.get(key)||[];
+		arr.push(row);
+		byPersonSlot.set(key,arr);
+	}
+	let conflictCount=0;
+	const conflictDetails=[];
+	for(const [key,rows] of byPersonSlot.entries()){
+		if(rows.length<=1) continue;
+		const [personId,slotId]=key.split(':');
+		const person=getPlanningPersonById(parseEntityId(personId), currentFactoryId);
+		const stationNames=rows
+			.map(r=>stationById.get(String(r.stationId))?.title||String(r.stationId))
+			.sort((a,b)=>a.localeCompare(b,'sv'));
+		const overlaps=rows.length-1;
+		conflictCount+=overlaps;
+		conflictDetails.push({personName:person?.name||`Person ${personId}`,slotId,stationNames,overlaps});
+	}
+
+	const coveragePct=totalRequired>0 ? (totalAssigned/totalRequired)*100 : 0;
+	const understaffedStations=stationStats.filter(s=>s.understaffedSlots>0).length;
+	stationStats.sort((a,b)=>a.coveragePct-b.coveragePct||a.stationTitle.localeCompare(b.stationTitle,'sv'));
+	conflictDetails.sort((a,b)=>b.overlaps-a.overlaps||a.personName.localeCompare(b.personName,'sv'));
+
+	return {
+		context:{dateStr,factoryId:currentFactoryId,dayType:currentDayType},
+		totals:{coveragePct,totalRequired,totalAssigned,untrainedAssignments,understaffedStations,understaffedCellCount,conflictCount},
+		stationStats,
+		conflictDetails
+	};
+}
+
+function renderDerivedReport(){
+	const coverageEl=document.getElementById('reportCoveragePct');
+	if(!coverageEl) return;
+	const report=computeDerivedReportMetrics();
+	const totals=report.totals;
+	const fmtPct=(n)=>`${Math.round((Number(n)||0)*10)/10}%`;
+	coverageEl.textContent=fmtPct(totals.coveragePct);
+	document.getElementById('reportCoverageSub').textContent=`${totals.totalAssigned}/${totals.totalRequired} tilldelade`; 
+	document.getElementById('reportUntrainedCount').textContent=String(totals.untrainedAssignments);
+	document.getElementById('reportUnderstaffedCount').textContent=String(totals.understaffedStations);
+	document.getElementById('reportConflictCount').textContent=String(totals.conflictCount);
+	document.getElementById('reportContextText').textContent=`Datum ${report.context.dateStr} · ${getCurrentFactoryTitle()} · ${labelFor(report.context.dayType)}`;
+
+	const stationBody=document.getElementById('reportStationRows');
+	if(stationBody){
+		if(report.stationStats.length===0){
+			stationBody.innerHTML='<tr><td colspan="6" class="text-muted small">Ingen stationdata för aktuell vy.</td></tr>';
+		}else{
+			stationBody.innerHTML=report.stationStats.map(s=>`<tr><td>${escapeHtml(s.stationTitle)}</td><td class="text-end">${fmtPct(s.coveragePct)}</td><td class="text-end">${s.assigned}/${s.required}</td><td class="text-end">${s.untrained}</td><td class="text-end">${s.understaffedSlots}</td><td class="text-end">${s.understaffedSlots>0?'<span class="badge text-bg-warning">Åtgärda</span>':'<span class="badge text-bg-success">OK</span>'}</td></tr>`).join('');
+		}
+	}
+
+	const conflictBody=document.getElementById('reportConflictRows');
+	if(conflictBody){
+		if(report.conflictDetails.length===0){
+			conflictBody.innerHTML='<tr><td colspan="4" class="text-muted small">Inga dubbelbokningar hittades.</td></tr>';
+		}else{
+			conflictBody.innerHTML=report.conflictDetails.map(c=>`<tr><td>${escapeHtml(c.personName)}</td><td class="text-end">${escapeHtml(String(c.slotId))}</td><td>${c.stationNames.map(n=>escapeHtml(n)).join(', ')}</td><td class="text-end">${c.overlaps}</td></tr>`).join('');
+		}
+	}
 }
 
 function buildGrid(){
@@ -2279,7 +2405,7 @@ function movePersonTo(cell, station, slot, personId){
 
 
 
-function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();}
+function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();renderDerivedReport();}
 
 function measurePillTextWidth(sampleEl, text){
 	if(!sampleEl) return 0;
@@ -2668,6 +2794,7 @@ function removePersonPill(cell,personId){
 	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
 	refreshAutoGenerateWarnings();
 	if(mode==='edit')validateBoard();
+	renderDerivedReport();
 }
 
 function onDragStart(ev){
