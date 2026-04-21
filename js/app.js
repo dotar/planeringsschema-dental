@@ -420,11 +420,12 @@ function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 }
 
 function applyMode(nextMode,{updateUrl=true,animateNav=true}={}){
+	const prevMode=mode;
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	if(prevMode!==mode) _skipCellWarningTransitionOnce=true;
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
-	setNavbarModeControlsVisibility(mode,{animate:animateNav});
+	setNavbarModeControlsVisibility(mode,{animate:animateNav && prevMode!==mode});
 	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	refreshAutoGenerateWarnings();
