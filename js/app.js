@@ -213,7 +213,7 @@ function applyViewerEditSetting(enabled,{persist=true}={}){
 		localStorage.setItem(VIEWER_EDIT_KEY, viewerCanEditAssignments ? '1' : '0');
 	}
 	syncViewerEditSettingInput();
-	refreshPersonPillDisplayVariants();
+	refreshPersonPillVariants({animate:true});
 }
 
 function logoutCoordinator({reason='' }={}){
@@ -272,9 +272,23 @@ function canModifyAssignments(){
 	return getPersonPillDisplayVariant()==='removable';
 }
 
-function applyPersonPillDisplayVariant(pill){
+const _pillVariantTransitionState = new WeakMap();
+
+function completePersonPillVariantTransition(pill){
 	if(!pill) return;
-	const variant=getPersonPillDisplayVariant();
+	const state=_pillVariantTransitionState.get(pill);
+	if(state){
+		pill.removeEventListener('transitionend', state.onTransitionEnd);
+		if(state.timerId) window.clearTimeout(state.timerId);
+		_pillVariantTransitionState.delete(pill);
+	}
+	pill.classList.remove('is-variant-transitioning');
+	fitPersonPillLabel(pill);
+}
+
+function applyPersonPillDisplayVariant(pill,{variant=getPersonPillDisplayVariant(), animate=false}={}){
+	if(!pill) return;
+	const prevVariant=pill.dataset.pillVariant;
 	pill.dataset.pillVariant=variant;
 	pill.draggable=variant==='removable';
 	const removeEl=pill.querySelector('.pill-remove');
@@ -282,11 +296,35 @@ function applyPersonPillDisplayVariant(pill){
 		const removable=variant==='removable';
 		removeEl.setAttribute('aria-hidden', removable ? 'false' : 'true');
 	}
+	const shouldAnimate=animate && !!prevVariant && prevVariant!==variant;
+	if(shouldAnimate){
+		const priorState=_pillVariantTransitionState.get(pill);
+		if(priorState){
+			pill.removeEventListener('transitionend', priorState.onTransitionEnd);
+			if(priorState.timerId) window.clearTimeout(priorState.timerId);
+		}
+		pill.classList.add('is-variant-transitioning');
+		const onTransitionEnd=(ev)=>{
+			if(!ev || !ev.target) return;
+			if(ev.target!==pill && !ev.target.closest('.pill-remove, .pill-icon')) return;
+			completePersonPillVariantTransition(pill);
+		};
+		pill.addEventListener('transitionend', onTransitionEnd);
+		const timerId=window.setTimeout(()=>completePersonPillVariantTransition(pill), 260);
+		_pillVariantTransitionState.set(pill,{onTransitionEnd,timerId});
+	}
 	fitPersonPillLabel(pill);
 }
 
+function refreshPersonPillVariants({scope=document, animate=true}={}){
+	const variant=canModifyAssignments() ? 'removable' : 'compact';
+	scope.querySelectorAll('.person-pill').forEach(pill=>{
+		applyPersonPillDisplayVariant(pill,{variant, animate});
+	});
+}
+
 function refreshPersonPillDisplayVariants(scope=document){
-	scope.querySelectorAll('.person-pill').forEach(applyPersonPillDisplayVariant);
+	refreshPersonPillVariants({scope, animate:false});
 }
 
 function bindViewerActivityListeners(enabled){
@@ -305,7 +343,7 @@ function applyMode(nextMode,{updateUrl=true}={}){
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
-	refreshPersonPillDisplayVariants();
+	refreshPersonPillVariants({animate:true});
 	const badge=document.getElementById('modeBadge');
 	if(badge){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
@@ -2813,7 +2851,7 @@ function addPersonPill(cell, personId){
 		pill.classList.add('under-training');
 	}
 
-	pill.innerHTML = `<i class="bi bi-person"></i><span class="pill-name"><span class="pill-name-static"></span><span class="pill-name-track" aria-hidden="true"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
+	pill.innerHTML = `<i class="bi bi-person pill-icon"></i><span class="pill-name"><span class="pill-name-static"></span><span class="pill-name-track" aria-hidden="true"></span></span><i class="bi bi-x pill-remove" role="button" aria-label="Ta bort person"></i>`;
 	const nameEl = pill.querySelector('.pill-name');
 	nameEl.dataset.fullName = String(p.name ?? '');
 	pill.querySelector('.pill-name-static').textContent = nameEl.dataset.fullName;
