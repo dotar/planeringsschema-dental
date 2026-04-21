@@ -2405,7 +2405,7 @@ function movePersonTo(cell, station, slot, personId){
 
 
 
-function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();}
+function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(mode==='edit')validateBoard();renderDerivedReport();}
 
 function measurePillTextWidth(sampleEl, text){
 	if(!sampleEl) return 0;
@@ -2794,6 +2794,7 @@ function removePersonPill(cell,personId){
 	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
 	refreshAutoGenerateWarnings();
 	if(mode==='edit')validateBoard();
+	renderDerivedReport();
 }
 
 function onDragStart(ev){
