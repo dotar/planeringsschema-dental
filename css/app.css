@@ -458,6 +458,29 @@ html[data-mode="viewer"] .mode-badge:hover{
 .summary-warning{
 	border-color:color-mix(in srgb, var(--bs-warning) 45%, var(--bs-border-color));
 	background:color-mix(in srgb, rgba(var(--bs-warning-rgb), .17) 70%, var(--bs-body-bg) 30%);
+	overflow:hidden;
+	max-height:14rem;
+	opacity:1;
+	transform:translateY(0);
+	transition:
+		max-height .24s ease,
+		opacity .2s ease,
+		transform .2s ease,
+		margin-top .24s ease,
+		margin-bottom .24s ease,
+		padding-top .24s ease,
+		padding-bottom .24s ease;
+}
+.summary-warning.is-collapsed{
+	max-height:0;
+	opacity:0;
+	transform:translateY(-6px);
+	margin-top:0 !important;
+	margin-bottom:0 !important;
+	padding-top:0 !important;
+	padding-bottom:0 !important;
+	border-width:0;
+	pointer-events:none;
 }
 .summary-filter-btn{
 	--bs-btn-padding-y:.15rem;
