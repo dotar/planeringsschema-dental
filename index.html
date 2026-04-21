@@ -94,16 +94,16 @@
 					</div>
 					<div class="modal-body">
 						<div class="row g-3 mb-3">
-							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Coverage</div><div id="reportCoveragePct" class="fs-4 fw-bold">0%</div><div id="reportCoverageSub" class="small text-muted">0/0 tilldelade</div></div></div></div>
+							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Täckning</div><div id="reportCoveragePct" class="fs-4 fw-bold">0%</div><div id="reportCoverageSub" class="small text-muted">0/0 tilldelade</div></div></div></div>
 							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Ej utbildade tilldelningar</div><div id="reportUntrainedCount" class="fs-4 fw-bold">0</div></div></div></div>
 							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Underbemannade stationer</div><div id="reportUnderstaffedCount" class="fs-4 fw-bold">0</div></div></div></div>
-							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Konflikter</div><div id="reportConflictCount" class="fs-4 fw-bold">0</div><div class="small text-muted">Dubbelbokning i samma tidsintervall</div></div></div></div>
+							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Konflikter</div><div id="reportConflictCount" class="fs-4 fw-bold">0</div><div class="small text-muted">Två pass i rad + samarbetsregel</div></div></div></div>
 						</div>
 						<div class="row g-3">
 							<div class="col-lg-8">
 								<div class="table-responsive">
 									<table class="table table-sm align-middle report-table">
-										<thead><tr><th>Station</th><th class="text-end">Coverage</th><th class="text-end">Tilldelning</th><th class="text-end">Ej utbildad</th><th class="text-end">Underbemannade pass</th><th class="text-end">Status</th></tr></thead>
+										<thead><tr><th>Station</th><th class="text-end">Täckning</th><th class="text-end">Tilldelning</th><th class="text-end">Ej utbildad</th><th class="text-end">Underbemannade pass</th><th class="text-end">Status</th></tr></thead>
 										<tbody id="reportStationRows"></tbody>
 									</table>
 								</div>
@@ -111,7 +111,7 @@
 							<div class="col-lg-4">
 								<div class="table-responsive">
 									<table class="table table-sm align-middle report-table">
-										<thead><tr><th>Person</th><th class="text-end">Pass</th><th>Stationer</th><th class="text-end">Konflikter</th></tr></thead>
+										<thead><tr><th>Typ</th><th>Pass</th><th>Station</th><th>Detalj</th></tr></thead>
 										<tbody id="reportConflictRows"></tbody>
 									</table>
 								</div>

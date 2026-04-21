@@ -1523,7 +1523,8 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
-	document.getElementById('reportBtn')?.addEventListener('click',()=>renderDerivedReport());
+	const reportModalEl=document.getElementById('reportModal');
+	reportModalEl?.addEventListener('show.bs.modal',()=>renderDerivedReport());
 	applyInactivityResetSetting(getInactivityResetMinutes(),{persist:false});
 	applyViewerShiftLeadSetting(getViewerShiftLeadMinutes(),{persist:false});
 	renderSettings();
@@ -1769,6 +1770,7 @@ function computeDerivedReportMetrics(){
 	const stations=DB.stations.filter(s=>s.factoryId===currentFactoryId&&s.operational!==false);
 	const assignments=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
 	const stationById=new Map(stations.map(s=>[String(s.id),s]));
+	const slotById=new Map(slots.map(s=>[String(s.id),s]));
 	const trainingSet=new Set((DB.training||[]).map(t=>`${t.personId}:${t.stationId}`));
 
 	const byStationSlot=new Map();
@@ -1819,31 +1821,59 @@ function computeDerivedReportMetrics(){
 		}
 	}
 
-	const byPersonSlot=new Map();
-	for(const row of assignments){
-		const key=`${row.personId}:${row.timeSlotId}`;
-		const arr=byPersonSlot.get(key)||[];
-		arr.push(row);
-		byPersonSlot.set(key,arr);
-	}
 	let conflictCount=0;
 	const conflictDetails=[];
-	for(const [key,rows] of byPersonSlot.entries()){
-		if(rows.length<=1) continue;
-		const [personId,slotId]=key.split(':');
-		const person=getPlanningPersonById(parseEntityId(personId), currentFactoryId);
-		const stationNames=rows
-			.map(r=>stationById.get(String(r.stationId))?.title||String(r.stationId))
-			.sort((a,b)=>a.localeCompare(b,'sv'));
-		const overlaps=rows.length-1;
-		conflictCount+=overlaps;
-		conflictDetails.push({personName:person?.name||`Person ${personId}`,slotId,stationNames,overlaps});
+
+	for(const slot of slots){
+		for(const station of stations){
+			const people=(byStationSlot.get(`${station.id}:${slot.id}`)||[]);
+			for(let i=0;i<people.length;i++){
+				for(let j=i+1;j<people.length;j++){
+					if(!isIncompatible(people[i], people[j])) continue;
+					const personA=getPlanningPersonById(people[i], currentFactoryId)?.name || `Person ${people[i]}`;
+					const personB=getPlanningPersonById(people[j], currentFactoryId)?.name || `Person ${people[j]}`;
+					conflictCount++;
+					conflictDetails.push({
+						type:'Samarbetsregel',
+						slotLabel:`${slot.start}–${slot.end}`,
+						stationTitle:station.title,
+						detail:`${personA} + ${personB}`
+					});
+				}
+			}
+		}
+	}
+
+	const byPersonStation=new Map();
+	for(const row of assignments){
+		if(!slotById.has(String(row.timeSlotId))) continue;
+		const key=`${row.personId}:${row.stationId}`;
+		const arr=byPersonStation.get(key)||[];
+		arr.push(row);
+		byPersonStation.set(key,arr);
+	}
+	for(const rows of byPersonStation.values()){
+		rows.sort((a,b)=>(slotById.get(String(a.timeSlotId))?.sort||0)-(slotById.get(String(b.timeSlotId))?.sort||0));
+		for(let i=1;i<rows.length;i++){
+			const prev=slotById.get(String(rows[i-1].timeSlotId));
+			const cur=slotById.get(String(rows[i].timeSlotId));
+			if(!prev || !cur || cur.sort!==prev.sort+1) continue;
+			const personName=getPlanningPersonById(rows[i].personId, currentFactoryId)?.name || `Person ${rows[i].personId}`;
+			const stationTitle=stationById.get(String(rows[i].stationId))?.title || String(rows[i].stationId);
+			conflictCount++;
+			conflictDetails.push({
+				type:'Två pass i rad',
+				slotLabel:`${prev.start}–${prev.end} → ${cur.start}–${cur.end}`,
+				stationTitle,
+				detail:personName
+			});
+		}
 	}
 
 	const coveragePct=totalRequired>0 ? (totalAssigned/totalRequired)*100 : 0;
 	const understaffedStations=stationStats.filter(s=>s.understaffedSlots>0).length;
 	stationStats.sort((a,b)=>a.coveragePct-b.coveragePct||a.stationTitle.localeCompare(b.stationTitle,'sv'));
-	conflictDetails.sort((a,b)=>b.overlaps-a.overlaps||a.personName.localeCompare(b.personName,'sv'));
+	conflictDetails.sort((a,b)=>a.type.localeCompare(b.type,'sv')||a.stationTitle.localeCompare(b.stationTitle,'sv'));
 
 	return {
 		context:{dateStr,factoryId:currentFactoryId,dayType:currentDayType},
@@ -1860,7 +1890,7 @@ function renderDerivedReport(){
 	const totals=report.totals;
 	const fmtPct=(n)=>`${Math.round((Number(n)||0)*10)/10}%`;
 	coverageEl.textContent=fmtPct(totals.coveragePct);
-	document.getElementById('reportCoverageSub').textContent=`${totals.totalAssigned}/${totals.totalRequired} tilldelade`; 
+	document.getElementById('reportCoverageSub').textContent=`${totals.totalAssigned}/${totals.totalRequired} tilldelade`;
 	document.getElementById('reportUntrainedCount').textContent=String(totals.untrainedAssignments);
 	document.getElementById('reportUnderstaffedCount').textContent=String(totals.understaffedStations);
 	document.getElementById('reportConflictCount').textContent=String(totals.conflictCount);
@@ -1878,9 +1908,9 @@ function renderDerivedReport(){
 	const conflictBody=document.getElementById('reportConflictRows');
 	if(conflictBody){
 		if(report.conflictDetails.length===0){
-			conflictBody.innerHTML='<tr><td colspan="4" class="text-muted small">Inga dubbelbokningar hittades.</td></tr>';
+			conflictBody.innerHTML='<tr><td colspan="4" class="text-muted small">Inga konflikter hittades.</td></tr>';
 		}else{
-			conflictBody.innerHTML=report.conflictDetails.map(c=>`<tr><td>${escapeHtml(c.personName)}</td><td class="text-end">${escapeHtml(String(c.slotId))}</td><td>${c.stationNames.map(n=>escapeHtml(n)).join(', ')}</td><td class="text-end">${c.overlaps}</td></tr>`).join('');
+			conflictBody.innerHTML=report.conflictDetails.map(c=>`<tr><td>${escapeHtml(c.type)}</td><td>${escapeHtml(c.slotLabel)}</td><td>${escapeHtml(c.stationTitle)}</td><td>${escapeHtml(c.detail)}</td></tr>`).join('');
 		}
 	}
 }
