@@ -11,6 +11,8 @@
 		<script>
 			// DEV ONLY: new URL every reload
 			const bust = Date.now();
+			const initialMode = new URLSearchParams(window.location.search).get('mode') === 'edit' ? 'edit' : 'viewer';
+			document.documentElement.dataset.mode = initialMode;
 			document.write('<link rel="stylesheet" href="css/app.css?v=' + bust + '">');
 			// If you also want JS fresh each reload:
 			//document.write('<script src="/js/app.js?v=' + bust + '" defer><\/script>');
