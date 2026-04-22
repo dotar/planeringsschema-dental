@@ -387,10 +387,21 @@ function bindViewerActivityListeners(enabled){
 function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 	const controls=document.querySelectorAll('.navbar .hide-in-viewer');
 	if(controls.length===0) return;
+	const ensureControlWidth=(el)=>{
+		if(el.dataset.modeControlMax) return;
+		const measured=Math.max(
+			Math.ceil(el.getBoundingClientRect().width),
+			Math.ceil(el.scrollWidth),
+			1
+		);
+		el.dataset.modeControlMax=String(measured);
+		el.style.setProperty('--mode-control-max', `${measured}px`);
+	};
 	const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	const shouldAnimate=animate && !reduceMotion;
 	const show=nextMode==='edit';
 	controls.forEach(el=>{
+		ensureControlWidth(el);
 		if(show){
 			el.classList.remove('mode-hidden','mode-slide-fade-leave');
 			if(!shouldAnimate){
