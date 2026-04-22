@@ -541,20 +541,26 @@ html[data-mode="viewer"] .mode-badge:hover{
 	opacity:1;
 	transform:translateX(0);
 	max-width:var(--mode-control-max, 320px);
+	max-height:48px;
 	overflow:hidden;
 	white-space:nowrap;
 	visibility:visible;
-	transition:opacity .22s ease, transform .28s ease, max-width .28s ease, margin .28s ease, padding .28s ease, border-width .28s ease;
+	transition:opacity .22s ease, transform .28s ease, max-width .28s ease, max-height .28s ease, margin .28s ease, padding .28s ease, border-width .28s ease;
 	will-change:opacity, transform;
 }
 .navbar .hide-in-viewer.mode-hidden{
 	opacity:0;
 	transform:translateX(14px);
 	max-width:0;
+	max-height:0;
 	margin-left:0 !important;
 	margin-right:0 !important;
+	margin-top:0 !important;
+	margin-bottom:0 !important;
 	padding-left:0 !important;
 	padding-right:0 !important;
+	padding-top:0 !important;
+	padding-bottom:0 !important;
 	border-width:0 !important;
 	pointer-events:none;
 	visibility:hidden;
@@ -564,22 +570,16 @@ html[data-mode="viewer"] .mode-badge:hover{
 	opacity:0;
 	transform:translateX(14px);
 	max-width:0;
+	max-height:0;
 	margin-left:0 !important;
 	margin-right:0 !important;
+	margin-top:0 !important;
+	margin-bottom:0 !important;
 	padding-left:0 !important;
 	padding-right:0 !important;
+	padding-top:0 !important;
+	padding-bottom:0 !important;
 	border-width:0 !important;
-	pointer-events:none;
-}
-@media (prefers-reduced-motion: reduce){
-	.navbar .hide-in-viewer{
-		transition:none !important;
-	}
-}
-.navbar .hide-in-viewer.mode-slide-fade-enter,
-.navbar .hide-in-viewer.mode-slide-fade-leave{
-	opacity:0;
-	transform:translateX(14px);
 	pointer-events:none;
 }
 @media (prefers-reduced-motion: reduce){
