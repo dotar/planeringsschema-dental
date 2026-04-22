@@ -548,6 +548,24 @@ html[data-mode="viewer"] .mode-badge:hover{
 	transition:opacity .22s ease, transform .28s ease, max-width .28s ease, max-height .28s ease, margin .28s ease, padding .28s ease, border-width .28s ease;
 	will-change:opacity, transform;
 }
+html[data-mode="viewer"] .navbar .hide-in-viewer{
+	opacity:0;
+	transform:translateX(14px);
+	max-width:0;
+	max-height:0;
+	margin-left:0 !important;
+	margin-right:0 !important;
+	margin-top:0 !important;
+	margin-bottom:0 !important;
+	padding-left:0 !important;
+	padding-right:0 !important;
+	padding-top:0 !important;
+	padding-bottom:0 !important;
+	border-width:0 !important;
+	pointer-events:none;
+	visibility:hidden;
+	transition:none !important;
+}
 .navbar .hide-in-viewer.mode-hidden{
 	opacity:0;
 	transform:translateX(14px);
