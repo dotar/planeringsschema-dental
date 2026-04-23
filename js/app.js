@@ -49,7 +49,7 @@ function getAutoGenerateUnassignedBySlot(){
 function refreshAutoGenerateWarnings(){
 	const grid=document.querySelector('.schedule-grid');
 	if(!grid) return;
-	if(mode!=='edit'){
+	if(!shouldValidateBoardForMode()){
 		grid.querySelectorAll('.time-cell[data-slot-id]').forEach(timeCell=>{
 			timeCell.classList.remove('slot-unassigned-highlight');
 			bootstrap.Tooltip.getInstance(timeCell)?.dispose();
@@ -434,6 +434,7 @@ function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 function applyMode(nextMode,{updateUrl=true,animateNav=true}={}){
 	const prevMode=mode;
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
+	if(prevMode!==mode) _skipCellWarningTransitionOnce=true;
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
 	setNavbarModeControlsVisibility(mode,{animate:animateNav && prevMode!==mode});
@@ -755,6 +756,7 @@ const HAS_CROSSFADE = CSS && CSS.supports && CSS.supports('background-image', 'c
 let _inValidation = false;
 let _pendingCellStates = new Map();
 let _pendingPillStates = new Map();
+let _skipCellWarningTransitionOnce = false;
 
 function _isAnimIn(cell, kind){ return cell.dataset[`anim${kind}`]==='in'; }
 function _setAnimIn(cell, kind, on){ if(on){ cell.dataset[`anim${kind}`]='in'; } else { delete cell.dataset[`anim${kind}`]; } }
@@ -3225,6 +3227,8 @@ function setCellTooltipContent(cell, text){
 
 function applyCellValidationDiff(prev){
 	_inValidation=false
+	const skipTransitions=_skipCellWarningTransitionOnce;
+	_skipCellWarningTransitionOnce=false;
 
 	// union of keys (prev + next)
 	const allKeys=new Set([...prev.keys(), ..._pendingCellStates.keys()])
@@ -3238,7 +3242,9 @@ function applyCellValidationDiff(prev){
 		const prevTag = _stateTag(p.warn, p.invalid);
 		const nextTag = _stateTag(n.warn, n.invalid);
 
-		if(HAS_CROSSFADE){
+		if(skipTransitions){
+			_setBase(cell, nextTag === 'warn' || nextTag === 'both', nextTag === 'invalid' || nextTag === 'both');
+		}else if(HAS_CROSSFADE){
 			_xfadeCF(cell, prevTag, nextTag);
 		}else{
 			_xfadeFallback(cell, prevTag, nextTag);
