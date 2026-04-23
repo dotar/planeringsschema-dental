@@ -387,8 +387,8 @@ function bindViewerActivityListeners(enabled){
 function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 	const controls=document.querySelectorAll('.navbar .hide-in-viewer');
 	if(controls.length===0) return;
-	const ensureControlWidth=(el)=>{
-		if(el.dataset.modeControlMax) return;
+	const ensureControlWidth=(el,{force=false}={})=>{
+		if(!force && el.dataset.modeControlMax) return;
 		const measured=Math.max(
 			Math.ceil(el.getBoundingClientRect().width),
 			Math.ceil(el.scrollWidth),
@@ -401,9 +401,10 @@ function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 	const shouldAnimate=animate && !reduceMotion;
 	const show=nextMode==='edit';
 	controls.forEach(el=>{
-		ensureControlWidth(el);
 		if(show){
 			el.classList.remove('mode-hidden','mode-slide-fade-leave');
+			const cachedWidth=Number.parseInt(el.dataset.modeControlMax ?? '0',10);
+			ensureControlWidth(el,{force:!Number.isFinite(cachedWidth) || cachedWidth<=1});
 			if(!shouldAnimate){
 				el.classList.remove('mode-slide-fade-enter');
 				return;
