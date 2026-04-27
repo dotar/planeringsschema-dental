@@ -1,5 +1,8 @@
 :root{
 	--grid-min-col: 190px;
+	--mode-transition-ms: 280ms;
+	--mode-transition-fast-ms: 220ms;
+	--mode-ease: ease;
 
 	/* Visible sizes after transform (JS sets pre-scale so these are true on screen) */
 	--time-col-w: 65px;
@@ -266,7 +269,7 @@ body{ overflow:hidden; }
 	font-size:calc(11px*var(--font-comp));
 	line-height:1.15; padding:3px 8px; border-radius:.55rem;
 	color:var(--bs-gray-900) !important;
-	transition:gap .2s ease;
+	transition:gap var(--mode-transition-fast-ms) var(--mode-ease);
 }
 .person-pill .pill-name{
 	flex:1 1 auto;
@@ -286,7 +289,10 @@ body{ overflow:hidden; }
 	overflow:visible;
 	opacity:1;
 	transform:translateX(0);
-	transition:opacity .2s ease, transform .2s ease, margin .2s ease;
+	transition:
+		opacity var(--mode-transition-fast-ms) var(--mode-ease),
+		transform var(--mode-transition-fast-ms) var(--mode-ease),
+		margin var(--mode-transition-fast-ms) var(--mode-ease);
 }
 .person-pill .pill-name-static{
 	display:block;
@@ -297,7 +303,7 @@ body{ overflow:hidden; }
 	line-height:inherit;
 	letter-spacing:inherit;
 	font-weight:inherit;
-	transition:opacity .16s ease;
+	transition:opacity var(--mode-transition-fast-ms) var(--mode-ease);
 }
 .person-pill .pill-name-track{
 	position:absolute;
@@ -312,7 +318,7 @@ body{ overflow:hidden; }
 	will-change:transform;
 	transform:translateX(0);
 	opacity:0;
-	transition:opacity .18s ease;
+	transition:opacity var(--mode-transition-fast-ms) var(--mode-ease);
 }
 .person-pill .pill-name-track .pill-name-seg,
 .person-pill .pill-name-track .pill-name-gap{
@@ -345,7 +351,11 @@ body{ overflow:hidden; }
 	opacity:1;
 	transform:translateX(0);
 	margin-left:0;
-	transition:opacity .2s ease, transform .2s ease, margin .2s ease, width .2s ease;
+	transition:
+		opacity var(--mode-transition-fast-ms) var(--mode-ease),
+		transform var(--mode-transition-fast-ms) var(--mode-ease),
+		margin var(--mode-transition-fast-ms) var(--mode-ease),
+		width var(--mode-transition-fast-ms) var(--mode-ease);
 }
 .person-pill[data-pill-variant="compact"] .pill-remove{
 	opacity:0;
@@ -545,7 +555,14 @@ html[data-mode="viewer"] .mode-badge:hover{
 	overflow:hidden;
 	white-space:nowrap;
 	visibility:visible;
-	transition:opacity .22s ease, transform .28s ease, max-width .28s ease, max-height .28s ease, margin .28s ease, padding .28s ease, border-width .28s ease;
+	transition:
+		opacity var(--mode-transition-fast-ms) var(--mode-ease),
+		transform var(--mode-transition-ms) var(--mode-ease),
+		max-width var(--mode-transition-ms) var(--mode-ease),
+		max-height var(--mode-transition-ms) var(--mode-ease),
+		margin var(--mode-transition-ms) var(--mode-ease),
+		padding var(--mode-transition-ms) var(--mode-ease),
+		border-width var(--mode-transition-ms) var(--mode-ease);
 	will-change:opacity, transform;
 }
 html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
