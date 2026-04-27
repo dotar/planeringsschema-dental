@@ -389,11 +389,24 @@ function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 	if(controls.length===0) return;
 	const ensureControlWidth=(el,{force=false}={})=>{
 		if(!force && el.dataset.modeControlMax) return;
+		const clone=el.cloneNode(true);
+		clone.classList.remove('mode-hidden','mode-slide-fade-enter','mode-slide-fade-leave');
+		clone.style.position='fixed';
+		clone.style.left='-99999px';
+		clone.style.top='-99999px';
+		clone.style.visibility='hidden';
+		clone.style.pointerEvents='none';
+		clone.style.maxWidth='none';
+		clone.style.maxHeight='none';
+		clone.style.width='max-content';
+		clone.style.overflow='visible';
+		document.body.appendChild(clone);
 		const measured=Math.max(
-			Math.ceil(el.getBoundingClientRect().width),
-			Math.ceil(el.scrollWidth),
+			Math.ceil(clone.getBoundingClientRect().width),
+			Math.ceil(clone.scrollWidth),
 			1
 		);
+		clone.remove();
 		el.dataset.modeControlMax=String(measured);
 		el.style.setProperty('--mode-control-max', `${measured}px`);
 	};
