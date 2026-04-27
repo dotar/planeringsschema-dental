@@ -318,6 +318,15 @@ function canModifyAssignments(){
 }
 
 const _pillVariantTransitionState = new WeakMap();
+function getCssDurationMs(varName, fallbackMs){
+	const raw=getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+	if(!raw) return fallbackMs;
+	const value=Number.parseFloat(raw);
+	if(!Number.isFinite(value)) return fallbackMs;
+	if(raw.endsWith('ms')) return value;
+	if(raw.endsWith('s')) return value*1000;
+	return fallbackMs;
+}
 
 function completePersonPillVariantTransition(pill){
 	if(!pill) return;
@@ -355,7 +364,8 @@ function applyPersonPillDisplayVariant(pill,{variant=getPersonPillDisplayVariant
 			completePersonPillVariantTransition(pill);
 		};
 		pill.addEventListener('transitionend', onTransitionEnd);
-		const timerId=window.setTimeout(()=>completePersonPillVariantTransition(pill), 260);
+		const transitionMs=getCssDurationMs('--mode-transition-fast-ms', 220);
+		const timerId=window.setTimeout(()=>completePersonPillVariantTransition(pill), transitionMs+60);
 		_pillVariantTransitionState.set(pill,{onTransitionEnd,timerId});
 	}
 	fitPersonPillLabel(pill);
