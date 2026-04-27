@@ -1584,6 +1584,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	initShiftData();
 	setShift(qs.get('shift')||'evening',{updateUrl:false});
 	applyMode(mode,{updateUrl:false,animateNav:false});
+	document.documentElement.classList.add('mode-ready');
 	updateToastAreaPosition();
 	if(mode==='edit'){
 		showCoordLogin({

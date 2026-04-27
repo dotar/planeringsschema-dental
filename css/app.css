@@ -548,7 +548,7 @@ html[data-mode="viewer"] .mode-badge:hover{
 	transition:opacity .22s ease, transform .28s ease, max-width .28s ease, max-height .28s ease, margin .28s ease, padding .28s ease, border-width .28s ease;
 	will-change:opacity, transform;
 }
-html[data-mode="viewer"] .navbar .hide-in-viewer{
+html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	opacity:0;
 	transform:translateX(14px);
 	max-width:0;
