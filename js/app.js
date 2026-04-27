@@ -403,8 +403,7 @@ function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
 	controls.forEach(el=>{
 		if(show){
 			el.classList.remove('mode-hidden','mode-slide-fade-leave');
-			const cachedWidth=Number.parseInt(el.dataset.modeControlMax ?? '0',10);
-			ensureControlWidth(el,{force:!Number.isFinite(cachedWidth) || cachedWidth<=1});
+			ensureControlWidth(el,{force:true});
 			if(!shouldAnimate){
 				el.classList.remove('mode-slide-fade-enter');
 				return;
