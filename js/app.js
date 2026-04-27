@@ -384,10 +384,58 @@ function bindViewerActivityListeners(enabled){
 	}
 }
 
-function applyMode(nextMode,{updateUrl=true}={}){
+function setNavbarModeControlsVisibility(nextMode,{animate=true}={}){
+	const controls=document.querySelectorAll('.navbar .hide-in-viewer');
+	if(controls.length===0) return;
+	const ensureControlWidth=(el,{force=false}={})=>{
+		if(!force && el.dataset.modeControlMax) return;
+		const measured=Math.max(
+			Math.ceil(el.getBoundingClientRect().width),
+			Math.ceil(el.scrollWidth),
+			1
+		);
+		el.dataset.modeControlMax=String(measured);
+		el.style.setProperty('--mode-control-max', `${measured}px`);
+	};
+	const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const shouldAnimate=animate && !reduceMotion;
+	const show=nextMode==='edit';
+	controls.forEach(el=>{
+		if(show){
+			el.classList.remove('mode-hidden','mode-slide-fade-leave');
+			ensureControlWidth(el,{force:true});
+			if(!shouldAnimate){
+				el.classList.remove('mode-slide-fade-enter');
+				return;
+			}
+			el.classList.add('mode-slide-fade-enter');
+			requestAnimationFrame(()=>{
+				el.classList.remove('mode-slide-fade-enter');
+			});
+			return;
+		}
+		if(!shouldAnimate){
+			el.classList.remove('mode-slide-fade-enter','mode-slide-fade-leave');
+			el.classList.add('mode-hidden');
+			return;
+		}
+		el.classList.remove('mode-slide-fade-enter','mode-hidden');
+		el.classList.add('mode-slide-fade-leave');
+		const onDone=(evt)=>{
+			if(evt.target!==el || mode!=='viewer') return;
+			el.classList.add('mode-hidden');
+			el.classList.remove('mode-slide-fade-leave');
+		};
+		el.addEventListener('transitionend', onDone, {once:true});
+	});
+}
+
+function applyMode(nextMode,{updateUrl=true,animateNav=true}={}){
+	const prevMode=mode;
 	mode=nextMode==='edit' ? 'edit' : 'viewer';
 	document.documentElement.dataset.mode = mode;
 	document.body.classList.toggle('viewer',mode!=='edit');
+	setNavbarModeControlsVisibility(mode,{animate:animateNav && prevMode!==mode});
 	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	refreshAutoGenerateWarnings();
@@ -1520,7 +1568,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 
 	initShiftData();
 	setShift(qs.get('shift')||'evening',{updateUrl:false});
-	applyMode(mode,{updateUrl:false});
+	applyMode(mode,{updateUrl:false,animateNav:false});
 	updateToastAreaPosition();
 	if(mode==='edit'){
 		showCoordLogin({
