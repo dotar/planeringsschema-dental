@@ -267,6 +267,56 @@ function syncAssignmentHistoryUi(){
 	if(redoBtn) redoBtn.disabled=(mode!=='edit' || assignmentHistoryRedoStack.length===0);
 }
 
+function getTopbarSecondaryActionElements(){
+	return ['randomizeBtn','historyActionsGroup','saveBtn','settingsBtn']
+		.map(id=>document.getElementById(id))
+		.filter(Boolean);
+}
+
+function relocateTopbarSecondaryActions(){
+	const inlineHost=document.getElementById('secondaryActionsInline');
+	const overflowMenu=document.getElementById('secondaryActionsMenu');
+	const overflowWrap=document.getElementById('secondaryActionsOverflow');
+	if(!inlineHost || !overflowMenu || !overflowWrap) return;
+	const compactLayout=window.matchMedia('(max-width: 992px)').matches;
+	const targetHost=compactLayout ? overflowMenu : inlineHost;
+	getTopbarSecondaryActionElements().forEach(el=>{
+		if(el.parentElement!==targetHost) targetHost.appendChild(el);
+	});
+	overflowWrap.classList.toggle('d-none', !compactLayout);
+}
+
+function bindTopbarActionDelegation(){
+	const topbarControls=document.getElementById('topbarControls');
+	if(!topbarControls || topbarControls.dataset.actionDelegateBound==='1') return;
+	topbarControls.dataset.actionDelegateBound='1';
+	topbarControls.addEventListener('click',ev=>{
+		const actionBtn=ev.target.closest('#randomizeBtn,#undoBtn,#redoBtn,#saveBtn,#settingsBtn');
+		if(!actionBtn || !topbarControls.contains(actionBtn)) return;
+		switch(actionBtn.id){
+			case 'randomizeBtn':
+				openRandomizer();
+				break;
+			case 'undoBtn':
+				undoAssignmentChange();
+				break;
+			case 'redoBtn':
+				redoAssignmentChange();
+				break;
+			case 'saveBtn':
+				saveAll();
+				break;
+			case 'settingsBtn':
+				break;
+			default:
+				break;
+		}
+		const overflowToggle=document.getElementById('secondaryActionsToggle');
+		const dropdown=overflowToggle ? bootstrap.Dropdown.getInstance(overflowToggle) : null;
+		dropdown?.hide();
+	});
+}
+
 function setButtonGroupValue(group, value){
 	if(!group) return;
 	group.querySelectorAll('[data-value]').forEach(btn=>{
@@ -1871,11 +1921,9 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	const templateSel=document.getElementById('templateSel');
 	templateSel.classList.add('d-none');
 	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;resetAssignmentHistory();rebuildAll();});
-	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
+	bindTopbarActionDelegation();
+	relocateTopbarSecondaryActions();
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
-	document.getElementById('undoBtn')?.addEventListener('click',undoAssignmentChange);
-	document.getElementById('redoBtn')?.addEventListener('click',redoAssignmentChange);
-	document.getElementById('saveBtn').addEventListener('click',saveAll);
 	const reportModalEl=document.getElementById('reportModal');
 	reportModalEl?.addEventListener('show.bs.modal',()=>renderDerivedReport());
 	applyInactivityResetSetting(getInactivityResetMinutes(),{persist:false});
@@ -1917,6 +1965,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	rebuildAll();
 	window.addEventListener('resize',fitToViewport);
 	window.addEventListener('resize',updateToastAreaPosition);
+	window.addEventListener('resize',relocateTopbarSecondaryActions);
 	document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});
 	document.addEventListener('keydown',ev=>{
 		if(mode!=='edit') return;
