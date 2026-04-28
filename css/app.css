@@ -413,6 +413,28 @@ body{ overflow:hidden; }
 }
 
 
+.topbar-controls{
+	flex-wrap:wrap;
+	justify-content:flex-end;
+	row-gap:.35rem;
+}
+.topbar-primary,
+.topbar-secondary{
+	flex-wrap:wrap;
+}
+.topbar-secondary-menu{
+	min-width:220px;
+}
+.topbar-secondary-menu .btn,
+.topbar-secondary-menu .btn-group{
+	width:100%;
+}
+.topbar-secondary-menu .btn + .btn,
+.topbar-secondary-menu .btn-group + .btn,
+.topbar-secondary-menu .btn + .btn-group{
+	margin-top:.35rem;
+}
+
 .selector-group{
 	flex-wrap:wrap;
 }
@@ -427,12 +449,57 @@ body{ overflow:hidden; }
 
 .mode-badge{
 	user-select:none;
+	margin-inline-start:.1rem;
 }
 html[data-mode="viewer"] .mode-badge{
 	cursor:pointer;
 }
 html[data-mode="viewer"] .mode-badge:hover{
 	filter:brightness(.95);
+}
+
+@media (max-width: 1200px){
+	.selector-group .btn{
+		min-width:64px;
+	}
+	.mode-badge{
+		margin-inline-start:.35rem;
+	}
+}
+
+@media (max-width: 992px){
+	.topbar-controls{
+		gap:.35rem !important;
+	}
+	.selector-group{
+		width:100%;
+	}
+	.selector-group .btn{
+		flex:1 1 0;
+		min-width:0;
+	}
+	.topbar-primary > .hide-in-viewer{
+		width:100%;
+	}
+	.topbar-primary > .hide-in-viewer .form-control,
+	.topbar-primary > .hide-in-viewer.form-select{
+		min-width:0;
+	}
+	#secondaryActionsInline{
+		display:none !important;
+	}
+	#secondaryActionsOverflow{
+		display:block !important;
+	}
+	.mode-badge{
+		margin-inline-start:0;
+	}
+}
+
+@media (min-width: 993px){
+	#secondaryActionsOverflow{
+		display:none !important;
+	}
 }
 .general-setting-item{
 	padding:.75rem .85rem;

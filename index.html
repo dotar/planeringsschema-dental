@@ -33,28 +33,40 @@
 					</div>
 				</div>
 				<div id="viewerUpdateNotice" class="badge text-bg-warning viewer-update-notice d-none mt-1 align-self-start" role="status" aria-live="polite"><i class="bi bi-clock-history me-1 notice-icon"></i><span class="notice-text"></span></div>
-				<div class="d-flex align-items-center gap-2 ms-auto">
-					<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
-						<button type="button" class="btn btn-outline-secondary" data-value="day"><i class="bi bi-sun-fill"></i> Dag</button>
-						<button type="button" class="btn btn-outline-secondary" data-value="evening"><i class="bi bi-cloud-moon-fill"></i> Kväll</button>
-						<button type="button" class="btn btn-outline-secondary" data-value="night"><i class="bi bi-moon-stars-fill"></i> Natt</button>
+				<div id="topbarControls" class="topbar-controls d-flex align-items-center gap-2 ms-auto">
+					<div class="topbar-primary d-flex align-items-center gap-2">
+						<div id="shiftSel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj skift">
+							<button type="button" class="btn btn-outline-secondary" data-value="day"><i class="bi bi-sun-fill"></i> Dag</button>
+							<button type="button" class="btn btn-outline-secondary" data-value="evening"><i class="bi bi-cloud-moon-fill"></i> Kväll</button>
+							<button type="button" class="btn btn-outline-secondary" data-value="night"><i class="bi bi-moon-stars-fill"></i> Natt</button>
+						</div>
+						<div id="factorySel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj fabrik"></div>
+						<div class="input-group input-group-sm hide-in-viewer" style="width:115px">
+							<input id="dateInput" type="date" class="form-control">
+						</div>
+						<div class="btn-group btn-group-sm" role="group" aria-label="Day pick">
+							<button id="btnToday" class="btn btn-outline-secondary active"><i class="bi bi-calendar-date"></i> Idag</button>
+							<button id="btnTomorrow" class="btn btn-outline-secondary"><i class="bi bi-calendar-event"></i> Imorgon</button>
+						</div>
+						<select id="templateSel" class="form-select form-select-sm hide-in-viewer" style="width:220px"></select>
 					</div>
-					<div id="factorySel" class="btn-group btn-group-sm selector-group" role="group" aria-label="Välj fabrik"></div>
-					<div class="input-group input-group-sm hide-in-viewer" style="width:115px">
-						<input id="dateInput" type="date" class="form-control">
+					<div class="topbar-secondary d-flex align-items-center gap-2">
+						<div id="secondaryActionsInline" class="d-flex align-items-center gap-2">
+							<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Autogenerera</button>
+							<div id="historyActionsGroup" class="btn-group btn-group-sm hide-in-viewer" role="group" aria-label="Ångra eller gör om">
+								<button id="undoBtn" class="btn btn-outline-secondary" type="button" disabled title="Ångra (Ctrl/Cmd+Z)"><i class="bi bi-arrow-counterclockwise"></i> Ångra</button>
+								<button id="redoBtn" class="btn btn-outline-secondary" type="button" disabled title="Gör om (Ctrl/Cmd+Y / Ctrl/Cmd+Shift+Z)"><i class="bi bi-arrow-clockwise"></i> Gör om</button>
+							</div>
+							<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
+							<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
+						</div>
+						<div id="secondaryActionsOverflow" class="dropdown hide-in-viewer">
+							<button id="secondaryActionsToggle" class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Fler åtgärder">
+								<i class="bi bi-three-dots"></i>
+							</button>
+							<div id="secondaryActionsMenu" class="dropdown-menu dropdown-menu-end p-2 topbar-secondary-menu"></div>
+						</div>
 					</div>
-					<div class="btn-group btn-group-sm" role="group" aria-label="Day pick">
-						<button id="btnToday" class="btn btn-outline-secondary active"><i class="bi bi-calendar-date"></i> Idag</button>
-						<button id="btnTomorrow" class="btn btn-outline-secondary"><i class="bi bi-calendar-event"></i> Imorgon</button>
-					</div>
-					<select id="templateSel" class="form-select form-select-sm hide-in-viewer" style="width:220px"></select>
-					<button id="randomizeBtn" class="btn btn-sm btn-primary hide-in-viewer"><i class="bi bi-shuffle"></i> Autogenerera</button>
-					<div class="btn-group btn-group-sm hide-in-viewer" role="group" aria-label="Ångra eller gör om">
-						<button id="undoBtn" class="btn btn-outline-secondary" type="button" disabled title="Ångra (Ctrl/Cmd+Z)"><i class="bi bi-arrow-counterclockwise"></i> Ångra</button>
-						<button id="redoBtn" class="btn btn-outline-secondary" type="button" disabled title="Gör om (Ctrl/Cmd+Y / Ctrl/Cmd+Shift+Z)"><i class="bi bi-arrow-clockwise"></i> Gör om</button>
-					</div>
-					<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
-					<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
 					<button id="themeBtn" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Tema"><i class="bi bi-circle-half"></i></button>
 					<span id="modeBadge" class="badge text-bg-secondary mode-badge" role="button" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Klicka för att logga in som koordinator">VIEWER</span>
 				</div>
