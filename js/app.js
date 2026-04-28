@@ -2,6 +2,10 @@ const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',N
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerShowWarnings=true,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
 let lastAutoGenerateContext=null;
+let assignmentHistoryUndoStack=[];
+let assignmentHistoryRedoStack=[];
+let assignmentHistoryBatch=null;
+let assignmentHistoryIsReplaying=false;
 let summaryWarningRefitRafId=0;
 let summaryWarningRefitUntil=0;
 
@@ -104,6 +108,163 @@ function parseEntityId(v){
 
 function escapeDataId(id){
 	return CSS.escape(String(id));
+}
+
+function getAssignmentHistoryContextKey(){
+	return JSON.stringify({
+		factoryId:String(currentFactoryId),
+		date:getSelectedDateStr(),
+		dayType:String(currentDayType),
+		shift:String(currentShift)
+	});
+}
+
+function getAssignmentRowKey(row){
+	if(!row) return '';
+	return [
+		String(row.date ?? ''),
+		String(row.factoryId ?? ''),
+		String(row.dayType ?? ''),
+		String(row.timeSlotId ?? ''),
+		String(row.stationId ?? ''),
+		String(row.personId ?? '')
+	].join('|');
+}
+
+function cloneAssignmentRow(row){
+	if(!row) return null;
+	return {
+		date:row.date,
+		factoryId:row.factoryId,
+		dayType:row.dayType,
+		timeSlotId:row.timeSlotId,
+		groupId:row.groupId ?? null,
+		stationId:row.stationId,
+		personId:row.personId
+	};
+}
+
+function recordAssignmentDiff(kind,row){
+	if(!assignmentHistoryBatch || assignmentHistoryIsReplaying) return;
+	const cloned=cloneAssignmentRow(row);
+	if(!cloned) return;
+	const key=getAssignmentRowKey(cloned);
+	const inverseList=kind==='added' ? assignmentHistoryBatch.removed : assignmentHistoryBatch.added;
+	const inverseIndex=inverseList.findIndex(x=>getAssignmentRowKey(x)===key);
+	if(inverseIndex>=0){
+		inverseList.splice(inverseIndex,1);
+		return;
+	}
+	assignmentHistoryBatch[kind].push(cloned);
+}
+
+function addAssignmentRow(row,{record=true}={}){
+	const cloned=cloneAssignmentRow(row);
+	if(!cloned) return;
+	DB.assignments.push(cloned);
+	if(record) recordAssignmentDiff('added', cloned);
+}
+
+function removeAssignmentsWhere(predicate,{record=true}={}){
+	const removed=[];
+	const kept=[];
+	for(const row of DB.assignments){
+		if(predicate(row)){
+			removed.push(row);
+		}else{
+			kept.push(row);
+		}
+	}
+	DB.assignments=kept;
+	if(record){
+		removed.forEach(row=>recordAssignmentDiff('removed', row));
+	}
+	return removed;
+}
+
+function withAssignmentHistoryAction(label, fn){
+	if(assignmentHistoryIsReplaying){
+		fn();
+		return;
+	}
+	if(assignmentHistoryBatch){
+		fn();
+		return;
+	}
+	const batch={label:String(label||'Ändring'),contextKey:getAssignmentHistoryContextKey(),added:[],removed:[]};
+	assignmentHistoryBatch=batch;
+	try{
+		fn();
+	}finally{
+		assignmentHistoryBatch=null;
+	}
+	if(batch.added.length===0 && batch.removed.length===0){
+		syncAssignmentHistoryUi();
+		return;
+	}
+	assignmentHistoryUndoStack.push(batch);
+	assignmentHistoryRedoStack.length=0;
+	syncAssignmentHistoryUi();
+}
+
+function applyAssignmentHistoryBatch(batch,{direction}={}){
+	if(!batch) return;
+	const redo=direction==='redo';
+	assignmentHistoryIsReplaying=true;
+	try{
+		if(redo){
+			batch.removed.forEach(row=>{
+				removeAssignmentsWhere(a=>getAssignmentRowKey(a)===getAssignmentRowKey(row),{record:false});
+			});
+			batch.added.forEach(row=>addAssignmentRow(row,{record:false}));
+		}else{
+			batch.added.forEach(row=>{
+				removeAssignmentsWhere(a=>getAssignmentRowKey(a)===getAssignmentRowKey(row),{record:false});
+			});
+			batch.removed.forEach(row=>addAssignmentRow(row,{record:false}));
+		}
+	}finally{
+		assignmentHistoryIsReplaying=false;
+	}
+	rebuildAll();
+}
+
+function resetAssignmentHistory(){
+	assignmentHistoryUndoStack.length=0;
+	assignmentHistoryRedoStack.length=0;
+	assignmentHistoryBatch=null;
+	syncAssignmentHistoryUi();
+}
+
+function undoAssignmentChange(){
+	if(mode!=='edit' || assignmentHistoryUndoStack.length===0) return;
+	const batch=assignmentHistoryUndoStack.pop();
+	if(batch.contextKey!==getAssignmentHistoryContextKey()){
+		resetAssignmentHistory();
+		return;
+	}
+	assignmentHistoryRedoStack.push(batch);
+	applyAssignmentHistoryBatch(batch,{direction:'undo'});
+	syncAssignmentHistoryUi();
+}
+
+function redoAssignmentChange(){
+	if(mode!=='edit' || assignmentHistoryRedoStack.length===0) return;
+	const batch=assignmentHistoryRedoStack.pop();
+	if(batch.contextKey!==getAssignmentHistoryContextKey()){
+		resetAssignmentHistory();
+		return;
+	}
+	assignmentHistoryUndoStack.push(batch);
+	applyAssignmentHistoryBatch(batch,{direction:'redo'});
+	syncAssignmentHistoryUi();
+}
+
+function syncAssignmentHistoryUi(){
+	const undoBtn=document.getElementById('undoBtn');
+	const redoBtn=document.getElementById('redoBtn');
+	if(undoBtn) undoBtn.disabled=(mode!=='edit' || assignmentHistoryUndoStack.length===0);
+	if(redoBtn) redoBtn.disabled=(mode!=='edit' || assignmentHistoryRedoStack.length===0);
 }
 
 function setButtonGroupValue(group, value){
@@ -463,6 +624,7 @@ function applyMode(nextMode,{updateUrl=true,animateNav=true}={}){
 	renderSummaryPanel();
 	refreshPersonPillVariants({animate:true});
 	refreshAutoGenerateWarnings();
+	syncAssignmentHistoryUi();
 	const badge=document.getElementById('modeBadge');
 	if(badge){
 		badge.textContent=mode==='edit'?'COORDINATOR':'VIEWER';
@@ -547,6 +709,7 @@ function resetToTodayIfNeeded(){
 	syncShiftUi();
 	toggleDayButtons();
 	suggestAndApplyTemplates();
+	resetAssignmentHistory();
 	renderSettings();
 	rebuildAll();
 }
@@ -588,6 +751,7 @@ function syncViewerShiftIfNeeded(){
 	setShift(nextShift,{updateUrl:true});
 	syncShiftUi();
 	suggestAndApplyTemplates();
+	resetAssignmentHistory();
 	renderSettings();
 	rebuildAll();
 	const minsLabel=viewerShiftLeadMinutes===1 ? '1 minut' : `${viewerShiftLeadMinutes} minuter`;
@@ -1659,6 +1823,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 			window.history.replaceState(null, '', nextUrl);
 		}
 
+		resetAssignmentHistory();
 		if(rerenderSettings) renderSettings();
 		rebuildAll();
 	}
@@ -1667,6 +1832,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 		setShift(v,{updateUrl});
 		syncShiftSelectors();
 		suggestAndApplyTemplates();
+		resetAssignmentHistory();
 		if(rerenderSettings) renderSettings();
 		rebuildAll();
 	}
@@ -1699,14 +1865,16 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	const todayStr=formatLocalDateYYYYMMDD(new Date());
 	document.getElementById('dateInput').value=todayStr;
 	currentDate=new Date(todayStr+'T00:00:00');
-	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
-	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
-	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();rebuildAll();});
+	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
+	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
+	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
 	const templateSel=document.getElementById('templateSel');
 	templateSel.classList.add('d-none');
-	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;rebuildAll();});
+	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;resetAssignmentHistory();rebuildAll();});
 	document.getElementById('randomizeBtn').addEventListener('click',openRandomizer);
 	document.getElementById('runRandomizeBtn').addEventListener('click',runRandomizer);
+	document.getElementById('undoBtn')?.addEventListener('click',undoAssignmentChange);
+	document.getElementById('redoBtn')?.addEventListener('click',redoAssignmentChange);
 	document.getElementById('saveBtn').addEventListener('click',saveAll);
 	const reportModalEl=document.getElementById('reportModal');
 	reportModalEl?.addEventListener('show.bs.modal',()=>renderDerivedReport());
@@ -1750,6 +1918,22 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	window.addEventListener('resize',fitToViewport);
 	window.addEventListener('resize',updateToastAreaPosition);
 	document.addEventListener('mousedown',ev=>{const ov=document.querySelector('.picker-overlay');if(ov&&!ov.contains(ev.target))closeAnyPicker();});
+	document.addEventListener('keydown',ev=>{
+		if(mode!=='edit') return;
+		if(!ev.ctrlKey && !ev.metaKey) return;
+		const target=ev.target;
+		if(target && (target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName))) return;
+		const key=String(ev.key||'').toLowerCase();
+		if(key==='z' && !ev.shiftKey){
+			ev.preventDefault();
+			undoAssignmentChange();
+			return;
+		}
+		if(key==='y' || (key==='z' && ev.shiftKey)){
+			ev.preventDefault();
+			redoAssignmentChange();
+		}
+	});
 })();
 
 (function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
@@ -2616,33 +2800,49 @@ function movePersonTo(cell, station, slot, personId){
 		return;
 	}
 
-	// Move semantics: remove existing assignment/pill for this person in this slot
-	DB.assignments = DB.assignments.filter(a =>
-		!(a.date===dateStr && a.personId===personId && a.timeSlotId===slot.id && a.dayType===currentDayType)
-	);
-	document.querySelectorAll(
-		`.cell[data-slot-id="${CSS.escape(String(slot.id))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
-	).forEach(el => { if(typeof killPillTooltip==='function') killPillTooltip(el); el.remove(); });
+	withAssignmentHistoryAction('Flytta person', ()=>{
+		// Move semantics: remove existing assignment/pill for this person in this slot
+		removeAssignmentsWhere(a =>
+			(a.date===dateStr && a.personId===personId && String(a.timeSlotId)===String(slot.id) && a.dayType===currentDayType)
+		);
+		document.querySelectorAll(
+			`.cell[data-slot-id="${CSS.escape(String(slot.id))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
+		).forEach(el => { if(typeof killPillTooltip==='function') killPillTooltip(el); el.remove(); });
 
-	// Enable per-move warning toasts
-	_toastContextActive = true;
-	_lastMovedPersonId = personId;
+		// Enable per-move warning toasts
+		_toastContextActive = true;
+		_lastMovedPersonId = personId;
 
-	placePerson(cell, station, slot, personId);
+		placePerson(cell, station, slot, personId, {captureHistory:false});
 
-	// If we used the training override, inform user (pill already gets orange border)
-	if(overrideOk){
-		const stTitle = DB.stations.find(s => s.id === station.id)?.title || 'station';
-		showToast('warning', 'Under utbildning', `Personen saknar utbildning för ${stTitle}. Placeringen tillåts men markeras.`);
-	}
+		// If we used the training override, inform user (pill already gets orange border)
+		if(overrideOk){
+			const stTitle = DB.stations.find(s => s.id === station.id)?.title || 'station';
+			showToast('warning', 'Under utbildning', `Personen saknar utbildning för ${stTitle}. Placeringen tillåts men markeras.`);
+		}
 
-	_toastContextActive = false;
-	_lastMovedPersonId = null;
+		_toastContextActive = false;
+		_lastMovedPersonId = null;
+	});
 }
 
 
 
-function placePerson(cell,station,slot,personId){addPersonPill(cell,personId);const dateStr=getSelectedDateStr();DB.assignments.push({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});refreshAutoGenerateWarnings();if(shouldValidateBoardForMode())validateBoard();renderDerivedReport();}
+function placePerson(cell,station,slot,personId,{captureHistory=true}={}){
+	const applyPlacement=()=>{
+		addPersonPill(cell,personId);
+		const dateStr=getSelectedDateStr();
+		addAssignmentRow({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});
+		refreshAutoGenerateWarnings();
+		if(shouldValidateBoardForMode())validateBoard();
+		renderDerivedReport();
+	};
+	if(!captureHistory || assignmentHistoryBatch || assignmentHistoryIsReplaying){
+		applyPlacement();
+		return;
+	}
+	withAssignmentHistoryAction('Placera person', applyPlacement);
+}
 
 function measurePillTextWidth(sampleEl, text){
 	if(!sampleEl) return 0;
@@ -3019,19 +3219,27 @@ function addPersonPill(cell, personId){
 
 
 function removePersonPill(cell,personId){
-	const pill=cell.querySelector(`.person-pill[data-person-id="${escapeDataId(personId)}"]`);
-	if(pill){
-		killPillTooltip(pill);
-		stopPillMarquee(pill);
-	}
-	const dateStr=getSelectedDateStr();
-	const slotId=cell.dataset.slotId;
-	const stationId=parseEntityId(cell.dataset.stationId);
-	DB.assignments=DB.assignments.filter(a=>!(a.date===dateStr&&a.timeSlotId===slotId&&a.stationId===stationId&&a.personId===personId&&a.dayType===currentDayType));
-	cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
-	refreshAutoGenerateWarnings();
-	if(shouldValidateBoardForMode())validateBoard();
-	renderDerivedReport();
+	withAssignmentHistoryAction('Ta bort person', ()=>{
+		const pill=cell.querySelector(`.person-pill[data-person-id="${escapeDataId(personId)}"]`);
+		if(pill){
+			killPillTooltip(pill);
+			stopPillMarquee(pill);
+		}
+		const dateStr=getSelectedDateStr();
+		const slotId=cell.dataset.slotId;
+		const stationId=parseEntityId(cell.dataset.stationId);
+		removeAssignmentsWhere(a=>(
+			a.date===dateStr &&
+			String(a.timeSlotId)===String(slotId) &&
+			a.stationId===stationId &&
+			a.personId===personId &&
+			a.dayType===currentDayType
+		));
+		cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
+		refreshAutoGenerateWarnings();
+		if(shouldValidateBoardForMode())validateBoard();
+		renderDerivedReport();
+	});
 }
 
 function onDragStart(ev){
@@ -3445,35 +3653,37 @@ function runRandomizer(){
 	const preferCriticalCoverage = document.getElementById('preferCriticalCoverage').checked;
 	localStorage.setItem('planning.preferCriticalCoverage', preferCriticalCoverage ? '1' : '0');
 
-	// ordered work slots
-	const slots = DB.timeSlots
-		.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-		.sort((a, b)=>a.sort-b.sort);
+	withAssignmentHistoryAction('Autogenerering', ()=>{
+		// ordered work slots
+		const slots = DB.timeSlots
+			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
+			.sort((a, b)=>a.sort-b.sort);
 
-	if(!keepPrefilled){
-		const dateStr=getSelectedDateStr();
-		DB.assignments = DB.assignments.filter(a => !(
-			a.date===dateStr &&
-			a.factoryId===currentFactoryId &&
-			a.dayType===currentDayType
-		));
-	}
-
-	// chosen stations: non-Resurs first; Resurs auto last
-	const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
-	const nonRes = chosen.filter(s => !s.isResurs);
-	const res = DB.stations.find(s => s.factoryId===currentFactoryId && s.isResurs && s.operational);
-
-	// per slot: round-robin across non-Resurs
-	for(const sl of slots){
-		roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
-	}
-	// then Resurs (if present)
-	if(res && fillResurs){
-		for(const sl of slots){
-			roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+		if(!keepPrefilled){
+			const dateStr=getSelectedDateStr();
+			removeAssignmentsWhere(a => (
+				a.date===dateStr &&
+				a.factoryId===currentFactoryId &&
+				a.dayType===currentDayType
+			));
 		}
-	}
+
+		// chosen stations: non-Resurs first; Resurs auto last
+		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
+		const nonRes = chosen.filter(s => !s.isResurs);
+		const res = DB.stations.find(s => s.factoryId===currentFactoryId && s.isResurs && s.operational);
+
+		// per slot: round-robin across non-Resurs
+		for(const sl of slots){
+			roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+		}
+		// then Resurs (if present)
+		if(res && fillResurs){
+			for(const sl of slots){
+				roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+			}
+		}
+	});
 
 	lastAutoGenerateContext={
 		factoryId:currentFactoryId,
