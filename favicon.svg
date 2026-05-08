@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+	<!-- Squircle background -->
+	<rect x="0" y="0" width="48" height="48" rx="12" fill="#0f62fe"/>
+
+	<!-- Calendar -->
+	<g fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+		<!-- Outer (bigger) -->
+		<rect x="6" y="10" width="36" height="30" rx="6"/>
+
+		<!-- Header -->
+		<line x1="6" y1="18" x2="42" y2="18"/>
+
+		<!-- Rings -->
+		<line x1="16" y1="6" x2="16" y2="13"/>
+		<line x1="32" y1="6" x2="32" y2="13"/>
+
+		<!-- Robot "face" -->
+		<line x1="12" y1="26" x2="20" y2="26"/>
+		<line x1="28" y1="26" x2="36" y2="26"/>
+	</g>
+</svg>
