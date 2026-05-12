@@ -1789,6 +1789,304 @@ function eligibleStationsFor(person, stations, slot, opts = {}, takenThisSlot, r
 
 
 
+
+const FIRST_RUN_TOUR_STORAGE_KEY='planning.firstRunTour';
+const FIRST_RUN_TOUR_DONE_VALUE='completed';
+const FIRST_RUN_TOUR_NEVER_VALUE='never';
+let onboardingTourState=null;
+
+function readFirstRunTourFlag(){
+	try{ return localStorage.getItem(FIRST_RUN_TOUR_STORAGE_KEY); }catch(_){ return FIRST_RUN_TOUR_DONE_VALUE; }
+}
+
+function writeFirstRunTourFlag(value){
+	try{ localStorage.setItem(FIRST_RUN_TOUR_STORAGE_KEY,value); }catch(_){}
+}
+
+function resetFirstRunTourFlag(){
+	try{ localStorage.removeItem(FIRST_RUN_TOUR_STORAGE_KEY); }catch(_){}
+}
+
+function isCoordinatorTourAvailable(){
+	try{ return mode==='edit' && sessionStorage.getItem('planning.coord')==='ok'; }catch(_){ return mode==='edit'; }
+}
+
+function shouldStartFirstRunTour(){
+	const flag=readFirstRunTourFlag();
+	return isCoordinatorTourAvailable() && flag!==FIRST_RUN_TOUR_DONE_VALUE && flag!==FIRST_RUN_TOUR_NEVER_VALUE;
+}
+
+function setFirstRunTourDismissed(){ writeFirstRunTourFlag(FIRST_RUN_TOUR_NEVER_VALUE); }
+
+function getFirstRunTourSteps(){
+	return [
+		{
+			intro:true,
+			icon:'bi-calendar2-week',
+			title:'Välkommen till Planeringsschema Dental',
+			body:'Här planerar du bemanning per skift, fabrik, tidsintervall och station. Vi visar snabbt hur du väljer kontext, fyller rutnätet, tolkar varningar och hittar rapporter, autogenerering och inställningar.'
+		},
+		{
+			selector:'#topbarControls .topbar-primary',
+			placement:'bottom',
+			icon:'bi-sliders',
+			title:'1. Välj kontext',
+			body:'Börja med skift, fabrik och dag. Kontexten styr vilka grupper, stationer, tider och varningar som visas i planeringsytan.'
+		},
+		{
+			selector:'.schedule-grid .cell:not(.break), #gridArea',
+			placement:'right',
+			icon:'bi-grid-3x3-gap',
+			title:'2. Arbeta i rutnätet',
+			body:'Klicka på en cell för att välja personal, eller dra personer mellan celler när koordinatorläget tillåter redigering. Färgmarkeringar visar direkt när något behöver åtgärdas.'
+		},
+		{
+			selector:'#summaryWarning',
+			placement:'bottom',
+			icon:'bi-exclamation-triangle',
+			title:'3. Följ varningssammanfattningen',
+			body:'Sammanfattningen räknar berörda celler och låter dig filtrera på kapacitet, utbildning, kompatibilitet och frånvaro. Knappen Rapport öppnar en mer detaljerad vy.'
+		},
+		{
+			selector:'#reportModal .modal-content',
+			placement:'left',
+			icon:'bi-graph-up-arrow',
+			title:'4. Granska rapporten',
+			body:'Rapporten visar härledda nyckeltal, täckning per station och konflikter för aktuell kontext.',
+			onEnter:()=>showTourModal('reportModal',()=>renderDerivedReport()),
+			onLeave:()=>hideTourModal('reportModal')
+		},
+		{
+			selector:'#randomizeBtn',
+			placement:'bottom',
+			icon:'bi-cursor-fill',
+			title:'5. Öppna autogenerering',
+			body:'Klicka på Autogenerera i toppmenyn när du vill låta systemet föreslå bemanning för valda stationer och grupper.',
+			onEnter:()=>{hideTourModal('reportModal');showTourTopbarAction('randomizeBtn');},
+			onLeave:()=>hideTourTopbarOverflow()
+		},
+		{
+			selector:'#randomizeModal .modal-content',
+			placement:'left',
+			icon:'bi-shuffle',
+			title:'6. Autogenerera planering',
+			body:'Autogenereringen använder valda personalgrupper, stationer och regler för att fylla schemat. Du kan behålla befintliga tilldelningar och prioritera utbildning eller kritiska stationer.',
+			onEnter:()=>openRandomizer(),
+			onLeave:()=>hideTourModal('randomizeModal')
+		},
+		{
+			selector:'#settingsModal .modal-content',
+			placement:'left',
+			icon:'bi-gear',
+			title:'7. Justera inställningar',
+			body:'I Inställningar hanterar du personal, grupper, stationer, tidsintervall, samarbetsregler och allmänna beteenden. Du kan också visa introduktionen igen via Inställningar → Credits → Visa introduktion.',
+			onEnter:()=>showTourModal('settingsModal',()=>renderSettings()),
+			onLeave:()=>hideTourModal('settingsModal')
+		}
+	];
+}
+
+function getFirstRunTourStepNumber(index){
+	const steps=onboardingTourState?.steps||[];
+	return steps.slice(0,index+1).filter(step=>!step.intro).length;
+}
+
+function getFirstRunTourStepCount(){
+	return (onboardingTourState?.steps||[]).filter(step=>!step.intro).length;
+}
+
+function showTourModal(id,beforeShow){
+	const el=document.getElementById(id);
+	if(!el) return;
+	if(typeof beforeShow==='function') beforeShow();
+	bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+function hideTourModal(id){
+	const el=document.getElementById(id);
+	if(!el) return;
+	bootstrap.Modal.getInstance(el)?.hide();
+}
+
+function closeTourOwnedModals(){
+	['reportModal','randomizeModal','settingsModal'].forEach(hideTourModal);
+}
+
+function showTourTopbarAction(id){
+	const btn=document.getElementById(id);
+	if(!btn || !btn.closest('#secondaryActionsMenu')) return;
+	const toggle=document.getElementById('secondaryActionsToggle');
+	if(toggle) bootstrap.Dropdown.getOrCreateInstance(toggle).show();
+}
+
+function hideTourTopbarOverflow(){
+	const toggle=document.getElementById('secondaryActionsToggle');
+	if(toggle) bootstrap.Dropdown.getInstance(toggle)?.hide();
+}
+
+function startFirstRunTour({force=false}={}){
+	if(!isCoordinatorTourAvailable() || (!force && !shouldStartFirstRunTour()) || onboardingTourState?.active) return;
+	const overlay=document.createElement('div');
+	overlay.id='firstRunTourOverlay';
+	overlay.className='first-run-tour-overlay';
+	overlay.setAttribute('role','dialog');
+	overlay.setAttribute('aria-modal','true');
+	overlay.setAttribute('aria-live','polite');
+	overlay.innerHTML=`
+		<div class="first-run-tour-scrim" data-role="scrim"></div>
+		<div class="first-run-tour-spotlight" data-role="spotlight" aria-hidden="true"></div>
+		<div class="first-run-tour-card shadow-lg" data-role="card">
+			<div class="d-flex align-items-start gap-3 mb-3">
+				<div class="first-run-tour-icon"><i data-role="icon" class="bi bi-info-circle"></i></div>
+				<div class="flex-grow-1">
+					<div class="small text-muted fw-semibold" data-role="progress"></div>
+					<h5 class="mb-0" data-role="title"></h5>
+				</div>
+				<button type="button" class="btn-close" data-role="close" aria-label="Hoppa över rundturen"></button>
+			</div>
+			<p class="mb-4" data-role="body"></p>
+			<div class="first-run-tour-actions">
+				<div class="btn-group btn-group-sm" role="group" aria-label="Rundturssteg">
+					<button type="button" class="btn btn-outline-secondary" data-role="prev"><i class="bi bi-arrow-left"></i> Föregående</button>
+					<button type="button" class="btn btn-primary" data-role="next">Nästa <i class="bi bi-arrow-right"></i></button>
+				</div>
+				<button type="button" class="btn btn-sm btn-link text-secondary" data-role="skip">Hoppa över</button>
+			</div>
+		</div>`;
+	document.body.appendChild(overlay);
+	onboardingTourState={active:true,index:0,enteredIndex:null,steps:getFirstRunTourSteps(),overlay,resizeHandler:()=>renderFirstRunTourStep()};
+	window.addEventListener('resize',onboardingTourState.resizeHandler);
+	overlay.querySelector('[data-role="prev"]').addEventListener('click',()=>goFirstRunTourStep(-1));
+	overlay.querySelector('[data-role="next"]').addEventListener('click',()=>goFirstRunTourStep(1));
+	overlay.querySelector('[data-role="skip"]').addEventListener('click',()=>finishFirstRunTour());
+	overlay.querySelector('[data-role="close"]').addEventListener('click',()=>finishFirstRunTour());
+	document.addEventListener('keydown',handleFirstRunTourKeydown);
+	renderFirstRunTourStep();
+}
+
+function handleFirstRunTourKeydown(ev){
+	if(!onboardingTourState?.active) return;
+	if(ev.key==='Escape'){
+		ev.preventDefault();
+		finishFirstRunTour();
+	}else if(ev.key==='ArrowRight'){
+		ev.preventDefault();
+		goFirstRunTourStep(1);
+	}else if(ev.key==='ArrowLeft'){
+		ev.preventDefault();
+		goFirstRunTourStep(-1);
+	}
+}
+
+function goFirstRunTourStep(delta){
+	if(!onboardingTourState?.active) return;
+	const current=onboardingTourState.steps[onboardingTourState.index];
+	if(current?.onLeave) current.onLeave();
+	const nextIndex=onboardingTourState.index+delta;
+	if(nextIndex<0){
+		onboardingTourState.index=0;
+		renderFirstRunTourStep();
+		return;
+	}
+	if(nextIndex>=onboardingTourState.steps.length){
+		finishFirstRunTour();
+		return;
+	}
+	onboardingTourState.index=nextIndex;
+	renderFirstRunTourStep();
+}
+
+function finishFirstRunTour(){
+	if(!onboardingTourState) return;
+	setFirstRunTourDismissed();
+	const state=onboardingTourState;
+	state.steps[state.index]?.onLeave?.();
+	window.removeEventListener('resize',state.resizeHandler);
+	document.removeEventListener('keydown',handleFirstRunTourKeydown);
+	state.overlay.remove();
+	onboardingTourState=null;
+	closeTourOwnedModals();
+}
+
+function renderFirstRunTourStep(){
+	const state=onboardingTourState;
+	if(!state?.active) return;
+	const step=state.steps[state.index];
+	if(!step) return;
+	const isNewStep=state.enteredIndex!==state.index;
+	if(isNewStep){
+		state.enteredIndex=state.index;
+		step.onEnter?.();
+	}
+	window.setTimeout(()=>positionFirstRunTourStep(step), (isNewStep && step.onEnter) ? 180 : 0);
+}
+
+function positionFirstRunTourStep(step){
+	const state=onboardingTourState;
+	if(!state?.active) return;
+	const overlay=state.overlay;
+	const target=step.intro ? document.body : (document.querySelector(step.selector) || document.getElementById('app') || document.body);
+	const rect=target.getBoundingClientRect();
+	const margin=10;
+	const spotlight=overlay.querySelector('[data-role="spotlight"]');
+	const card=overlay.querySelector('[data-role="card"]');
+	const title=overlay.querySelector('[data-role="title"]');
+	const body=overlay.querySelector('[data-role="body"]');
+	const progress=overlay.querySelector('[data-role="progress"]');
+	const icon=overlay.querySelector('[data-role="icon"]');
+	const prev=overlay.querySelector('[data-role="prev"]');
+	const next=overlay.querySelector('[data-role="next"]');
+	overlay.classList.toggle('is-intro', !!step.intro);
+	spotlight.classList.toggle('d-none', !!step.intro);
+	if(!step.intro){
+		spotlight.style.left=`${Math.max(8,rect.left-margin)}px`;
+		spotlight.style.top=`${Math.max(8,rect.top-margin)}px`;
+		spotlight.style.width=`${Math.min(window.innerWidth-16,rect.width+(margin*2))}px`;
+		spotlight.style.height=`${Math.min(window.innerHeight-16,rect.height+(margin*2))}px`;
+	}
+	title.textContent=step.title;
+	body.textContent=step.body;
+	progress.textContent=step.intro ? 'Snabb introduktion' : `Steg ${getFirstRunTourStepNumber(state.index)} av ${getFirstRunTourStepCount()}`;
+	icon.className=`bi ${step.icon||'bi-info-circle'}`;
+	prev.classList.toggle('d-none', !!step.intro);
+	prev.disabled=state.index===0;
+	next.innerHTML=state.index===state.steps.length-1 ? 'Klart <i class="bi bi-check2"></i>' : (step.intro ? 'Starta rundtur <i class="bi bi-arrow-right"></i>' : 'Nästa <i class="bi bi-arrow-right"></i>');
+	const cardRect=card.getBoundingClientRect();
+	const gap=14;
+	let left=(window.innerWidth-cardRect.width)/2;
+	let top=(window.innerHeight-cardRect.height)/2;
+	if(!step.intro){
+		left=rect.right+gap;
+		top=rect.top;
+		if(step.placement==='bottom'){
+			left=rect.left;
+			top=rect.bottom+gap;
+		}else if(step.placement==='left'){
+			left=rect.left-cardRect.width-gap;
+			top=rect.top;
+		}
+	}
+	left=Math.min(Math.max(12,left),window.innerWidth-cardRect.width-12);
+	top=Math.min(Math.max(12,top),window.innerHeight-cardRect.height-12);
+	card.style.left=`${left}px`;
+	card.style.top=`${top}px`;
+}
+
+function replayFirstRunTour(){
+	if(!isCoordinatorTourAvailable()){
+		showToast('info','Koordinatorläge krävs','Introduktionen kan bara visas i koordinatorläge.');
+		return;
+	}
+	resetFirstRunTourFlag();
+	closeTourOwnedModals();
+	window.setTimeout(()=>startFirstRunTour({force:true}), 250);
+}
+
+function maybeStartFirstRunTour(){
+	if(!shouldStartFirstRunTour()) return;
+	window.setTimeout(()=>startFirstRunTour(), 350);
+}
+
 buildDefaultSlots();
 function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{arr.forEach((s,i)=>defs.push({id:`${factoryId}-${dayType}-${i+1}`,factoryId,dayType,start:s[0],end:s[1],type:s[2],sort:i+1}));};const work='Work',br='Break';const dayMonFri=[["06:55","07:55",work],["07:55","08:55",work],["08:55","09:15",br],["09:15","10:30",work],["10:30","11:35",work],["11:35","12:10",br],["12:10","13:45",work],["13:45","14:00",br],["14:00","14:57",work]];const eveMonThu=[["14:52","16:00",work],["16:00","17:10",work],["17:10","17:45",br],["17:45","19:00",work],["19:00","20:30",work],["20:30","20:55",br],["20:55","22:30",work],["22:30","22:45",br],["22:45","00:31",work]];const eveFri=[["14:52","16:00",work],["16:00","17:00",work],["17:00","17:25",br],["17:25","18:00",work],["18:00","19:00",work]];const overtime=[["07:00","08:00",work],["08:00","09:00",work],["09:00","09:25",br],["09:25","11:30",work],["11:30","12:05",br],["12:05","13:45",work],["13:45","14:00",br],["14:00","15:00",work]];const night=[["00:31","01:00",work],["01:00","01:35",br],["01:35","03:00",work],["03:00","03:25",br],["03:25","05:00",work],["05:00","05:15",br],["05:15","07:00",work]];for(const f of DB.factories.map(f=>f.id)){add(f,DayType.Day,dayMonFri);add(f,DayType.EveningMonThu,eveMonThu);add(f,DayType.EveningFri,eveFri);add(f,DayType.OvertimeDay,overtime);add(f,DayType.Night,night);}DB.timeSlots=defs;}
 
@@ -1816,6 +2114,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 				applyMode('edit');
 				renderSettings();
 				rebuildAll();
+				maybeStartFirstRunTour();
 			}
 		});
 	}
@@ -1934,6 +2233,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
 	document.getElementById('viewerShowWarnings')?.addEventListener('change',e=>applyViewerWarningsSetting(e.target.checked));
 	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
+	document.getElementById('replayTourBtn')?.addEventListener('click',replayFirstRunTour);
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
 		clearModeBadgeTooltip();
@@ -1949,6 +2249,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 				showToast('info','Koordinatorläge aktivt','Du är nu inloggad som koordinator.');
 				renderSettings();
 				rebuildAll();
+				maybeStartFirstRunTour();
 			}
 		});
 	});
@@ -1963,6 +2264,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	suggestAndApplyTemplates();
 	updateHeaderContext();
 	rebuildAll();
+	maybeStartFirstRunTour();
 	window.addEventListener('resize',fitToViewport);
 	window.addEventListener('resize',updateToastAreaPosition);
 	window.addEventListener('resize',relocateTopbarSecondaryActions);
