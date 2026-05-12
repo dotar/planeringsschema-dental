@@ -1857,10 +1857,19 @@ function getFirstRunTourSteps(){
 			onLeave:()=>hideTourModal('reportModal')
 		},
 		{
+			selector:'#randomizeBtn',
+			placement:'bottom',
+			icon:'bi-cursor-fill',
+			title:'5. Öppna autogenerering',
+			body:'Klicka på Autogenerera i toppmenyn när du vill låta systemet föreslå bemanning för valda stationer och grupper.',
+			onEnter:()=>{hideTourModal('reportModal');showTourTopbarAction('randomizeBtn');},
+			onLeave:()=>hideTourTopbarOverflow()
+		},
+		{
 			selector:'#randomizeModal .modal-content',
 			placement:'left',
 			icon:'bi-shuffle',
-			title:'5. Autogenerera planering',
+			title:'6. Autogenerera planering',
 			body:'Autogenereringen använder valda personalgrupper, stationer och regler för att fylla schemat. Du kan behålla befintliga tilldelningar och prioritera utbildning eller kritiska stationer.',
 			onEnter:()=>openRandomizer(),
 			onLeave:()=>hideTourModal('randomizeModal')
@@ -1869,8 +1878,8 @@ function getFirstRunTourSteps(){
 			selector:'#settingsModal .modal-content',
 			placement:'left',
 			icon:'bi-gear',
-			title:'6. Justera inställningar',
-			body:'I Inställningar hanterar du personal, grupper, stationer, tidsintervall, samarbetsregler och allmänna beteenden för vyerna.',
+			title:'7. Justera inställningar',
+			body:'I Inställningar hanterar du personal, grupper, stationer, tidsintervall, samarbetsregler och allmänna beteenden. Du kan också visa introduktionen igen via Inställningar → Credits → Visa introduktion.',
 			onEnter:()=>showTourModal('settingsModal',()=>renderSettings()),
 			onLeave:()=>hideTourModal('settingsModal')
 		}
@@ -1901,6 +1910,18 @@ function hideTourModal(id){
 
 function closeTourOwnedModals(){
 	['reportModal','randomizeModal','settingsModal'].forEach(hideTourModal);
+}
+
+function showTourTopbarAction(id){
+	const btn=document.getElementById(id);
+	if(!btn || !btn.closest('#secondaryActionsMenu')) return;
+	const toggle=document.getElementById('secondaryActionsToggle');
+	if(toggle) bootstrap.Dropdown.getOrCreateInstance(toggle).show();
+}
+
+function hideTourTopbarOverflow(){
+	const toggle=document.getElementById('secondaryActionsToggle');
+	if(toggle) bootstrap.Dropdown.getInstance(toggle)?.hide();
 }
 
 function startFirstRunTour({force=false}={}){
