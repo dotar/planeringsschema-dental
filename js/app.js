@@ -1803,16 +1803,29 @@ function writeFirstRunTourFlag(value){
 	try{ localStorage.setItem(FIRST_RUN_TOUR_STORAGE_KEY,value); }catch(_){}
 }
 
-function shouldStartFirstRunTour(){
-	const flag=readFirstRunTourFlag();
-	return flag!==FIRST_RUN_TOUR_DONE_VALUE && flag!==FIRST_RUN_TOUR_NEVER_VALUE;
+function resetFirstRunTourFlag(){
+	try{ localStorage.removeItem(FIRST_RUN_TOUR_STORAGE_KEY); }catch(_){}
 }
 
-function setFirstRunTourCompleted(){ writeFirstRunTourFlag(FIRST_RUN_TOUR_DONE_VALUE); }
-function setFirstRunTourNever(){ writeFirstRunTourFlag(FIRST_RUN_TOUR_NEVER_VALUE); }
+function isCoordinatorTourAvailable(){
+	try{ return mode==='edit' && sessionStorage.getItem('planning.coord')==='ok'; }catch(_){ return mode==='edit'; }
+}
+
+function shouldStartFirstRunTour(){
+	const flag=readFirstRunTourFlag();
+	return isCoordinatorTourAvailable() && flag!==FIRST_RUN_TOUR_DONE_VALUE && flag!==FIRST_RUN_TOUR_NEVER_VALUE;
+}
+
+function setFirstRunTourDismissed(){ writeFirstRunTourFlag(FIRST_RUN_TOUR_NEVER_VALUE); }
 
 function getFirstRunTourSteps(){
 	return [
+		{
+			intro:true,
+			icon:'bi-calendar2-week',
+			title:'Välkommen till Planeringsschema Dental',
+			body:'Här planerar du bemanning per skift, fabrik, tidsintervall och station. Vi visar snabbt hur du väljer kontext, fyller rutnätet, tolkar varningar och hittar rapporter, autogenerering och inställningar.'
+		},
 		{
 			selector:'#topbarControls .topbar-primary',
 			placement:'bottom',
@@ -1864,6 +1877,15 @@ function getFirstRunTourSteps(){
 	];
 }
 
+function getFirstRunTourStepNumber(index){
+	const steps=onboardingTourState?.steps||[];
+	return steps.slice(0,index+1).filter(step=>!step.intro).length;
+}
+
+function getFirstRunTourStepCount(){
+	return (onboardingTourState?.steps||[]).filter(step=>!step.intro).length;
+}
+
 function showTourModal(id,beforeShow){
 	const el=document.getElementById(id);
 	if(!el) return;
@@ -1881,8 +1903,8 @@ function closeTourOwnedModals(){
 	['reportModal','randomizeModal','settingsModal'].forEach(hideTourModal);
 }
 
-function startFirstRunTour(){
-	if(!shouldStartFirstRunTour() || onboardingTourState?.active) return;
+function startFirstRunTour({force=false}={}){
+	if(!isCoordinatorTourAvailable() || (!force && !shouldStartFirstRunTour()) || onboardingTourState?.active) return;
 	const overlay=document.createElement('div');
 	overlay.id='firstRunTourOverlay';
 	overlay.className='first-run-tour-overlay';
@@ -1893,24 +1915,21 @@ function startFirstRunTour(){
 		<div class="first-run-tour-scrim" data-role="scrim"></div>
 		<div class="first-run-tour-spotlight" data-role="spotlight" aria-hidden="true"></div>
 		<div class="first-run-tour-card shadow-lg" data-role="card">
-			<div class="d-flex align-items-start gap-2 mb-2">
+			<div class="d-flex align-items-start gap-3 mb-3">
 				<div class="first-run-tour-icon"><i data-role="icon" class="bi bi-info-circle"></i></div>
 				<div class="flex-grow-1">
-					<div class="small text-muted" data-role="progress"></div>
-					<h5 class="mb-1" data-role="title"></h5>
+					<div class="small text-muted fw-semibold" data-role="progress"></div>
+					<h5 class="mb-0" data-role="title"></h5>
 				</div>
 				<button type="button" class="btn-close" data-role="close" aria-label="Hoppa över rundturen"></button>
 			</div>
-			<p class="mb-3" data-role="body"></p>
-			<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+			<p class="mb-4" data-role="body"></p>
+			<div class="first-run-tour-actions">
 				<div class="btn-group btn-group-sm" role="group" aria-label="Rundturssteg">
 					<button type="button" class="btn btn-outline-secondary" data-role="prev"><i class="bi bi-arrow-left"></i> Föregående</button>
 					<button type="button" class="btn btn-primary" data-role="next">Nästa <i class="bi bi-arrow-right"></i></button>
 				</div>
-				<div class="d-flex flex-wrap gap-2">
-					<button type="button" class="btn btn-sm btn-link text-secondary" data-role="skip">Hoppa över</button>
-					<button type="button" class="btn btn-sm btn-outline-secondary" data-role="never"><i class="bi bi-eye-slash"></i> Visa aldrig igen</button>
-				</div>
+				<button type="button" class="btn btn-sm btn-link text-secondary" data-role="skip">Hoppa över</button>
 			</div>
 		</div>`;
 	document.body.appendChild(overlay);
@@ -1918,9 +1937,8 @@ function startFirstRunTour(){
 	window.addEventListener('resize',onboardingTourState.resizeHandler);
 	overlay.querySelector('[data-role="prev"]').addEventListener('click',()=>goFirstRunTourStep(-1));
 	overlay.querySelector('[data-role="next"]').addEventListener('click',()=>goFirstRunTourStep(1));
-	overlay.querySelector('[data-role="skip"]').addEventListener('click',()=>finishFirstRunTour({never:false}));
-	overlay.querySelector('[data-role="close"]').addEventListener('click',()=>finishFirstRunTour({never:false}));
-	overlay.querySelector('[data-role="never"]').addEventListener('click',()=>finishFirstRunTour({never:true}));
+	overlay.querySelector('[data-role="skip"]').addEventListener('click',()=>finishFirstRunTour());
+	overlay.querySelector('[data-role="close"]').addEventListener('click',()=>finishFirstRunTour());
 	document.addEventListener('keydown',handleFirstRunTourKeydown);
 	renderFirstRunTourStep();
 }
@@ -1929,7 +1947,7 @@ function handleFirstRunTourKeydown(ev){
 	if(!onboardingTourState?.active) return;
 	if(ev.key==='Escape'){
 		ev.preventDefault();
-		finishFirstRunTour({never:false});
+		finishFirstRunTour();
 	}else if(ev.key==='ArrowRight'){
 		ev.preventDefault();
 		goFirstRunTourStep(1);
@@ -1950,16 +1968,16 @@ function goFirstRunTourStep(delta){
 		return;
 	}
 	if(nextIndex>=onboardingTourState.steps.length){
-		finishFirstRunTour({never:false});
+		finishFirstRunTour();
 		return;
 	}
 	onboardingTourState.index=nextIndex;
 	renderFirstRunTourStep();
 }
 
-function finishFirstRunTour({never=false}={}){
+function finishFirstRunTour(){
 	if(!onboardingTourState) return;
-	if(never) setFirstRunTourNever(); else setFirstRunTourCompleted();
+	setFirstRunTourDismissed();
 	const state=onboardingTourState;
 	state.steps[state.index]?.onLeave?.();
 	window.removeEventListener('resize',state.resizeHandler);
@@ -1986,7 +2004,7 @@ function positionFirstRunTourStep(step){
 	const state=onboardingTourState;
 	if(!state?.active) return;
 	const overlay=state.overlay;
-	const target=document.querySelector(step.selector) || document.getElementById('app') || document.body;
+	const target=step.intro ? document.body : (document.querySelector(step.selector) || document.getElementById('app') || document.body);
 	const rect=target.getBoundingClientRect();
 	const margin=10;
 	const spotlight=overlay.querySelector('[data-role="spotlight"]');
@@ -1997,31 +2015,50 @@ function positionFirstRunTourStep(step){
 	const icon=overlay.querySelector('[data-role="icon"]');
 	const prev=overlay.querySelector('[data-role="prev"]');
 	const next=overlay.querySelector('[data-role="next"]');
-	spotlight.style.left=`${Math.max(8,rect.left-margin)}px`;
-	spotlight.style.top=`${Math.max(8,rect.top-margin)}px`;
-	spotlight.style.width=`${Math.min(window.innerWidth-16,rect.width+(margin*2))}px`;
-	spotlight.style.height=`${Math.min(window.innerHeight-16,rect.height+(margin*2))}px`;
+	overlay.classList.toggle('is-intro', !!step.intro);
+	spotlight.classList.toggle('d-none', !!step.intro);
+	if(!step.intro){
+		spotlight.style.left=`${Math.max(8,rect.left-margin)}px`;
+		spotlight.style.top=`${Math.max(8,rect.top-margin)}px`;
+		spotlight.style.width=`${Math.min(window.innerWidth-16,rect.width+(margin*2))}px`;
+		spotlight.style.height=`${Math.min(window.innerHeight-16,rect.height+(margin*2))}px`;
+	}
 	title.textContent=step.title;
 	body.textContent=step.body;
-	progress.textContent=`Steg ${state.index+1} av ${state.steps.length}`;
+	progress.textContent=step.intro ? 'Snabb introduktion' : `Steg ${getFirstRunTourStepNumber(state.index)} av ${getFirstRunTourStepCount()}`;
 	icon.className=`bi ${step.icon||'bi-info-circle'}`;
+	prev.classList.toggle('d-none', !!step.intro);
 	prev.disabled=state.index===0;
-	next.innerHTML=state.index===state.steps.length-1 ? 'Klart <i class="bi bi-check2"></i>' : 'Nästa <i class="bi bi-arrow-right"></i>';
+	next.innerHTML=state.index===state.steps.length-1 ? 'Klart <i class="bi bi-check2"></i>' : (step.intro ? 'Starta rundtur <i class="bi bi-arrow-right"></i>' : 'Nästa <i class="bi bi-arrow-right"></i>');
 	const cardRect=card.getBoundingClientRect();
 	const gap=14;
-	let left=rect.right+gap;
-	let top=rect.top;
-	if(step.placement==='bottom'){
-		left=rect.left;
-		top=rect.bottom+gap;
-	}else if(step.placement==='left'){
-		left=rect.left-cardRect.width-gap;
+	let left=(window.innerWidth-cardRect.width)/2;
+	let top=(window.innerHeight-cardRect.height)/2;
+	if(!step.intro){
+		left=rect.right+gap;
 		top=rect.top;
+		if(step.placement==='bottom'){
+			left=rect.left;
+			top=rect.bottom+gap;
+		}else if(step.placement==='left'){
+			left=rect.left-cardRect.width-gap;
+			top=rect.top;
+		}
 	}
 	left=Math.min(Math.max(12,left),window.innerWidth-cardRect.width-12);
 	top=Math.min(Math.max(12,top),window.innerHeight-cardRect.height-12);
 	card.style.left=`${left}px`;
 	card.style.top=`${top}px`;
+}
+
+function replayFirstRunTour(){
+	if(!isCoordinatorTourAvailable()){
+		showToast('info','Koordinatorläge krävs','Introduktionen kan bara visas i koordinatorläge.');
+		return;
+	}
+	resetFirstRunTourFlag();
+	closeTourOwnedModals();
+	window.setTimeout(()=>startFirstRunTour({force:true}), 250);
 }
 
 function maybeStartFirstRunTour(){
@@ -2056,6 +2093,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 				applyMode('edit');
 				renderSettings();
 				rebuildAll();
+				maybeStartFirstRunTour();
 			}
 		});
 	}
@@ -2174,6 +2212,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 	document.getElementById('viewerCanEditAssignments')?.addEventListener('change',e=>applyViewerEditSetting(e.target.checked));
 	document.getElementById('viewerShowWarnings')?.addEventListener('change',e=>applyViewerWarningsSetting(e.target.checked));
 	document.getElementById('coordAutoLogoutMinutes')?.addEventListener('change',e=>applyCoordAutoLogoutSetting(e.target.value));
+	document.getElementById('replayTourBtn')?.addEventListener('click',replayFirstRunTour);
 	const modeBadge=document.getElementById('modeBadge');
 	modeBadge?.addEventListener('click',()=>{
 		clearModeBadgeTooltip();
@@ -2189,6 +2228,7 @@ function buildDefaultSlots(){const defs=[];const add=(factoryId,dayType,arr)=>{a
 				showToast('info','Koordinatorläge aktivt','Du är nu inloggad som koordinator.');
 				renderSettings();
 				rebuildAll();
+				maybeStartFirstRunTour();
 			}
 		});
 	});
