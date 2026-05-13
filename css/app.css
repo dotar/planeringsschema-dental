@@ -959,3 +959,14 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 		width:auto;
 	}
 }
+
+/* Data diagnostics */
+.schema-diagnostics{
+	border-left:.35rem solid var(--bs-danger);
+}
+.schema-diagnostics code{
+	color:inherit;
+	background:rgba(0,0,0,.08);
+	padding:.05rem .25rem;
+	border-radius:.25rem;
+}
