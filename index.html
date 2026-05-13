@@ -15,7 +15,7 @@
 			document.documentElement.dataset.mode = initialMode;
 			document.write('<link rel="stylesheet" href="css/app.css?v=' + bust + '">');
 			// If you also want JS fresh each reload:
-			//document.write('<script src="/js/app.js?v=' + bust + '" defer><\/script>');
+			//document.write('<script src="/js/main.js?v=' + bust + '" defer><\/script>');
 		</script>
 
 		<noscript>
@@ -532,9 +532,22 @@
 
 		<script>
 			// DEV ONLY: new URL every reload
-			// If you also want JS fresh each reload:
-			document.write('<script src="js/mockdata.js?v=' + bust + '" defer><\/script>');
-			document.write('<script src="js/app.js?v=' + bust + '" defer><\/script>');
+			// Load domain files in dependency order while preserving classic-script globals.
+			[
+				'js/mockdata.js',
+				'js/state.js',
+				'js/schedule-templates.js',
+				'js/history.js',
+				'js/ui-grid.js',
+				'js/validation.js',
+				'js/assignment-warnings.js',
+				'js/randomizer.js',
+				'js/ui-modals.js',
+				'js/settings.js',
+				'js/main.js'
+			].forEach(src=>{
+				document.write('<script src="' + src + '?v=' + bust + '" defer><\/script>');
+			});
 		</script>
 		
 	</body>

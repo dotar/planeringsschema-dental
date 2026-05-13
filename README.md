@@ -16,10 +16,19 @@ The app is a lightweight frontend project (HTML, CSS, JavaScript) that uses Boot
 
 ## Architecture
 
-- `index.html`: main app shell and UI containers.
-- `app.css`: layout, grid styling, visual states, and responsive behavior.
-- `app.js`: rendering, assignment logic, randomizer, validation, settings, and theme handling.
-- `mockdata.js`: mock domain data used for local/prototype operation.
+- `index.html`: main app shell and UI containers; loads classic scripts in dependency order.
+- `css/app.css`: layout, grid styling, visual states, and responsive behavior.
+- `js/main.js`: application bootstrap and high-level event wiring.
+- `js/state.js`: shared app state, parsing helpers, settings values, and data access helpers.
+- `js/schedule-templates.js`: date/template helpers and default time-slot definitions.
+- `js/history.js`: assignment history and undo/redo support.
+- `js/ui-grid.js`: schedule grid rendering, assignment interactions, summary panels, and person-pill UI.
+- `js/validation.js`: placement validation, compatibility checks, and warning UI diffing.
+- `js/assignment-warnings.js`: auto-generation assignment warning helpers.
+- `js/randomizer.js`: randomized assignment generation and randomizer modal behavior.
+- `js/ui-modals.js`: topbar actions, mode/session controls, onboarding tour, dialogs, login modal, and toasts.
+- `js/settings.js`: settings modal renderers, editors, and settings drag/reorder helpers.
+- `js/mockdata.js`: mock domain data used for local/prototype operation.
 - Runtime model: client-side only, no backend API, no persistence layer by default.
 
 ## Tech stack
