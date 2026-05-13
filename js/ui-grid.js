@@ -1,5 +1,10 @@
 // Schedule grid rendering, interactions, summary panels, and person pills.
 
+const _pillVariantTransitionState = new WeakMap();
+const _pillMarqueeState = new WeakMap();
+let _toastContextActive=false;
+let _lastMovedPersonId=null;
+
 function getCssDurationMs(varName, fallbackMs){
 	const raw=getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 	if(!raw) return fallbackMs;
