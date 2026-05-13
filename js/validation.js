@@ -4,6 +4,7 @@ let _inValidation = false;
 let _pendingCellStates = new Map();
 let _pendingPillStates = new Map();
 let _skipCellWarningTransitionOnce = false;
+const HAS_CROSSFADE = CSS && CSS.supports && CSS.supports('background-image', 'cross-fade(var(--img-warn); var(--img-invalid); 50%)');
 
 function isPersonAllowedFor(person, station, slot, opts = {}){
 	if(!person || !person.present) return false;

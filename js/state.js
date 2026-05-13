@@ -1,6 +1,12 @@
-// Shared application state, parsing helpers, date helpers, and data access helpers.
+// Shared application state, settings/session constants, parsing helpers, and data access helpers.
 
 const DayType={Day:'Day',EveningMonThu:'EveningMonThu',EveningFri:'EveningFri',Night:'Night',OvertimeDay:'OvertimeDay'};
+const INACTIVITY_RESET_KEY='planning.inactivityResetMinutes';
+const VIEWER_SHIFT_LEAD_KEY='planning.viewerShiftLeadMinutes';
+const VIEWER_EDIT_KEY='planning.viewerCanEditAssignments';
+const VIEWER_WARNINGS_KEY='planning.viewerShowWarnings';
+const COORD_AUTO_LOGOUT_KEY='planning.coordAutoLogoutMinutes';
+const INACTIVITY_ACTIVITY_EVENTS=['pointerdown','keydown','touchstart'];
 let mode='viewer',currentFactoryId=1,currentDate=new Date(),dayChoice='today',currentDayType=DayType.EveningMonThu,currentShift='evening',draggingPersonId=null,inactivityResetMinutes=0,inactivityTimerId=null,viewerNoticeTimerId=null,viewerShiftLeadMinutes=0,viewerShiftSyncIntervalId=null,viewerCanEditAssignments=false,viewerShowWarnings=true,viewerActivityTrackingBound=false,coordAutoLogoutMinutes=0,coordAutoLogoutTimerId=null,coordActivityTrackingBound=false;
 let summaryData=null,activeSummaryFilter='all';
 let lastAutoGenerateContext=null;
@@ -327,20 +333,6 @@ function getEveningSupplementalPersons(slot){
 	return getShiftPersonsFor('night', currentFactoryId);
 }
 
-function formatLocalDateYYYYMMDD(date){
-	const y=date.getFullYear();
-	const m=String(date.getMonth()+1).padStart(2,'0');
-	const d=String(date.getDate()).padStart(2,'0');
-	return `${y}-${m}-${d}`;
-}
-function setDateToOffset(days){const base=new Date();base.setDate(base.getDate()+days);const s=formatLocalDateYYYYMMDD(base);document.getElementById('dateInput').value=s;currentDate=new Date(s+'T00:00:00');}
-function syncDayChoiceFromDate(){const todayStr=formatLocalDateYYYYMMDD(new Date());const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const tomorrowStr=formatLocalDateYYYYMMDD(tomorrow);const selectedStr=formatDate(currentDate);dayChoice=selectedStr===todayStr?'today':(selectedStr===tomorrowStr?'tomorrow':'custom');}
-function toggleDayButtons(){document.getElementById('btnToday').classList.toggle('active',dayChoice==='today');document.getElementById('btnTomorrow').classList.toggle('active',dayChoice==='tomorrow');}
-function suggestTemplatesFor(date){const wd=date.getDay();const isFri=wd===5;const isWeekend=wd===0||wd===6;const isWeekday=wd>=1&&wd<=5;return{day:isWeekday?DayType.Day:DayType.OvertimeDay,evening:isWeekend?DayType.OvertimeDay:(isFri?DayType.EveningFri:DayType.EveningMonThu),night:DayType.Night};}
-function suggestAndApplyTemplates(){const sug=suggestTemplatesFor(currentDate);if(currentShift==='day'){fillTemplateOptions([sug.day]);currentDayType=sug.day;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();return;}if(currentShift==='night'){fillTemplateOptions([DayType.Night]);currentDayType=DayType.Night;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();return;}fillTemplateOptions([sug.evening]);currentDayType=sug.evening;document.getElementById('templateSel').value=currentDayType;updateHeaderContext();}
-function fillTemplateOptions(dayTypes){const sel=document.getElementById('templateSel');sel.innerHTML='';dayTypes.forEach(dt=>{const opt=document.createElement('option');opt.value=dt;opt.textContent=labelFor(dt);sel.appendChild(opt);});}
-function labelFor(dt){switch(dt){case DayType.Day:return'Dag mån–fre';case DayType.EveningMonThu:return'Kväll mån–tors';case DayType.EveningFri:return'Kväll fredag';case DayType.OvertimeDay:return'Overtime (lör/sön)';case DayType.Night:return'Natt';default:return dt;}}
-function formatDate(d){return formatLocalDateYYYYMMDD(d);} 
 
 function getSelectedDateStr(){return document.getElementById('dateInput').value;}
 function groupTitle(groupId){return(DB.groups.find(g=>g.id===groupId)||{}).title||'Resurs';}

@@ -1,5 +1,10 @@
 // Topbar actions, mode/session controls, onboarding tour, dialogs, login modal, and toasts.
 
+const FIRST_RUN_TOUR_STORAGE_KEY='planning.firstRunTour';
+const FIRST_RUN_TOUR_DONE_VALUE='completed';
+const FIRST_RUN_TOUR_NEVER_VALUE='never';
+let onboardingTourState=null;
+
 function getTopbarSecondaryActionElements(){
 	return ['randomizeBtn','historyActionsGroup','saveBtn','settingsBtn']
 		.map(id=>document.getElementById(id))
