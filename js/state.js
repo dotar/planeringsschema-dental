@@ -234,6 +234,9 @@ function buildShiftSpecificTimeSlots(baseTimeSlots, shift){
 }
 
 function initShiftData(){
+	const initialDiagnostics=validateDbShape(DB,{context:'initShiftData: before setup'});
+	if(!initialDiagnostics.ok) return false;
+
 	if(!DB.shiftData){
 		const base={
 			persons:cloneDeep(DB.persons||[]),
@@ -255,7 +258,9 @@ function initShiftData(){
 		}
 	}
 
-	setShift('evening',{updateUrl:false});
+	const diagnostics=validateDbShape(DB,{context:'initShiftData: after setup',requireShiftData:true});
+	if(!diagnostics.ok) return false;
+	return setShift('evening',{updateUrl:false});
 }
 
 function getActiveShiftData(){
@@ -263,8 +268,15 @@ function getActiveShiftData(){
 }
 
 function setShift(shift,{updateUrl=true}={}){
-	currentShift=(shift==='day'||shift==='evening'||shift==='night')?shift:'evening';
+	const nextShift=(shift==='day'||shift==='evening'||shift==='night')?shift:'evening';
+	const diagnostics=validateDbShape(DB,{context:`setShift: ${nextShift}`,requireShiftData:true,shift:nextShift});
+	if(!diagnostics.ok) return false;
+	currentShift=nextShift;
 	const data=getActiveShiftData();
+	if(!data){
+		renderSchemaDiagnostics({ok:false,context:`setShift: ${nextShift}`,issues:[{code:'MISSING_SHIFT',path:`DB.shiftData.${nextShift}`,message:`Saknar dataset för skiftet ${nextShift}.`}]});
+		return false;
+	}
 	DB.persons=data.persons;
 	DB.groups=data.groups;
 	DB.timeSlots=data.timeSlots;
@@ -279,6 +291,7 @@ function setShift(shift,{updateUrl=true}={}){
 		const nextUrl = `${window.location.pathname}?${nextQs.toString()}${window.location.hash || ''}`;
 		window.history.replaceState(null, '', nextUrl);
 	}
+	return true;
 }
 
 function getShiftPersonsFor(shift, factoryId=currentFactoryId){

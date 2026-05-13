@@ -12,8 +12,25 @@
 	const shiftSel=document.getElementById('shiftSel');
 	const settingsShiftSel=document.getElementById('settingsShiftSel');
 
-	initShiftData();
-	setShift(qs.get('shift')||'evening',{updateUrl:false});
+	function pauseForSchemaDiagnostics(){
+		document.documentElement.classList.add('mode-ready');
+		[facSel,settingsFacSel,shiftSel,settingsShiftSel].forEach(el=>{
+			if(!el) return;
+			el.querySelectorAll('button,select,input').forEach(control=>{control.disabled=true;});
+			if('disabled' in el) el.disabled=true;
+		});
+		updateToastAreaPosition();
+	}
+
+	const bootDiagnostics=validateDbShape(DB,{context:'init'});
+	if(!bootDiagnostics.ok){
+		pauseForSchemaDiagnostics();
+		return;
+	}
+	if(!initShiftData() || !setShift(qs.get('shift')||'evening',{updateUrl:false})){
+		pauseForSchemaDiagnostics();
+		return;
+	}
 	applyMode(mode,{updateUrl:false,animateNav:false});
 	document.documentElement.classList.add('mode-ready');
 	updateToastAreaPosition();
@@ -87,7 +104,10 @@
 	}
 
 	function applyShiftChange(v,{rerenderSettings=false,updateUrl=true}={}){
-		setShift(v,{updateUrl});
+		if(!setShift(v,{updateUrl})){
+			syncShiftSelectors();
+			return;
+		}
 		syncShiftSelectors();
 		suggestAndApplyTemplates();
 		resetAssignmentHistory();
