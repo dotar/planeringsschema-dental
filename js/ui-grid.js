@@ -480,12 +480,14 @@ function getNormalizedGroupOrder(factoryId){
 function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
 
 function rebuildAll(){
-	buildGrid();
-	setupTooltips();
-	fitToViewport();
-	renderSummaryPanel();
-	renderDerivedReport();
-	window.addEventListener('resize', fitToViewport);
+	return runMeasured('rebuildAll', ()=>{
+		buildGrid();
+		setupTooltips();
+		fitToViewport();
+		renderSummaryPanel();
+		renderDerivedReport();
+		window.addEventListener('resize', fitToViewport);
+	});
 }
 
 function clearSummaryHighlights(){
@@ -593,6 +595,7 @@ function scheduleSummaryWarningRefit(durationMs=320){
 }
 
 function renderSummaryPanel(){
+	return runMeasured('renderSummaryPanel', ()=>{
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
 	if(!warnBox) return;
@@ -641,6 +644,7 @@ function renderSummaryPanel(){
 	});
 	if(activeSummaryFilter!=='all' && !btns.some(b=>b.metric===activeSummaryFilter)) activeSummaryFilter='all';
 	applySummaryFilter(activeSummaryFilter);
+	});
 }
 
 function computeDerivedReportMetrics(){
@@ -765,6 +769,7 @@ function computeDerivedReportMetrics(){
 }
 
 function renderDerivedReport(){
+	return runMeasured('renderDerivedReport', ()=>{
 	const coverageEl=document.getElementById('reportCoveragePct');
 	if(!coverageEl) return;
 	const report=computeDerivedReportMetrics();
@@ -794,6 +799,7 @@ function renderDerivedReport(){
 			conflictBody.innerHTML=report.conflictDetails.map(c=>`<tr><td>${escapeHtml(c.type)}</td><td>${escapeHtml(c.slotLabel)}</td><td>${escapeHtml(c.stationTitle)}</td><td>${escapeHtml(c.detail)}</td></tr>`).join('');
 		}
 	}
+	});
 }
 
 function buildGrid(){
@@ -1239,7 +1245,7 @@ function movePersonTo(cell, station, slot, personId){
 
 	withAssignmentHistoryAction('Flytta person', ()=>{
 		// Move semantics: remove existing assignment/pill for this person in this slot
-		removeAssignmentsWhere(a =>
+		const removed=removeAssignmentsWhere(a =>
 			(a.date===dateStr && a.personId===personId && String(a.timeSlotId)===String(slot.id) && a.dayType===currentDayType)
 		);
 		document.querySelectorAll(
@@ -1250,7 +1256,7 @@ function movePersonTo(cell, station, slot, personId){
 		_toastContextActive = true;
 		_lastMovedPersonId = personId;
 
-		placePerson(cell, station, slot, personId, {captureHistory:false});
+		placePerson(cell, station, slot, personId, {captureHistory:false, extraRemoved:removed});
 
 		// If we used the training override, inform user (pill already gets orange border)
 		if(overrideOk){
@@ -1263,14 +1269,13 @@ function movePersonTo(cell, station, slot, personId){
 	});
 }
 
-function placePerson(cell,station,slot,personId,{captureHistory=true}={}){
+function placePerson(cell,station,slot,personId,{captureHistory=true, extraRemoved=[]}={}){
 	const applyPlacement=()=>{
 		addPersonPill(cell,personId);
 		const dateStr=getSelectedDateStr();
-		addAssignmentRow({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});
+		const added=addAssignmentRow({date:dateStr,factoryId:currentFactoryId,dayType:currentDayType,timeSlotId:slot.id,groupId:station.groupId||null,stationId:station.id,personId});
 		refreshAutoGenerateWarnings();
-		if(shouldValidateBoardForMode())validateBoard();
-		renderDerivedReport();
+		validateChangedCells(createAssignmentInvalidationSetFromDiff({added:[added], removed:extraRemoved}));
 	};
 	if(!captureHistory || assignmentHistoryBatch || assignmentHistoryIsReplaying){
 		applyPlacement();
@@ -1659,7 +1664,7 @@ function removePersonPill(cell,personId){
 		const dateStr=getSelectedDateStr();
 		const slotId=cell.dataset.slotId;
 		const stationId=parseEntityId(cell.dataset.stationId);
-		removeAssignmentsWhere(a=>(
+		const removed=removeAssignmentsWhere(a=>(
 			a.date===dateStr &&
 			String(a.timeSlotId)===String(slotId) &&
 			a.stationId===stationId &&
@@ -1668,8 +1673,7 @@ function removePersonPill(cell,personId){
 		));
 		cell.querySelector(`[data-person-id="${escapeDataId(personId)}"]`)?.remove();
 		refreshAutoGenerateWarnings();
-		if(shouldValidateBoardForMode())validateBoard();
-		renderDerivedReport();
+		validateChangedCells(createAssignmentInvalidationSetFromDiff({removed}));
 	});
 }
 

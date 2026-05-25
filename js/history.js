@@ -53,6 +53,7 @@ function addAssignmentRow(row,{record=true}={}){
 	if(!cloned) return;
 	DB.assignments.push(cloned);
 	if(record) recordAssignmentDiff('added', cloned);
+	return cloned;
 }
 
 function removeAssignmentsWhere(predicate,{record=true}={}){
