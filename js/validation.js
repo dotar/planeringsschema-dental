@@ -51,6 +51,7 @@ function isPersonAllowedFor(person, station, slot, opts = {}){
 }
 
 function validateBoard(){
+	return runMeasured('validateBoard(full)', ()=>{
 	const _prevCellStates=beginCellValidation();
 
 	const dateStr = getSelectedDateStr();
@@ -140,7 +141,122 @@ function validateBoard(){
 	applyCellValidationDiff(_prevCellStates);
 	applyPillValidationDiff();
 	renderSummaryPanel();
+	});
 
+}
+
+function validateChangedCells(invalidationKeys){
+	const keys=new Set(invalidationKeys || []);
+	if(keys.size===0){
+		renderDependentSummaries();
+		return;
+	}
+	if(!shouldValidateBoardForMode()){
+		renderDependentSummaries();
+		return;
+	}
+	return runMeasured(`validateBoard(partial ${keys.size} cells)`, ()=>{
+		const _prevCellStates=beginCellValidation(keys);
+		const dateStr=getSelectedDateStr();
+		const rows=DB.assignments.filter(a=>a.date===dateStr && a.factoryId===currentFactoryId && a.dayType===currentDayType);
+		const affectedCells=new Set(keys);
+		const affectedSlots=new Set();
+		const affectedStationSlots=new Set();
+		affectedCells.forEach(key=>{
+			const ref=parseInvalidationKey(key);
+			if(ref.date!==dateStr || String(ref.factoryId)!==String(currentFactoryId) || ref.dayType!==currentDayType) return;
+			affectedSlots.add(String(ref.slotId));
+			affectedStationSlots.add(cellKey(ref.stationId, ref.slotId));
+		});
+
+		const bySlot=groupArray(rows.filter(a=>affectedSlots.has(String(a.timeSlotId))), a=>a.timeSlotId);
+		for(const [slotId, arr] of bySlot.entries()){
+			const seen=new Map();
+			for(const a of arr){
+				if(seen.has(a.personId)){
+					const first=seen.get(a.personId);
+					const curKey=makeCurrentCellInvalidationKey(slotId, a.stationId);
+					const firstKey=makeCurrentCellInvalidationKey(slotId, first.stationId);
+					if(affectedCells.has(curKey)) markCellInvalid(a.stationId, slotId, 'Samma person dubbelbokad i samma tid.', 'Dubbelbokad');
+					if(affectedCells.has(firstKey)) markCellInvalid(first.stationId, slotId, 'Samma person dubbelbokad i samma tid.', 'Dubbelbokad');
+				}else{
+					seen.set(a.personId,a);
+				}
+			}
+			if(shouldShowCompatibilityWarnings()){
+				const byStation=groupArray(arr, x=>x.stationId);
+				for(const [stationId, list] of byStation.entries()){
+					if(!affectedStationSlots.has(cellKey(stationId, slotId))) continue;
+					for(let i=0;i<list.length;i++){
+						for(let j=i+1;j<list.length;j++){
+							if(isIncompatible(list[i].personId, list[j].personId)){
+								markCellWarn(stationId, slotId, 'Byt plats på en av dessa personer.', 'Tips');
+							}
+						}
+					}
+				}
+			}
+		}
+
+		const workSlots=getCurrentWorkSlots();
+		const workSlotOrder=new Map(workSlots.map((slot,i)=>[String(slot.id), i]));
+		const affectedPersonsByStation=new Map();
+		rows.forEach(row=>{
+			if(!workSlotOrder.has(String(row.timeSlotId))) return;
+			if(!affectedCells.has(makeCurrentCellInvalidationKey(row.timeSlotId, row.stationId))) return;
+			const key=`${row.personId}@${row.stationId}`;
+			const arr=affectedPersonsByStation.get(key)||[];
+			arr.push(row);
+			affectedPersonsByStation.set(key, arr);
+		});
+		for(const key of affectedPersonsByStation.keys()){
+			const [personId, stationId]=key.split('@');
+			const items=rows.filter(row=>String(row.personId)===personId && String(row.stationId)===stationId && workSlotOrder.has(String(row.timeSlotId)));
+			items.sort((a,b)=>workSlotOrder.get(String(a.timeSlotId))-workSlotOrder.get(String(b.timeSlotId)));
+			for(let i=1;i<items.length;i++){
+				const cur=items[i], prev=items[i-1];
+				if(workSlotOrder.get(String(cur.timeSlotId))!==workSlotOrder.get(String(prev.timeSlotId))+1) continue;
+				const curKey=makeCurrentCellInvalidationKey(cur.timeSlotId, cur.stationId);
+				if(!affectedCells.has(curKey)) continue;
+				const personName=getPlanningPersonById(cur.personId)?.name || `Person ${cur.personId}`;
+				queuePillWarn(cur.stationId, cur.timeSlotId, cur.personId, `${personName} är planerad på denna station föregående pass.`);
+				markCellInvalid(cur.stationId, cur.timeSlotId, `${personName} är planerad på denna station föregående pass.`, 'Dubbelpass');
+			}
+		}
+
+		affectedCells.forEach(key=>{
+			const ref=parseInvalidationKey(key);
+			const cell=findCell(ref.stationId, ref.slotId);
+			if(!cell) return;
+			const station=DB.stations.find(st=>String(st.id)===String(ref.stationId));
+			if(!station) return;
+			const count=cell.querySelectorAll('.person-pill').length;
+			if(count>(station.defaultCapacity||1)) markCellInvalid(station.id, ref.slotId, 'Över kapacitet.', 'Kapacitet');
+		});
+
+		if(currentDayType!==DayType.OvertimeDay && currentDayType!==DayType.Night){
+			const cutoff=getNightCutoffFor(currentFactoryId,currentDate);
+			affectedCells.forEach(key=>{
+				const ref=parseInvalidationKey(key);
+				const cell=findCell(ref.stationId, ref.slotId);
+				const slot=DB.timeSlots.find(ts=>String(ts.id)===String(ref.slotId));
+				if(!cell || !slot || !timeLess(slot.start,cutoff)) return;
+				cell.querySelectorAll('.person-pill').forEach(pp=>{
+					const person=getPlanningPersonById(parseEntityId(pp.dataset.personId));
+					if(person && currentShift==='night' && person.isNight) markCellInvalid(ref.stationId, ref.slotId, 'Nattpersonal får ej bokas före cutoff.', 'Ej tillåten tid');
+				});
+			});
+		}
+
+		applyCellValidationDiff(_prevCellStates);
+		applyPillValidationDiff();
+		renderDependentSummaries();
+	});
+}
+
+function renderDependentSummaries(){
+	renderSummaryPanel();
+	renderDerivedReport();
 }
 
 function cellKey(stationId, slotId){ return `${stationId}:${slotId}` }
@@ -150,18 +266,34 @@ function getCellByKey(key){
 	return findCell(parseEntityId(sid), slot)
 }
 
-function beginCellValidation(){
+function beginCellValidation(scopeKeys=null){
 	_pendingCellStates.clear();
 	_pendingPillStates.clear();
 	_inValidation = true;
-	document.querySelectorAll('.person-pill[data-warn-list]').forEach(pill=>{
+	const scopedKeys = scopeKeys ? new Set(scopeKeys) : null;
+	const pillSelector = scopedKeys
+		? [...scopedKeys].map(key=>{
+			const ref=parseInvalidationKey(key);
+			return `.cell[data-station-id=\"${escapeDataId(ref.stationId)}\"][data-slot-id=\"${CSS.escape(String(ref.slotId))}\"] .person-pill[data-warn-list]`;
+		}).join(',')
+		: '.person-pill[data-warn-list]';
+	if(pillSelector){
+	document.querySelectorAll(pillSelector).forEach(pill=>{
 		delete pill.dataset.warnList;
 		pill.classList.remove('pill-warn');
 		updatePersonPillTooltip(pill, { isTruncated: pill.dataset.nameTruncated === '1' });
 	});
+	}
 
 	const prev = new Map();
-	document.querySelectorAll('.cell').forEach(c=>{
+	const cellSelector = scopedKeys
+		? [...scopedKeys].map(key=>{
+			const ref=parseInvalidationKey(key);
+			return `.cell[data-station-id=\"${escapeDataId(ref.stationId)}\"][data-slot-id=\"${CSS.escape(String(ref.slotId))}\"]`;
+		}).join(',')
+		: '.cell';
+	if(!cellSelector) return prev;
+	document.querySelectorAll(cellSelector).forEach(c=>{
 		const sid = parseEntityId(c.dataset.stationId);
 		const slot = c.dataset.slotId || c.getAttribute('data-slot-id');
 		if(!sid || !slot) return;
