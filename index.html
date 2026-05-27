@@ -114,6 +114,9 @@
 							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Ej utbildade tilldelningar</div><div id="reportUntrainedCount" class="fs-4 fw-bold">0</div></div></div></div>
 							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Underbemannade stationer</div><div id="reportUnderstaffedCount" class="fs-4 fw-bold">0</div></div></div></div>
 							<div class="col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="text-muted small">Konflikter</div><div id="reportConflictCount" class="fs-4 fw-bold">0</div><div class="small text-muted">Två pass i rad + samarbetsregel</div></div></div></div>
+							<div class="col-md-3"><div class="card h-100 report-kpi-card"><div class="card-body py-3"><div class="text-muted small">Belastningsspridning</div><div id="reportLoadSpread" class="fs-4 fw-bold">0</div><div class="small text-muted">Max − min tilldelningar</div></div></div></div>
+							<div class="col-md-3"><div class="card h-100 report-kpi-card"><div class="card-body py-3"><div class="text-muted small">Standardavvikelse</div><div id="reportLoadStdDev" class="fs-4 fw-bold">0,00</div><div class="small text-muted">Tilldelningar per person</div></div></div></div>
+							<div class="col-md-6"><div class="card h-100 report-kpi-card"><div class="card-body py-3"><div class="text-muted small">Högst belastade</div><div id="reportTopLoaded" class="fw-semibold">–</div><div class="small text-muted">Topplista över tilldelningar</div></div></div></div>
 						</div>
 						<div class="row g-3">
 							<div class="col-lg-8">
@@ -130,6 +133,22 @@
 										<thead><tr><th>Typ</th><th>Pass</th><th>Station</th><th>Detalj</th></tr></thead>
 										<tbody id="reportConflictRows"></tbody>
 									</table>
+								</div>
+							</div>
+						</div>
+						<div class="row g-3 mt-1">
+							<div class="col-lg-8">
+								<div class="table-responsive">
+									<table class="table table-sm align-middle report-table report-workload-table">
+										<thead><tr><th>Person</th><th class="text-end">Tilldelningar</th><th class="text-end">Andel</th><th class="text-end">Två pass i rad</th><th>Status</th></tr></thead>
+										<tbody id="reportWorkloadRows"></tbody>
+									</table>
+								</div>
+							</div>
+							<div class="col-lg-4">
+								<div class="report-balance-note">
+									<div class="small text-muted mb-1">Belastningsindikatorer</div>
+									<div id="reportBalanceMeta" class="small"></div>
 								</div>
 							</div>
 						</div>

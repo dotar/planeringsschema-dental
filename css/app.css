@@ -883,9 +883,21 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	border-color:color-mix(in srgb, var(--bs-primary) 18%, var(--bs-border-color));
 	background:color-mix(in srgb, var(--bs-body-bg) 88%, var(--bs-primary-bg-subtle) 12%);
 }
+#reportModal .report-kpi-card{
+	background:linear-gradient(180deg, color-mix(in srgb, var(--bs-primary-bg-subtle) 28%, var(--bs-body-bg)) 0%, var(--bs-body-bg) 100%);
+}
 #reportModal .report-table thead th{
 	white-space:nowrap;
 	font-size:.78rem;
+}
+#reportModal .report-workload-table tbody td{
+	vertical-align:middle;
+}
+#reportModal .report-balance-note{
+	border:1px solid color-mix(in srgb, var(--bs-primary) 18%, var(--bs-border-color));
+	border-radius:.75rem;
+	padding:.85rem .95rem;
+	background:color-mix(in srgb, var(--bs-body-bg) 86%, var(--bs-info-bg-subtle) 14%);
 }
 
 /* First-run guided tour */
