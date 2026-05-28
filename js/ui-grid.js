@@ -860,18 +860,15 @@ function renderDerivedReport(){
 				const deviation=p.assignedCount-report.workload.meanAssignments;
 				let status='<span class="badge text-bg-success">Balanserad</span>';
 				let rowClass='';
-				if(p.assignedCount===0){
-					status='<span class="badge text-bg-secondary">Ej tilldelad</span>';
-					rowClass='report-row-muted';
+				if(p.assignedCount<report.workload.totalWorkSlots){
+					status='<span class="badge text-bg-info">Låg belastning</span>';
+					rowClass=p.assignedCount===0?'report-row-muted':'report-row-low';
+				}else if(p.assignedCount>report.workload.totalWorkSlots){
+					status='<span class="badge text-bg-primary">Hög belastning</span>';
+					rowClass='report-row-high';
 				}else if(p.consecutiveCount>0){
 					status='<span class="badge text-bg-warning">Observera</span>';
 					rowClass='report-row-warning';
-				}else if((report.workload.meanAssignments-p.assignedCount)>imbalanceThreshold){
-					status='<span class="badge text-bg-info">Låg belastning</span>';
-					rowClass='report-row-low';
-				}else if((p.assignedCount-report.workload.meanAssignments)>imbalanceThreshold){
-					status='<span class="badge text-bg-primary">Hög belastning</span>';
-					rowClass='report-row-high';
 				}
 				const deviationText=deviation===0 ? '±0' : `${deviation>0?'+':''}${(Math.round(deviation*10)/10).toLocaleString('sv-SE')}`;
 				return `<tr class="${rowClass}"><td class="text-muted small">${escapeHtml(p.groupTitle)}</td><td>${escapeHtml(p.personName)}</td><td class="text-end">${p.assignedCount}/${p.totalWorkSlots}</td><td class="text-end">${fmtPct(share)}</td><td class="text-end">${deviationText}</td><td class="text-end">${p.consecutiveCount}</td><td>${status}</td></tr>`;
@@ -880,7 +877,7 @@ function renderDerivedReport(){
 	}
 	const balanceMeta=document.getElementById('reportBalanceMeta');
 	if(balanceMeta){
-		balanceMeta.innerHTML=`<div>Min tilldelning: <strong>${report.workload.minAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Max tilldelning: <strong>${report.workload.maxAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Genomsnitt: <strong>${report.workload.meanAssignments.toLocaleString('sv-SE',{minimumFractionDigits:1,maximumFractionDigits:1})}</strong></div><div>Standardavvikelse: <strong>${report.totals.stdDev.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div><div>Spridning: <strong>${report.totals.loadSpread}</strong></div><div class="text-muted mt-2">Låg/hög belastning markeras när tilldelningar avviker tydligt från genomsnittet (mer än ${imbalanceThreshold.toLocaleString('sv-SE',{maximumFractionDigits:1})} pass).</div>`;
+		balanceMeta.innerHTML=`<div>Min tilldelning: <strong>${report.workload.minAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Max tilldelning: <strong>${report.workload.maxAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Genomsnitt: <strong>${report.workload.meanAssignments.toLocaleString('sv-SE',{minimumFractionDigits:1,maximumFractionDigits:1})}</strong></div><div>Standardavvikelse: <strong>${report.totals.stdDev.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div><div>Spridning: <strong>${report.totals.loadSpread}</strong></div><div class="text-muted mt-2">Låg belastning markeras när en närvarande person inte är tilldelad alla arbetspass. Hög belastning markeras om personen har fler tilldelningar än antal arbetspass.</div>`;
 	}
 	});
 }
