@@ -653,6 +653,8 @@ function computeDerivedReportMetrics(){
 		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
 		.sort((a,b)=>a.sort-b.sort);
 	const stations=DB.stations.filter(s=>s.factoryId===currentFactoryId&&s.operational!==false);
+	const groupsById=new Map(DB.groups.filter(g=>g.factoryId===currentFactoryId).map(g=>[String(g.id),g]));
+	const totalWorkSlots=slots.length;
 	const assignments=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
 	const stationById=new Map(stations.map(s=>[String(s.id),s]));
 	const slotById=new Map(slots.map(s=>[String(s.id),s]));
@@ -697,10 +699,12 @@ function computeDerivedReportMetrics(){
 			stationStats.push({
 				stationId:String(station.id),
 				stationTitle:station.title,
+				groupTitle:groupsById.get(String(station.groupId))?.title || 'Övrigt',
 				required:stationRequired,
 				assigned:stationAssigned,
 				untrained:stationUntrained,
 				understaffedSlots,
+				totalWorkSlots,
 				coveragePct:stationRequired>0 ? (stationAssigned/stationRequired)*100 : 0
 			});
 		}
@@ -752,7 +756,7 @@ function computeDerivedReportMetrics(){
 			consecutiveByPerson.set(personKey,(consecutiveByPerson.get(personKey)||0)+1);
 			conflictCount++;
 			conflictDetails.push({
-				type:'Två pass i rad',
+				type:'Samma station i rad',
 				slotLabel:`${prev.start}–${prev.end} → ${cur.start}–${cur.end}`,
 				stationTitle,
 				detail:personName
@@ -762,17 +766,20 @@ function computeDerivedReportMetrics(){
 
 	const coveragePct=totalRequired>0 ? (totalAssigned/totalRequired)*100 : 0;
 	const understaffedStations=stationStats.filter(s=>s.understaffedSlots>0).length;
-	const workloadStats=DB.persons
-		.filter(p=>p.factoryId===currentFactoryId)
+	const workloadStats=getPlanningPersons(currentFactoryId)
+		.filter(p=>p.factoryId===currentFactoryId && p.present)
 		.map(person=>{
 			const personId=String(person.id);
 			const assignedCount=assignmentsByPerson.get(personId)||0;
 			const consecutiveCount=consecutiveByPerson.get(personId)||0;
+			const groupTitle=groupsById.get(String(person.groupId))?.title || 'Övrigt';
 			return {
 				personId,
 				personName:person.name,
+				groupTitle,
 				assignedCount,
-				consecutiveCount
+				consecutiveCount,
+				totalWorkSlots
 			};
 		});
 	const assignmentCounts=workloadStats.map(p=>p.assignedCount);
@@ -786,6 +793,10 @@ function computeDerivedReportMetrics(){
 		.filter(p=>p.assignedCount>0)
 		.sort((a,b)=>b.assignedCount-a.assignedCount||a.personName.localeCompare(b.personName,'sv'))
 		.slice(0,3);
+	const lowLoaded=workloadStats
+		.slice()
+		.sort((a,b)=>a.assignedCount-b.assignedCount||a.personName.localeCompare(b.personName,'sv'))
+		.slice(0,3);
 	workloadStats.sort((a,b)=>b.assignedCount-a.assignedCount||b.consecutiveCount-a.consecutiveCount||a.personName.localeCompare(b.personName,'sv'));
 	stationStats.sort((a,b)=>a.coveragePct-b.coveragePct||a.stationTitle.localeCompare(b.stationTitle,'sv'));
 	conflictDetails.sort((a,b)=>a.type.localeCompare(b.type,'sv')||a.stationTitle.localeCompare(b.stationTitle,'sv'));
@@ -795,7 +806,7 @@ function computeDerivedReportMetrics(){
 		totals:{coveragePct,totalRequired,totalAssigned,untrainedAssignments,understaffedStations,understaffedCellCount,conflictCount,loadSpread,stdDev},
 		stationStats,
 		conflictDetails,
-		workload:{workloadStats,topLoaded,maxAssignments,minAssignments,meanAssignments}
+		workload:{workloadStats,topLoaded,lowLoaded,maxAssignments,minAssignments,meanAssignments,totalWorkSlots}
 	};
 }
 
@@ -806,6 +817,7 @@ function renderDerivedReport(){
 	const report=computeDerivedReportMetrics();
 	const totals=report.totals;
 	const fmtPct=(n)=>`${Math.round((Number(n)||0)*10)/10}%`;
+	const imbalanceThreshold=Math.max(1, report.workload.meanAssignments*0.5);
 	coverageEl.textContent=fmtPct(totals.coveragePct);
 	document.getElementById('reportCoverageSub').textContent=`${totals.totalAssigned}/${totals.totalRequired} tilldelade`;
 	document.getElementById('reportUntrainedCount').textContent=String(totals.untrainedAssignments);
@@ -813,17 +825,19 @@ function renderDerivedReport(){
 	document.getElementById('reportConflictCount').textContent=String(totals.conflictCount);
 	document.getElementById('reportLoadSpread').textContent=String(totals.loadSpread||0);
 	document.getElementById('reportLoadStdDev').textContent=(Number(totals.stdDev||0)).toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2});
-	document.getElementById('reportTopLoaded').textContent=report.workload.topLoaded.length>0
-		? report.workload.topLoaded.map(p=>`${p.personName} (${p.assignedCount})`).join(', ')
-		: 'Inga tilldelningar';
+	const renderLoadBadges=(rows,emptyText)=>rows.length>0
+		? rows.map(p=>`<span class="badge rounded-pill text-bg-light report-load-badge">${escapeHtml(p.personName)} <span class="text-muted">${p.assignedCount}/${report.workload.totalWorkSlots}</span></span>`).join(' ')
+		: escapeHtml(emptyText);
+	document.getElementById('reportTopLoaded').innerHTML=renderLoadBadges(report.workload.topLoaded,'Inga tilldelningar');
+	document.getElementById('reportLowLoaded').innerHTML=renderLoadBadges(report.workload.lowLoaded,'Ingen närvarande personal');
 	document.getElementById('reportContextText').textContent=`Datum ${report.context.dateStr} · ${getCurrentFactoryTitle()} · ${labelFor(report.context.dayType)}`;
 
 	const stationBody=document.getElementById('reportStationRows');
 	if(stationBody){
 		if(report.stationStats.length===0){
-			stationBody.innerHTML='<tr><td colspan="6" class="text-muted small">Ingen stationdata för aktuell vy.</td></tr>';
+			stationBody.innerHTML='<tr><td colspan="7" class="text-muted small">Ingen stationdata för aktuell vy.</td></tr>';
 		}else{
-			stationBody.innerHTML=report.stationStats.map(s=>`<tr><td>${escapeHtml(s.stationTitle)}</td><td class="text-end">${fmtPct(s.coveragePct)}</td><td class="text-end">${s.assigned}/${s.required}</td><td class="text-end">${s.untrained}</td><td class="text-end">${s.understaffedSlots}</td><td class="text-end">${s.understaffedSlots>0?'<span class="badge text-bg-warning">Åtgärda</span>':'<span class="badge text-bg-success">OK</span>'}</td></tr>`).join('');
+			stationBody.innerHTML=report.stationStats.map(s=>`<tr class="${s.understaffedSlots>0?'report-row-warning':''}"><td class="text-muted small">${escapeHtml(s.groupTitle)}</td><td>${escapeHtml(s.stationTitle)}</td><td class="text-end">${fmtPct(s.coveragePct)}</td><td class="text-end">${s.assigned}/${s.required}</td><td class="text-end">${s.untrained}</td><td class="text-end">${s.understaffedSlots}/${s.totalWorkSlots}</td><td class="text-end">${s.understaffedSlots>0?'<span class="badge text-bg-warning">Åtgärda</span>':'<span class="badge text-bg-success">OK</span>'}</td></tr>`).join('');
 		}
 	}
 
@@ -838,29 +852,35 @@ function renderDerivedReport(){
 	const workloadBody=document.getElementById('reportWorkloadRows');
 	if(workloadBody){
 		if(report.workload.workloadStats.length===0){
-			workloadBody.innerHTML='<tr><td colspan="5" class="text-muted small">Ingen personal i aktuell fabrik.</td></tr>';
+			workloadBody.innerHTML='<tr><td colspan="7" class="text-muted small">Ingen närvarande personal i aktuell fabrik.</td></tr>';
 		}else{
-			const assignedTotal=Math.max(1, report.totals.totalAssigned||0);
+			const assignedTotal=Math.max(1, report.workload.workloadStats.reduce((sum,p)=>sum+p.assignedCount,0));
 			workloadBody.innerHTML=report.workload.workloadStats.map(p=>{
 				const share=((p.assignedCount/assignedTotal)*100);
-				const imbalanceThreshold=Math.max(1, report.workload.meanAssignments*0.5);
+				const deviation=p.assignedCount-report.workload.meanAssignments;
 				let status='<span class="badge text-bg-success">Balanserad</span>';
+				let rowClass='';
 				if(p.assignedCount===0){
 					status='<span class="badge text-bg-secondary">Ej tilldelad</span>';
+					rowClass='report-row-muted';
 				}else if(p.consecutiveCount>0){
 					status='<span class="badge text-bg-warning">Observera</span>';
+					rowClass='report-row-warning';
 				}else if((report.workload.meanAssignments-p.assignedCount)>imbalanceThreshold){
 					status='<span class="badge text-bg-info">Låg belastning</span>';
+					rowClass='report-row-low';
 				}else if((p.assignedCount-report.workload.meanAssignments)>imbalanceThreshold){
 					status='<span class="badge text-bg-primary">Hög belastning</span>';
+					rowClass='report-row-high';
 				}
-				return `<tr><td>${escapeHtml(p.personName)}</td><td class="text-end">${p.assignedCount}</td><td class="text-end">${fmtPct(share)}</td><td class="text-end">${p.consecutiveCount}</td><td>${status}</td></tr>`;
+				const deviationText=deviation===0 ? '±0' : `${deviation>0?'+':''}${(Math.round(deviation*10)/10).toLocaleString('sv-SE')}`;
+				return `<tr class="${rowClass}"><td class="text-muted small">${escapeHtml(p.groupTitle)}</td><td>${escapeHtml(p.personName)}</td><td class="text-end">${p.assignedCount}/${p.totalWorkSlots}</td><td class="text-end">${fmtPct(share)}</td><td class="text-end">${deviationText}</td><td class="text-end">${p.consecutiveCount}</td><td>${status}</td></tr>`;
 			}).join('');
 		}
 	}
 	const balanceMeta=document.getElementById('reportBalanceMeta');
 	if(balanceMeta){
-		balanceMeta.innerHTML=`<div>Min tilldelning: <strong>${report.workload.minAssignments}</strong></div><div>Max tilldelning: <strong>${report.workload.maxAssignments}</strong></div><div>Spridning: <strong>${report.totals.loadSpread}</strong></div>`;
+		balanceMeta.innerHTML=`<div>Min tilldelning: <strong>${report.workload.minAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Max tilldelning: <strong>${report.workload.maxAssignments}/${report.workload.totalWorkSlots}</strong></div><div>Genomsnitt: <strong>${report.workload.meanAssignments.toLocaleString('sv-SE',{minimumFractionDigits:1,maximumFractionDigits:1})}</strong></div><div>Standardavvikelse: <strong>${report.totals.stdDev.toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div><div>Spridning: <strong>${report.totals.loadSpread}</strong></div><div class="text-muted mt-2">Låg/hög belastning markeras när tilldelningar avviker tydligt från genomsnittet (mer än ${imbalanceThreshold.toLocaleString('sv-SE',{maximumFractionDigits:1})} pass).</div>`;
 	}
 	});
 }

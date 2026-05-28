@@ -893,6 +893,33 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 #reportModal .report-workload-table tbody td{
 	vertical-align:middle;
 }
+#reportModal .report-kpi-badges{
+	display:flex;
+	flex-wrap:wrap;
+	gap:.25rem;
+	min-height:1.5rem;
+	align-items:center;
+}
+#reportModal .report-load-badge{
+	border:1px solid color-mix(in srgb, var(--bs-primary) 14%, var(--bs-border-color));
+	font-weight:600;
+}
+#reportModal .report-microcopy{
+	border-left:3px solid color-mix(in srgb, var(--bs-primary) 42%, transparent);
+	padding-left:.75rem;
+}
+#reportModal .report-row-muted > *{
+	background-color:color-mix(in srgb, var(--bs-secondary-bg) 52%, transparent);
+}
+#reportModal .report-row-low > *{
+	background-color:color-mix(in srgb, var(--bs-info-bg-subtle) 38%, transparent);
+}
+#reportModal .report-row-high > *{
+	background-color:color-mix(in srgb, var(--bs-primary-bg-subtle) 34%, transparent);
+}
+#reportModal .report-row-warning > *{
+	background-color:color-mix(in srgb, var(--bs-warning-bg-subtle) 44%, transparent);
+}
 #reportModal .report-balance-note{
 	border:1px solid color-mix(in srgb, var(--bs-primary) 18%, var(--bs-border-color));
 	border-radius:.75rem;
