@@ -817,6 +817,7 @@ function renderDerivedReport(){
 	const report=computeDerivedReportMetrics();
 	const totals=report.totals;
 	const fmtPct=(n)=>`${Math.round((Number(n)||0)*10)/10}%`;
+	const imbalanceThreshold=Math.max(1, report.workload.meanAssignments*0.5);
 	coverageEl.textContent=fmtPct(totals.coveragePct);
 	document.getElementById('reportCoverageSub').textContent=`${totals.totalAssigned}/${totals.totalRequired} tilldelade`;
 	document.getElementById('reportUntrainedCount').textContent=String(totals.untrainedAssignments);
