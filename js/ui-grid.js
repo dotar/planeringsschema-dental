@@ -795,7 +795,7 @@ function computeDerivedReportMetrics(){
 		totals:{coveragePct,totalRequired,totalAssigned,untrainedAssignments,understaffedStations,understaffedCellCount,conflictCount,loadSpread,stdDev},
 		stationStats,
 		conflictDetails,
-		workload:{workloadStats,topLoaded,maxAssignments,minAssignments}
+		workload:{workloadStats,topLoaded,maxAssignments,minAssignments,meanAssignments}
 	};
 }
 
@@ -843,7 +843,17 @@ function renderDerivedReport(){
 			const assignedTotal=Math.max(1, report.totals.totalAssigned||0);
 			workloadBody.innerHTML=report.workload.workloadStats.map(p=>{
 				const share=((p.assignedCount/assignedTotal)*100);
-				const status=p.consecutiveCount>0?'<span class="badge text-bg-warning">Observera</span>':'<span class="badge text-bg-success">Balanserad</span>';
+				const imbalanceThreshold=Math.max(1, report.workload.meanAssignments*0.5);
+				let status='<span class="badge text-bg-success">Balanserad</span>';
+				if(p.assignedCount===0){
+					status='<span class="badge text-bg-secondary">Ej tilldelad</span>';
+				}else if(p.consecutiveCount>0){
+					status='<span class="badge text-bg-warning">Observera</span>';
+				}else if((report.workload.meanAssignments-p.assignedCount)>imbalanceThreshold){
+					status='<span class="badge text-bg-info">Låg belastning</span>';
+				}else if((p.assignedCount-report.workload.meanAssignments)>imbalanceThreshold){
+					status='<span class="badge text-bg-primary">Hög belastning</span>';
+				}
 				return `<tr><td>${escapeHtml(p.personName)}</td><td class="text-end">${p.assignedCount}</td><td class="text-end">${fmtPct(share)}</td><td class="text-end">${p.consecutiveCount}</td><td>${status}</td></tr>`;
 			}).join('');
 		}
