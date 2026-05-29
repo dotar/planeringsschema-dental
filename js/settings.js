@@ -248,7 +248,7 @@ function renderGroupTable(){
 
 		// what will be removed
 		const isResursGroupRow = isResursGroup(g);
-		const stationsIn = DB.stations.filter(s => s.factoryId === currentFactoryId && s.groupId === id && (isResursGroupRow ? s.isResurs : !s.isResurs));
+		const stationsIn = DB.stations.filter(s => s.factoryId === currentFactoryId && s.groupId === id && (isResursGroupRow ? s.isResurs : true));
 		const personsIn  = isResursGroupRow ? [] : DB.persons.filter(p => p.factoryId === currentFactoryId && p.groupId === id);
 
 		const ok = await showConfirm({
@@ -297,12 +297,12 @@ function renderStationsByGroup(){
 		const g = DB.groups.find(x => x.id === tok);
 		const title = isRes ? 'Resurs' : (g || {}).title;
 		const resursStation = isRes ? getResursStationForToken(currentFactoryId, tok) : null;
-		if(resursStation){ resursStation.title='Resurs'; resursStation.operational=true; resursStation.isResurs=true; }
+		if(resursStation){ resursStation.isResurs=true; }
 		const stations = isRes ? (resursStation ? [resursStation] : []) : DB.stations.filter(s => s.factoryId === currentFactoryId && s.groupId === tok).sort((a, b) => a.sort - b.sort);
 		const card = document.createElement('div');
 		card.className = 'card';
 		const headerStyle = !isRes && g ? `style="background:${g.color};color:${contrastColor(g.color)}"` : '';
-		const addStationButton = isRes ? '<span class="text-muted small">En fast Resurs-station</span>' : `<button class="btn btn-sm btn-light" data-action="addStation" data-group="${tok}"><i class="bi bi-plus"></i> Lägg till station</button>`;
+		const addStationButton = isRes ? '' : `<div class="d-flex gap-2"><button class="btn btn-sm btn-light" data-action="addStation" data-resurs="0" data-group="${tok}"><i class="bi bi-plus"></i> Lägg till station</button><button class="btn btn-sm btn-light" data-action="addStation" data-resurs="1" data-group="${tok}"><i class="bi bi-plus"></i> Lägg till resursstation</button></div>`;
 		card.innerHTML = `<div class="card-header d-flex justify-content-between align-items-center" ${headerStyle}>
 			<div><strong>${escapeHtml(title)}</strong></div>
 			${addStationButton}
@@ -313,8 +313,8 @@ function renderStationsByGroup(){
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
 			const tr=document.createElement('tr');tr.draggable=!isRes;tr.dataset.id=s.id;
-			const nameCell = isRes ? '<span class="form-control form-control-sm bg-light text-muted">Resurs</span>' : `<input class="form-control form-control-sm" value="${escapeHtml(s.title)}" data-bind="title" data-id="${s.id}">`;
-			const opCell = isRes ? '<span class="text-muted">—</span>' : `<input type="checkbox" ${s.operational?'checked':''} data-bind="op" data-role="station-op" data-station-id="${s.id}" data-id="${s.id}">`;
+			const nameCell = `<div class="d-flex align-items-center gap-2"><input class="form-control form-control-sm" value="${escapeHtml(s.title)}" data-bind="title" data-id="${s.id}">${s.isResurs ? '<span class="badge text-bg-info">Resurs</span>' : ''}</div>`;
+			const opCell = `<input type="checkbox" ${s.operational?'checked':''} data-bind="op" data-role="station-op" data-station-id="${s.id}" data-id="${s.id}">`;
 			const deleteCell = isRes ? '<span class="text-muted">—</span>' : `<button class="btn btn-sm btn-outline-danger" data-id="${s.id}"><i class="bi bi-trash"></i></button>`;
 			tr.innerHTML = `
 				<td class="text-muted">${isRes ? '' : '<i class="bi bi-grip-vertical drag-handle"></i>'}</td>
@@ -347,14 +347,14 @@ function renderStationsByGroup(){
 				rebuildAll();
 			});
 		});
-		const addStationBtn=card.querySelector('[data-action="addStation"]');
-		if(addStationBtn) addStationBtn.addEventListener('click',()=>{
+		card.querySelectorAll('[data-action="addStation"]').forEach(addStationBtn=>addStationBtn.addEventListener('click',()=>{
 			const id=newId();
-			DB.stations.push({id,factoryId:currentFactoryId,groupId:isRes?null:tok,title:'Ny station',defaultCapacity:1,operational:true,sort:99,isResurs:isRes});
+			const isResursStation=addStationBtn.dataset.resurs==='1';
+			DB.stations.push({id,factoryId:currentFactoryId,groupId:tok,title:isResursStation?'Resurs':'Ny station',defaultCapacity:1,operational:true,sort:99,isResurs:isResursStation});
 			renderStationsByGroup();rebuildAll();
 			const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 			if(inp){inp.focus();inp.select();}
-		});
+		}));
 		card.querySelectorAll('button.btn-outline-danger').forEach(b=>b.addEventListener('click',async()=>{
 			const id=parseEntityId(b.dataset.id);
 			const s=DB.stations.find(x=>x.id===id);

@@ -492,7 +492,8 @@ function getResursStations(factoryId=currentFactoryId){
 		.map(tok=>getResursStationForToken(factoryId,tok))
 		.filter(Boolean);
 }
-function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&isLegacyResursStation(s));const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
+function isNormalGroupStation(station){return !!(station && !isLegacyResursStation(station) && !isResursGroupId(station.groupId));}
+function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&isLegacyResursStation(s));const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&isNormalGroupStation(s)),'groupId');return {order,resurs,grouped};}
 
 function rebuildAll(){
 	return runMeasured('rebuildAll', ()=>{
@@ -976,6 +977,7 @@ function buildGrid(){
 		const sts=(grouped[tok]||[]).sort((a,b)=>a.sort-b.sort);
 		for(const s of sts){
 			const sh=cellDiv('station-header');
+			if(s.isResurs) sh.classList.add('resurs-col');
 			sh.dataset.stationId=s.id;
 			sh.textContent=s.title;
 			grid.appendChild(sh);
