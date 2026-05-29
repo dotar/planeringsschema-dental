@@ -501,27 +501,142 @@ function personSelect(val,id,{excludeId=null}={}){
 	return `<select class="form-select form-select-sm" data-id="${id}">${opts}</select>`;
 }
 
+function trainingGroupHeaderStyle(group){
+	if(!group || isResursGroup(group)) return '';
+	return `style="--training-group-color:${group.color};--training-group-text:${contrastColor(group.color)}"`;
+}
+
+function buildTrainingStationGroups(){
+	const order = getNormalizedGroupOrder(currentFactoryId);
+	const renderedStationIds = new Set();
+	const sections = [];
+
+	for(const tok of order){
+		if(isResursOrderToken(tok)){
+			const station = getResursStationForToken(currentFactoryId, tok);
+			if(!station) continue;
+			station.isResurs = true;
+			renderedStationIds.add(station.id);
+			sections.push({
+				key: `resurs-${tok}`,
+				title: 'Resurs',
+				group: null,
+				isResurs: true,
+				stations: [station]
+			});
+			continue;
+		}
+
+		const group = DB.groups.find(g => g.id === tok);
+		if(!group || isResursGroup(group)) continue;
+		const stations = DB.stations
+			.filter(s => s.factoryId === currentFactoryId && s.groupId === group.id)
+			.sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.title.localeCompare(b.title));
+		stations.forEach(s => renderedStationIds.add(s.id));
+		sections.push({
+			key: `group-${group.id}`,
+			title: group.title,
+			group,
+			isResurs: false,
+			stations
+		});
+	}
+
+	const remainingByGroup = new Map();
+	DB.stations
+		.filter(s => s.factoryId === currentFactoryId && !renderedStationIds.has(s.id))
+		.forEach(station => {
+			const group = DB.groups.find(g => g.id === station.groupId);
+			let key = 'misc';
+			let title = 'Övriga stationer';
+			let isResurs = false;
+			if(isLegacyResursStation(station) || isResursGroup(group)){
+				key = `resurs-${station.groupId || 'legacy'}`;
+				title = 'Resurs';
+				isResurs = true;
+				station.isResurs = true;
+			}else if(group){
+				key = `group-${group.id}`;
+				title = group.title;
+			}
+			if(!remainingByGroup.has(key)) remainingByGroup.set(key, { key, title, group: isResurs ? null : group, isResurs, stations: [] });
+			remainingByGroup.get(key).stations.push(station);
+		});
+
+	remainingByGroup.forEach(section => {
+		section.stations.sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.title.localeCompare(b.title));
+		sections.push(section);
+	});
+
+	return sections.filter(section => section.stations.length > 0);
+}
+
 function editTraining(personId){
 	const person = DB.persons.find(p => p.id === personId);
-	const stations = DB.stations.filter(s => s.factoryId === currentFactoryId);
-	const html = stations.map(s => {
-		const has = DB.training.some(t => t.personId===personId && t.stationId===s.id);
-		return `<div class="form-check">
-			<input class="form-check-input" type="checkbox" id="t${s.id}" ${has?'checked':''} data-station-id="${s.id}">
-			<label class="form-check-label" for="t${s.id}">${escapeHtml(s.title)}</label>
-		</div>`;
+	if(!person) return;
+	const trainingStationIds = new Set(DB.training.filter(t => t.personId === personId).map(t => t.stationId));
+	const stationGroups = buildTrainingStationGroups();
+	const totalStations = stationGroups.reduce((sum, section) => sum + section.stations.length, 0);
+	const selectedStations = stationGroups.reduce((sum, section) => sum + section.stations.filter(s => trainingStationIds.has(s.id)).length, 0);
+
+	const html = stationGroups.map(section => {
+		const selectedInGroup = section.stations.filter(s => trainingStationIds.has(s.id)).length;
+		const groupBadge = section.isResurs ? '<span class="badge text-bg-info">Resurs</span>' : '';
+		const stationsHtml = section.stations.map(s => {
+			const has = trainingStationIds.has(s.id);
+			const stationBadge = s.isResurs ? '<span class="badge rounded-pill text-bg-info">Resurs</span>' : '';
+			const id = `t${personId}-${s.id}`;
+			return `<div class="training-station-item" data-training-station-item>
+				<div class="form-check m-0">
+					<input class="form-check-input" type="checkbox" id="${escapeHtml(id)}" ${has?'checked':''} data-station-id="${s.id}">
+					<label class="form-check-label" for="${escapeHtml(id)}">
+						<span class="training-station-title">${escapeHtml(s.title)}</span>
+						${stationBadge}
+					</label>
+				</div>
+			</div>`;
+		}).join('');
+
+		return `<section class="training-group-card" data-training-group ${trainingGroupHeaderStyle(section.group)}>
+			<div class="training-group-header">
+				<div class="training-group-title-wrap">
+					<div class="training-group-title">${escapeHtml(section.title)} ${groupBadge}</div>
+					<div class="training-group-count" data-role="training-count">${selectedInGroup}/${section.stations.length} valda</div>
+				</div>
+				<div class="form-check form-switch training-group-toggle">
+					<input class="form-check-input" type="checkbox" role="switch" data-role="training-group-toggle" aria-label="Välj alla stationer i ${escapeHtml(section.title)}">
+					<label class="form-check-label small">Alla</label>
+				</div>
+			</div>
+			<div class="training-station-grid">${stationsHtml}</div>
+		</section>`;
 	}).join('');
 
 	// Build training modal
 	const dlg=document.createElement('div');dlg.className='modal fade training-modal';
 	dlg.innerHTML = `
-		<div class="modal-dialog">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h5 class="modal-title">Utbildning – ${escapeHtml(person.name)}</h5>
+					<div>
+						<h5 class="modal-title mb-1">Utbildning – ${escapeHtml(person.name)}</h5>
+						<div class="text-muted small" data-role="training-total-count">${selectedStations}/${totalStations} stationer valda</div>
+					</div>
 					<button class="btn-close" data-bs-dismiss="modal"></button>
 				</div>
-				<div class="modal-body">${html}</div>
+				<div class="modal-body">
+					<div class="training-tools">
+						<div class="input-group input-group-sm training-search">
+							<span class="input-group-text"><i class="bi bi-search"></i></span>
+							<input class="form-control" type="search" placeholder="Sök station..." data-role="training-search">
+						</div>
+						<div class="btn-group btn-group-sm" role="group" aria-label="Snabbval för utbildning">
+							<button type="button" class="btn btn-outline-secondary" data-action="training-select-all">Välj alla</button>
+							<button type="button" class="btn btn-outline-secondary" data-action="training-clear-all">Rensa</button>
+						</div>
+					</div>
+					${html || '<div class="alert alert-warning mb-0">Det finns inga stationer för vald fabrik.</div>'}
+				</div>
 				<div class="modal-footer">
 					<button class="btn btn-secondary" data-bs-dismiss="modal">Stäng</button>
 					<button class="btn btn-primary">Spara</button>
@@ -530,6 +645,39 @@ function editTraining(personId){
 		</div>`;
 	document.body.appendChild(dlg);
 
+	function refreshTrainingGroupState(){
+		const allChecks = [...dlg.querySelectorAll('input[data-station-id]')];
+		const checkedCount = allChecks.filter(ch => ch.checked).length;
+		const totalCount = dlg.querySelector('[data-role="training-total-count"]');
+		if(totalCount) totalCount.textContent = `${checkedCount}/${allChecks.length} stationer valda`;
+
+		dlg.querySelectorAll('[data-training-group]').forEach(groupEl => {
+			const checks = [...groupEl.querySelectorAll('input[data-station-id]')];
+			const groupCheckedCount = checks.filter(ch => ch.checked).length;
+			const count = groupEl.querySelector('[data-role="training-count"]');
+			const toggle = groupEl.querySelector('[data-role="training-group-toggle"]');
+			if(count) count.textContent = `${groupCheckedCount}/${checks.length} valda`;
+			if(toggle){
+				toggle.checked = checks.length > 0 && groupCheckedCount === checks.length;
+				toggle.indeterminate = groupCheckedCount > 0 && groupCheckedCount < checks.length;
+			}
+		});
+	}
+
+	function applyTrainingFilter(query){
+		const normalizedQuery = query.trim().toLocaleLowerCase('sv-SE');
+		dlg.querySelectorAll('[data-training-group]').forEach(groupEl => {
+			let visibleInGroup = 0;
+			groupEl.querySelectorAll('[data-training-station-item]').forEach(item => {
+				const text = item.textContent.toLocaleLowerCase('sv-SE');
+				const visible = !normalizedQuery || text.includes(normalizedQuery);
+				item.classList.toggle('d-none', !visible);
+				if(visible) visibleInGroup++;
+			});
+			groupEl.classList.toggle('d-none', visibleInGroup === 0);
+		});
+	}
+
 	// Find any currently open modal (e.g., #settingsModal) and dim it while training modal is open
 	const parent = [...document.querySelectorAll('.modal.show')].find(m => m !== dlg) || null;
 	if(parent) parent.classList.add('underlay');
@@ -537,11 +685,32 @@ function editTraining(personId){
 	// Make the training modal hard-stacked: no backdrop click / no Esc
 	const m = new bootstrap.Modal(dlg, { backdrop: 'static', keyboard: false });
 	m.show();
+	refreshTrainingGroupState();
+	const searchInput = dlg.querySelector('[data-role="training-search"]');
+	if(searchInput) searchInput.focus();
+
+	dlg.querySelectorAll('[data-role="training-group-toggle"]').forEach(toggle => {
+		toggle.addEventListener('change', () => {
+			const groupEl = toggle.closest('[data-training-group]');
+			groupEl.querySelectorAll('input[data-station-id]').forEach(ch => { ch.checked = toggle.checked; });
+			refreshTrainingGroupState();
+		});
+	});
+	dlg.querySelectorAll('input[data-station-id]').forEach(ch => ch.addEventListener('change', refreshTrainingGroupState));
+	dlg.querySelector('[data-action="training-select-all"]')?.addEventListener('click', () => {
+		dlg.querySelectorAll('input[data-station-id]').forEach(ch => { ch.checked = true; });
+		refreshTrainingGroupState();
+	});
+	dlg.querySelector('[data-action="training-clear-all"]')?.addEventListener('click', () => {
+		dlg.querySelectorAll('input[data-station-id]').forEach(ch => { ch.checked = false; });
+		refreshTrainingGroupState();
+	});
+	searchInput?.addEventListener('input', () => applyTrainingFilter(searchInput.value));
 
 	// Save handler
 	dlg.querySelector('.btn-primary').addEventListener('click', () => {
 		DB.training = DB.training.filter(t => t.personId !== personId);
-		dlg.querySelectorAll('input[type="checkbox"]').forEach(ch => {
+		dlg.querySelectorAll('input[data-station-id]').forEach(ch => {
 			if(ch.checked) DB.training.push({ personId, stationId: parseEntityId(ch.dataset.stationId) });
 		});
 		m.hide();
@@ -555,6 +724,7 @@ function editTraining(personId){
 		dlg.remove();
 	});
 }
+
 
 
 
