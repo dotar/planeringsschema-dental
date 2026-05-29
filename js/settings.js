@@ -23,7 +23,7 @@ function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
 	wrap.innerHTML = '';
 	const order = getNormalizedGroupOrder(currentFactoryId);
-	const groupsOrdered = order.filter(tok=>tok!=='resurs').map(id=>DB.groups.find(x=>x.id===id));
+	const groupsOrdered = order.filter(tok=>tok!=='resurs' && !isResursGroupId(tok)).map(id=>DB.groups.find(x=>x.id===id));
 
 	for(const g of groupsOrdered){
 		const card = document.createElement('div');
@@ -164,7 +164,7 @@ function renderPersonGroups(){
 
 function groupSelect(val,bindId){
 	const order=getNormalizedGroupOrder(currentFactoryId);
-	const opts=order.filter(tok=>tok!=='resurs').map(id=>DB.groups.find(x=>x.id===id)).map(g=>`<option value="${g.id}" ${g.id===val?'selected':''}>${escapeHtml(g.title)}</option>`).join('');
+	const opts=order.filter(tok=>tok!=='resurs' && !isResursGroupId(tok)).map(id=>DB.groups.find(x=>x.id===id)).filter(Boolean).map(g=>`<option value="${g.id}" ${g.id===val?'selected':''}>${escapeHtml(g.title)}</option>`).join('');
 	return `<select class="form-select form-select-sm" data-bind="groupId" data-id="${bindId}">${opts}</select>`;
 }
 
@@ -175,12 +175,17 @@ function renderGroupTable(){
 	for(const tok of order){
 		if(tok==='resurs'){
 			const tr=document.createElement('tr');tr.draggable=true;tr.dataset.key='resurs';
-			tr.innerHTML=`<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td><td><span class="badge text-bg-info">Resurs</span></td><td class="text-muted">—</td><td class="text-muted">—</td><td></td>`;
+			tr.innerHTML=`<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td><td><span class="badge text-bg-info">Resurs</span></td><td class="text-muted">—</td><td class="text-muted">—</td><td><button class="btn btn-sm btn-outline-danger" data-action="delLegacyResurs"><i class="bi bi-trash"></i></button></td>`;
 			tb.appendChild(tr);continue;
 		}
 		const g=DB.groups.find(x=>x.id===tok);
+		if(!g) continue;
 		const tr=document.createElement('tr');tr.draggable=true;tr.dataset.key=String(g.id);
-		tr.innerHTML=`<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td><td><input class="form-control form-control-sm" value="${escapeHtml(g.title)}" data-bind="title" data-id="${g.id}"></td><td><input type="color" class="form-control form-control-color" value="${g.color}" data-bind="color" data-id="${g.id}"></td><td><input class="form-control form-control-sm" value="${escapeHtml(g.coordinator||'')}" data-bind="coord" data-id="${g.id}"></td><td><button class="btn btn-sm btn-outline-danger" data-id="${g.id}"><i class="bi bi-trash"></i></button></td>`;
+		if(isResursGroup(g)){
+			tr.innerHTML=`<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td><td><span class="badge text-bg-info">Resurs</span></td><td class="text-muted">—</td><td class="text-muted">—</td><td><button class="btn btn-sm btn-outline-danger" data-id="${g.id}"><i class="bi bi-trash"></i></button></td>`;
+		}else{
+			tr.innerHTML=`<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td><td><input class="form-control form-control-sm" value="${escapeHtml(g.title)}" data-bind="title" data-id="${g.id}"></td><td><input type="color" class="form-control form-control-color" value="${g.color}" data-bind="color" data-id="${g.id}"></td><td><input class="form-control form-control-sm" value="${escapeHtml(g.coordinator||'')}" data-bind="coord" data-id="${g.id}"></td><td><button class="btn btn-sm btn-outline-danger" data-id="${g.id}"><i class="bi bi-trash"></i></button></td>`;
+		}
 		tb.appendChild(tr);
 	}
 	enableRowDragKeys(tb,(orderKeys)=>{
@@ -206,18 +211,50 @@ function renderGroupTable(){
 		const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 		if(inp){inp.focus();inp.select();}
 	};
-	tb.querySelectorAll('button.btn-outline-danger').forEach(b => b.addEventListener('click', async () => {
+	const addResursGroupBtn=document.getElementById('addResursGroupBtn');
+	if(addResursGroupBtn) addResursGroupBtn.onclick=()=>{
+		const groupId=newId();
+		const stationId=newId();
+		DB.groups.push({id:groupId,factoryId:currentFactoryId,title:'Resurs',color:'#d1ecf1',coordinator:'',isResursGroup:true});
+		DB.stations.push({id:stationId,factoryId:currentFactoryId,groupId:groupId,title:'Resurs',defaultCapacity:1,operational:true,sort:1,isResurs:true});
+		const cur=DB.groupDisplayOrder[currentFactoryId]||[];
+		DB.groupDisplayOrder[currentFactoryId]=[...cur,groupId];
+		renderGroupTable();renderStationsByGroup();rebuildAll();
+	};
+
+	tb.querySelectorAll('button[data-action="delLegacyResurs"]').forEach(b => b.addEventListener('click', async () => {
+		const station = getResursStationForToken(currentFactoryId, 'resurs');
+		if(!station) return;
+		const ok = await showConfirm({
+			title: 'Ta bort resursgrupp',
+			message: 'Ta bort resursgruppen “Resurs”?',
+			sub: 'Resursstationen och dess planeringar tas också bort.',
+			okText: 'Ta bort resursgrupp',
+			okClass: 'btn-danger'
+		});
+		if(!ok) return;
+		DB.assignments = DB.assignments.filter(a => a.stationId !== station.id);
+		DB.training = DB.training.filter(t => t.stationId !== station.id);
+		DB.stations = DB.stations.filter(s => s.id !== station.id);
+		DB.groupDisplayOrder[currentFactoryId] = (DB.groupDisplayOrder[currentFactoryId] || []).filter(tok => tok !== 'resurs');
+		renderGroupTable();
+		renderStationsByGroup();
+		rebuildAll();
+	}));
+
+	tb.querySelectorAll('button.btn-outline-danger:not([data-action])').forEach(b => b.addEventListener('click', async () => {
 		const id = parseEntityId(b.dataset.id);
 		const g = DB.groups.find(x => x.id === id);
 
 		// what will be removed
-		const stationsIn = DB.stations.filter(s => s.factoryId === currentFactoryId && !s.isResurs && s.groupId === id);
-		const personsIn  = DB.persons.filter(p => p.factoryId === currentFactoryId && p.groupId === id);
+		const isResursGroupRow = isResursGroup(g);
+		const stationsIn = DB.stations.filter(s => s.factoryId === currentFactoryId && s.groupId === id && (isResursGroupRow ? s.isResurs : !s.isResurs));
+		const personsIn  = isResursGroupRow ? [] : DB.persons.filter(p => p.factoryId === currentFactoryId && p.groupId === id);
 
 		const ok = await showConfirm({
 			title: 'Ta bort grupp',
 			message: `Ta bort gruppen “${g ? g.title : ''}”?`,
-			sub: `<b class="text-danger">${stationsIn.length} stationer</b> och <b class="text-danger">${personsIn.length} personer</b> i gruppen tas också bort, inklusive deras planeringar och utbildningskopplingar.`,
+			sub: isResursGroupRow ? 'Resursstationen och dess planeringar tas också bort.' : `<b class="text-danger">${stationsIn.length} stationer</b> och <b class="text-danger">${personsIn.length} personer</b> i gruppen tas också bort, inklusive deras planeringar och utbildningskopplingar.`,
 			okText: 'Ta bort grupp',
 			okClass: 'btn-danger'
 		});
@@ -255,36 +292,36 @@ function renderStationsByGroup(){
 	wrap.innerHTML = '';
 	const { order } = orderedColumns();
 	for (const tok of order) {
-		const isRes = (tok === 'resurs');
+		const isRes = isResursOrderToken(tok);
+		const isLegacyRes = (tok === 'resurs');
 		const g = DB.groups.find(x => x.id === tok);
-		const title = isRes ? '(Resurs/utan grupp)' : (g || {}).title;
-		const stations = DB.stations.filter(s => s.factoryId === currentFactoryId && ((isRes && s.isResurs) || (!isRes && s.groupId === tok))).sort((a, b) => a.sort - b.sort);
+		const title = isRes ? 'Resurs' : (g || {}).title;
+		const resursStation = isRes ? getResursStationForToken(currentFactoryId, tok) : null;
+		if(resursStation){ resursStation.title='Resurs'; resursStation.operational=true; resursStation.isResurs=true; }
+		const stations = isRes ? (resursStation ? [resursStation] : []) : DB.stations.filter(s => s.factoryId === currentFactoryId && s.groupId === tok).sort((a, b) => a.sort - b.sort);
 		const card = document.createElement('div');
 		card.className = 'card';
 		const headerStyle = !isRes && g ? `style="background:${g.color};color:${contrastColor(g.color)}"` : '';
+		const addStationButton = isRes ? '<span class="text-muted small">En fast Resurs-station</span>' : `<button class="btn btn-sm btn-light" data-action="addStation" data-group="${tok}"><i class="bi bi-plus"></i> Lägg till station</button>`;
 		card.innerHTML = `<div class="card-header d-flex justify-content-between align-items-center" ${headerStyle}>
 			<div><strong>${escapeHtml(title)}</strong></div>
-			<button class="btn btn-sm btn-light" data-action="addStation" data-group="${isRes ? '' : tok}"><i class="bi bi-plus"></i> Lägg till station</button>
+			${addStationButton}
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
 			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="info-tooltip" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
-			const tr=document.createElement('tr');tr.draggable=true;tr.dataset.id=s.id;
+			const tr=document.createElement('tr');tr.draggable=!isRes;tr.dataset.id=s.id;
+			const nameCell = isRes ? '<span class="form-control form-control-sm bg-light text-muted">Resurs</span>' : `<input class="form-control form-control-sm" value="${escapeHtml(s.title)}" data-bind="title" data-id="${s.id}">`;
+			const opCell = isRes ? '<span class="text-muted">—</span>' : `<input type="checkbox" ${s.operational?'checked':''} data-bind="op" data-role="station-op" data-station-id="${s.id}" data-id="${s.id}">`;
+			const deleteCell = isRes ? '<span class="text-muted">—</span>' : `<button class="btn btn-sm btn-outline-danger" data-id="${s.id}"><i class="bi bi-trash"></i></button>`;
 			tr.innerHTML = `
-				<td class="text-muted"><i class="bi bi-grip-vertical drag-handle"></i></td>
-				<td><input class="form-control form-control-sm" value="${escapeHtml(s.title)}" data-bind="title" data-id="${s.id}"></td>
+				<td class="text-muted">${isRes ? '' : '<i class="bi bi-grip-vertical drag-handle"></i>'}</td>
+				<td>${nameCell}</td>
 				<td style="width:110px"><input type="number" min="0" class="form-control form-control-sm" value="${s.defaultCapacity||1}" data-bind="defcap" data-id="${s.id}"></td>
-				<td>
-					<input type="checkbox"
-						${s.operational?'checked':''}
-						data-bind="op"
-						data-role="station-op"
-						data-station-id="${s.id}"
-						data-id="${s.id}">
-				</td>
-				<td><button class="btn btn-sm btn-outline-danger" data-id="${s.id}"><i class="bi bi-trash"></i></button></td>
+				<td>${opCell}</td>
+				<td>${deleteCell}</td>
 			`;
 
 			tb.appendChild(tr);
@@ -310,7 +347,8 @@ function renderStationsByGroup(){
 				rebuildAll();
 			});
 		});
-		card.querySelector('[data-action="addStation"]').addEventListener('click',()=>{
+		const addStationBtn=card.querySelector('[data-action="addStation"]');
+		if(addStationBtn) addStationBtn.addEventListener('click',()=>{
 			const id=newId();
 			DB.stations.push({id,factoryId:currentFactoryId,groupId:isRes?null:tok,title:'Ny station',defaultCapacity:1,operational:true,sort:99,isResurs:isRes});
 			renderStationsByGroup();rebuildAll();
