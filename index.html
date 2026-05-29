@@ -192,8 +192,8 @@
 										<div class="form-check d-flex align-items-start gap-2">
 											<input id="fillResurs" class="form-check-input mt-1" type="checkbox" checked>
 											<label class="form-check-label" for="fillResurs">
-												Fyll resurs
-												<button type="button" class="settings-info-btn summary-info-btn small fw-semibold ms-1" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="info-tooltip" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Resurskolumnen fylls efter att övriga valda stationer har fyllts.<br><strong>Avaktiverad:</strong> Resurskolumnen fylls inte alls vid autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Fyll resurs</span></button>
+												Fyll resurs sist
+												<button type="button" class="settings-info-btn summary-info-btn small fw-semibold ms-1" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="info-tooltip" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Valda resursstationer fylls efter övriga valda stationer.<br><strong>Avaktiverad:</strong> Valda resursstationer fylls tillsammans med övriga valda stationer."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Fyll resurs sist</span></button>
 											</label>
 										</div>
 										<div class="form-check d-flex align-items-start gap-2">
@@ -282,7 +282,10 @@
 							<div class="tab-pane fade" id="tabGroups" role="tabpanel">
 								<div class="d-flex justify-content-between align-items-center mb-2">
 									<div id="groupsInfoText" class="alert alert-info py-2"><i class="bi bi-info-circle-fill"></i> Dra för att ändra kolumnordningen för grupper</div>
-									<button id="addGroupBtn" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Lägg till grupp</button>
+									<div class="d-flex gap-2">
+										<button id="addGroupBtn" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Lägg till grupp</button>
+										<button id="addResursGroupBtn" class="btn btn-sm btn-outline-info"><i class="bi bi-plus"></i> Lägg till resursgrupp</button>
+									</div>
 								</div>
 								<table class="table table-sm align-middle">
 									<thead><tr><th style="width:32px"></th><th>Namn</th><th>Färg</th><th>Samordnare</th><th style="width:68px"></th></tr></thead>

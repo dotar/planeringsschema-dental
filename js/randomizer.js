@@ -32,18 +32,17 @@ function setStationOperational(stationId, on){
 	document.querySelectorAll(`[data-role="station-op"][data-station-id="${escapeDataId(stationId)}"]`)
 		.forEach(el=>{ el.checked=!!on; el.indeterminate=false; });
 
-	// update tri-state header in randomizer if open
-	if(s.groupId){
-		const box=document.querySelector(`.rand-station-group[data-gid="${escapeDataId(s.groupId)}"]`);
-		if(box){
-			const gChk=box.querySelector(`#${CSS.escape(`rsg${s.groupId}`)}`);
-			const child=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
-			const total=child.length;
-			const onCount=child.filter(c=>c.checked).length;
-			gChk.indeterminate=onCount>0&&onCount<total;
-			gChk.checked=onCount===total;
-		}
-	}
+	// update tri-state headers in randomizer if open
+	document.querySelectorAll(`.rand-station-group [data-kind="station"][data-station-id="${escapeDataId(stationId)}"]`).forEach(stationEl=>{
+		const box=stationEl.closest('.rand-station-group');
+		if(!box) return;
+		const gChk=box.querySelector('.rand-group-header .form-check-input');
+		const child=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
+		const total=child.length;
+		const onCount=child.filter(c=>c.checked).length;
+		gChk.indeterminate=onCount>0&&onCount<total;
+		gChk.checked=onCount===total;
+	});
 }
 
 // one listener for both places
@@ -413,7 +412,7 @@ function openRandomizer(){
 	const wrapG=document.getElementById('randGroups');
 	wrapG.innerHTML='';
 	const {order}=orderedColumns();
-	order.filter(tok=>tok!=='resurs').forEach(id=>{
+	order.filter(tok=>tok!=='resurs' && !isResursGroupId(tok)).forEach(id=>{
 		const g=DB.groups.find(x=>x.id===id);
 		if(!g)return;
 		const div=document.createElement('div');
@@ -430,28 +429,22 @@ function openRandomizer(){
 	wrapS.innerHTML='';
 
 	const {grouped}=orderedColumns();
-	order.forEach(tok=>{
-		if(tok==='resurs')return;
-		const g=DB.groups.find(x=>x.id===tok);
-		if(!g)return;
-		const stations=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
-		if(stations.length===0)return;
+	function renderStationSelectionBox({key,label,stations}){
+		if(!stations.length)return;
 
-		// group container
 		const box=document.createElement('div');
 		box.className='col-12';
 		box.innerHTML=`
-			<div class="rand-station-group" data-gid="${g.id}">
+			<div class="rand-station-group" data-gid="${escapeHtml(key)}">
 				<div class="rand-group-header">
-					<input class="form-check-input me-1" type="checkbox" id="rsg${g.id}">
-					<label class="form-check-label" for="rsg${g.id}">${escapeHtml(g.title)}</label>
+					<input class="form-check-input me-1" type="checkbox" id="${escapeHtml(`rsg${key}`)}">
+					<label class="form-check-label" for="${escapeHtml(`rsg${key}`)}">${escapeHtml(label)}</label>
 				</div>
 				<div class="row row-cols-2 g-2" data-role="stations"></div>
 			</div>
 		`;
 		wrapS.appendChild(box);
 
-		// stations
 		const list=box.querySelector('[data-role="stations"]');
 		stations.forEach(s=>{
 			const col=document.createElement('div');
@@ -460,16 +453,15 @@ function openRandomizer(){
 				<div class="form-check">
 					<input class="form-check-input" data-kind="station" data-role="station-op"
 						data-station-id="${s.id}" type="checkbox"
-						value="${s.id}" id="rs${s.id}" ${s.operational?'checked':''}>
-					<label class="form-check-label" for="rs${s.id}">${escapeHtml(s.title)}</label>
+						value="${escapeHtml(s.id)}" id="${escapeHtml(`rs${s.id}`)}" ${s.operational?'checked':''}>
+					<label class="form-check-label" for="${escapeHtml(`rs${s.id}`)}">${escapeHtml(s.title)}${s.isResurs?' <span class="badge text-bg-info">Resurs</span>':''}</label>
 				</div>
 			`;
 
 			list.appendChild(col);
 		});
 
-		// group checkbox controls all children; set tri-state on change
-		const gChk=box.querySelector(`#rsg${g.id}`);
+		const gChk=box.querySelector(`#${CSS.escape(`rsg${key}`)}`);
 		const childChecks=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
 
 		function syncGroupState(){
@@ -488,8 +480,21 @@ function openRandomizer(){
 		});
 
 		childChecks.forEach(c=>c.addEventListener('change',syncGroupState));
-		// initial
 		syncGroupState();
+	}
+
+	order.forEach(tok=>{
+		if(isResursOrderToken(tok)){
+			const resursStation=getResursStationForToken(currentFactoryId,tok);
+			if(!resursStation)return;
+			const label=tok==='resurs' ? 'Resurs' : (DB.groups.find(x=>x.id===tok)?.title || 'Resurs');
+			renderStationSelectionBox({key:`resurs-${tok}`,label,stations:[resursStation]});
+			return;
+		}
+		const g=DB.groups.find(x=>x.id===tok);
+		if(!g)return;
+		const stations=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
+		renderStationSelectionBox({key:g.id,label:g.title,stations});
 	});
 
 	m.show();
@@ -513,8 +518,8 @@ function runRandomizer(){
 	// avoid consecutive toggle (persist)
 	const avoidConsecutive = document.getElementById('avoidConsecutive').checked;
 	localStorage.setItem('planning.avoidConsecutive', avoidConsecutive ? '1' : '0');
-	const fillResurs = document.getElementById('fillResurs').checked;
-	localStorage.setItem('planning.fillResurs', fillResurs ? '1' : '0');
+	const fillResursLast = document.getElementById('fillResurs').checked;
+	localStorage.setItem('planning.fillResurs', fillResursLast ? '1' : '0');
 	const keepPrefilled = document.getElementById('keepPrefilled').checked;
 	localStorage.setItem('planning.keepPrefilled', keepPrefilled ? '1' : '0');
 	const preferTrained = document.getElementById('preferTrained').checked;
@@ -537,19 +542,19 @@ function runRandomizer(){
 			));
 		}
 
-		// chosen stations: non-Resurs first; Resurs auto last
+		// chosen stations: optionally place Resurs stations last
 		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
-		const nonRes = chosen.filter(s => !s.isResurs);
-		const res = DB.stations.find(s => s.factoryId===currentFactoryId && s.isResurs && s.operational);
+		const stationsFirst = fillResursLast ? chosen.filter(s => !s.isResurs) : chosen;
+		const resursStations = fillResursLast ? chosen.filter(s => s.isResurs) : [];
 
-		// per slot: round-robin across non-Resurs
+		// per slot: round-robin across selected stations
 		for(const sl of slots){
-			roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+			roundRobinFill(stationsFirst, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 		}
-		// then Resurs (if present)
-		if(res && fillResurs){
+		// then selected Resurs stations (if requested)
+		if(resursStations.length){
 			for(const sl of slots){
-				roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+				roundRobinFill(resursStations, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 			}
 		}
 	});
