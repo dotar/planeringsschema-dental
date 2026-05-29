@@ -446,7 +446,7 @@ function movePersonToGroupAtIndex(personId, srcGroupId, tgtGroupId, insertIndex)
 function getNormalizedGroupOrder(factoryId){
 	const groupIds = DB.groups.filter(g=>g.factoryId===factoryId).map(g=>g.id);
 	const groupIdSet = new Set(groupIds);
-	const hasResursStation = DB.stations.some(s=>s.factoryId===factoryId && s.isResurs);
+	const hasResursStation = DB.stations.some(s=>s.factoryId===factoryId && isLegacyResursStation(s));
 	const rawOrder = Array.isArray(DB.groupDisplayOrder[factoryId]) ? DB.groupDisplayOrder[factoryId] : [];
 
 	const order = [];
@@ -477,7 +477,22 @@ function getNormalizedGroupOrder(factoryId){
 	return order;
 }
 
-function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&s.isResurs);const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
+function isResursGroup(group){return !!(group && group.isResursGroup);}
+function isResursGroupId(groupId){return isResursGroup(DB.groups.find(g=>g.id===groupId));}
+function isLegacyResursStation(station){return !!(station && station.isResurs && (station.groupId===undefined || station.groupId===null));}
+function isResursOrderToken(tok){return tok==='resurs' || isResursGroupId(tok);}
+function getResursStationForToken(factoryId, tok){
+	if(tok==='resurs') return DB.stations.find(s=>s.factoryId===factoryId && isLegacyResursStation(s));
+	if(isResursGroupId(tok)) return DB.stations.find(s=>s.factoryId===factoryId && s.isResurs && s.groupId===tok);
+	return null;
+}
+function getResursStations(factoryId=currentFactoryId){
+	return getNormalizedGroupOrder(factoryId)
+		.filter(tok=>isResursOrderToken(tok))
+		.map(tok=>getResursStationForToken(factoryId,tok))
+		.filter(Boolean);
+}
+function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);const resurs=DB.stations.find(s=>s.factoryId===currentFactoryId&&isLegacyResursStation(s));const grouped=groupBy(DB.stations.filter(s=>s.factoryId===currentFactoryId&&!s.isResurs),'groupId');return {order,resurs,grouped};}
 
 function rebuildAll(){
 	return runMeasured('rebuildAll', ()=>{
@@ -895,8 +910,8 @@ function buildGrid(){
 	const autoGenerateUnassignedBySlot=getAutoGenerateUnassignedBySlot();
 	let cols=['var(--time-col-w)'];
 	order.forEach(tok=>{
-		if(tok==='resurs'){
-			if(resurs)cols.push('var(--grid-min-col)');
+		if(isResursOrderToken(tok)){
+			if(getResursStationForToken(currentFactoryId,tok))cols.push('var(--grid-min-col)');
 		}else{
 			const sts=(grouped[tok]||[]).sort((a,b)=>a.sort-b.sort);
 			for(const s of sts)cols.push('var(--grid-min-col)');
@@ -922,8 +937,8 @@ function buildGrid(){
 	timeHead.textContent='Tid';
 	grid.appendChild(timeHead);
 	for(const tok of order){
-		if(tok==='resurs'){
-			if(resurs){
+		if(isResursOrderToken(tok)){
+			if(getResursStationForToken(currentFactoryId,tok)){
 				const sp=cellDiv('group-header header-row');
 				sp.classList.add('resurs-col');
 				sp.textContent='';
@@ -950,12 +965,13 @@ function buildGrid(){
 	timeHead2.textContent='';
 	grid.appendChild(timeHead2);
 	for(const tok of order){
-		if(tok==='resurs'){
-			if(resurs){
+		if(isResursOrderToken(tok)){
+			const resursStation=getResursStationForToken(currentFactoryId,tok);
+			if(resursStation){
 				const sh=cellDiv('station-header');
 				sh.classList.add('resurs-col');
-				sh.dataset.stationId=resurs.id;
-				sh.textContent=resurs.title;
+				sh.dataset.stationId=resursStation.id;
+				sh.textContent=resursStation.title;
 				grid.appendChild(sh);
 			}
 			continue;
@@ -1070,8 +1086,9 @@ function buildGrid(){
 		};
 
 		for(const tok of order){
-			if(tok==='resurs'){
-				if(resurs)addStationCell(resurs);
+			if(isResursOrderToken(tok)){
+				const resursStation=getResursStationForToken(currentFactoryId,tok);
+				if(resursStation)addStationCell(resursStation);
 			}else{
 				const sts=(grouped[tok]||[]).sort((a,b)=>a.sort-b.sort);
 				for(const s of sts)addStationCell(s);

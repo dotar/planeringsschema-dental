@@ -413,7 +413,7 @@ function openRandomizer(){
 	const wrapG=document.getElementById('randGroups');
 	wrapG.innerHTML='';
 	const {order}=orderedColumns();
-	order.filter(tok=>tok!=='resurs').forEach(id=>{
+	order.filter(tok=>tok!=='resurs' && !isResursGroupId(tok)).forEach(id=>{
 		const g=DB.groups.find(x=>x.id===id);
 		if(!g)return;
 		const div=document.createElement('div');
@@ -431,7 +431,7 @@ function openRandomizer(){
 
 	const {grouped}=orderedColumns();
 	order.forEach(tok=>{
-		if(tok==='resurs')return;
+		if(isResursOrderToken(tok))return;
 		const g=DB.groups.find(x=>x.id===tok);
 		if(!g)return;
 		const stations=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
@@ -540,16 +540,16 @@ function runRandomizer(){
 		// chosen stations: non-Resurs first; Resurs auto last
 		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
 		const nonRes = chosen.filter(s => !s.isResurs);
-		const res = DB.stations.find(s => s.factoryId===currentFactoryId && s.isResurs && s.operational);
+		const resursStations = getResursStations(currentFactoryId).filter(s => s.operational);
 
 		// per slot: round-robin across non-Resurs
 		for(const sl of slots){
 			roundRobinFill(nonRes, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 		}
-		// then Resurs (if present)
-		if(res && fillResurs){
+		// then Resurs columns (if present)
+		if(resursStations.length && fillResurs){
 			for(const sl of slots){
-				roundRobinFill([res], sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+				roundRobinFill(resursStations, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
 			}
 		}
 	});
