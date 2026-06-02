@@ -80,7 +80,7 @@ function refreshAutoGenerateWarnings(){
 		timeCell.setAttribute('data-bs-toggle','tooltip');
 		timeCell.setAttribute('data-bs-title', tipText);
 		timeCell.removeAttribute('title');
-		const tip=bootstrap.Tooltip.getOrCreateInstance(timeCell,{trigger:'hover',placement:'auto'});
+		const tip=bootstrap.Tooltip.getOrCreateInstance(timeCell,{trigger:'hover',placement:'auto',html:false});
 		if(typeof tip.setContent==='function') tip.setContent({ '.tooltip-inner': tipText });
 	});
 }

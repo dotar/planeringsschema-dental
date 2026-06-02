@@ -1000,6 +1000,7 @@ function buildGrid(){
 			indicator.className='slot-unassigned-indicator';
 			indicator.setAttribute('data-bs-toggle','tooltip');
 			indicator.setAttribute('data-bs-title', formatUnassignedTooltipText(missingNames));
+			indicator.setAttribute('data-bs-html','false');
 			indicator.innerHTML='<i class="bi bi-person-exclamation" aria-hidden="true"></i><span class="visually-hidden">Ej tilldelade personer</span>';
 			timeCell.appendChild(indicator);
 		}
@@ -1704,7 +1705,8 @@ function updatePersonPillTooltip(pill, opts={}){
 	pill.setAttribute('data-bs-title', content);
 	const tip = bootstrap.Tooltip.getOrCreateInstance(pill, {
 		container: 'body',
-		boundary: 'viewport'
+		boundary: 'viewport',
+		html: false
 	});
 	if(typeof tip.setContent === 'function') tip.setContent({ '.tooltip-inner': content });
 }

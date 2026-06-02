@@ -367,7 +367,7 @@ function setCellTooltipContent(cell, text){
 	}
 	cell.setAttribute('data-bs-toggle','tooltip')
 	cell.setAttribute('data-bs-title', normalized)
-	const tip=bootstrap.Tooltip.getOrCreateInstance(cell,{container:'body', boundary:'viewport'})
+	const tip=bootstrap.Tooltip.getOrCreateInstance(cell,{container:'body', boundary:'viewport', html:false})
 	if(tip && tip.setContent) tip.setContent({'.tooltip-inner': normalized})
 }
 
