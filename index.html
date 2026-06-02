@@ -244,22 +244,27 @@
 		<div class="modal fade" id="settingsModal" tabindex="-1">
 			<div class="modal-dialog modal-xl modal-dialog-scrollable">
 				<div class="modal-content">
-					<div class="modal-header">
-							<div class="d-flex align-items-center gap-3">
-								<h5 class="modal-title mb-0"><i class="bi bi-gear"></i> Inställningar</h5>
-								<div class="input-group input-group-sm" style="width:220px">
-									<span class="input-group-text">Skift</span>
-									<select id="settingsShiftSel" class="form-select">
-										<option value="day">Dag</option>
-										<option value="evening">Kväll</option>
-										<option value="night">Natt</option>
-									</select>
-								</div>
-								<div class="input-group input-group-sm" style="width:220px">
-									<span class="input-group-text">Fabrik</span>
-									<select id="settingsFactorySel" class="form-select"></select>
-								</div>
-							</div><button class="btn-close" data-bs-dismiss="modal"></button></div>
+					<div class="modal-header gap-3">
+						<div class="d-flex align-items-center gap-3 flex-wrap">
+							<h5 class="modal-title mb-0"><i class="bi bi-gear"></i> Inställningar</h5>
+							<div class="input-group input-group-sm" style="width:220px">
+								<span class="input-group-text">Skift</span>
+								<select id="settingsShiftSel" class="form-select">
+									<option value="day">Dag</option>
+									<option value="evening">Kväll</option>
+									<option value="night">Natt</option>
+								</select>
+							</div>
+							<div class="input-group input-group-sm" style="width:220px">
+								<span class="input-group-text">Fabrik</span>
+								<select id="settingsFactorySel" class="form-select"></select>
+							</div>
+						</div>
+						<div class="ms-auto d-flex align-items-center gap-2">
+							<button id="replayTourBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="bi bi-play-circle me-1"></i>Visa introduktion</button>
+							<button class="btn-close" data-bs-dismiss="modal"></button>
+						</div>
+					</div>
 					<div class="modal-body">
 						<ul class="nav nav-tabs" id="settingsTabs" role="tablist">
 							<li class="nav-item" role="presentation"><button class="nav-link text-light-emphasis active" data-bs-toggle="tab" data-bs-target="#tabPersonnel" type="button" role="tab"><i class="bi bi-person-raised-hand"></i> Personal</button></li>
@@ -424,14 +429,6 @@
 												<ul class="list-unstyled small mb-0">
 													<li>Lagrar planering, stationer, tider, förnamn & utbildningar. Åtkomst styrs av lösenord.</li>
 												</ul>
-											</li>
-
-											<li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
-												<div>
-													<div class="fw-semibold mb-1"><i class="bi bi-stars me-2"></i>Introduktionsrunda</div>
-													<div class="small text-muted">Visa den guidade genomgången av kontext, rutnät, varningar, rapporter och inställningar igen.</div>
-												</div>
-												<button id="replayTourBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="bi bi-play-circle me-1"></i>Visa introduktion</button>
 											</li>
 
 											<li class="list-group-item">
