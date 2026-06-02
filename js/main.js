@@ -223,13 +223,28 @@ async function saveAll(){
 }
 
 // one-time, global delegated tooltips
+const infoTooltipAllowList = {
+	...bootstrap.Tooltip.Default.allowList,
+	strong: [],
+	br: []
+};
+
 new bootstrap.Tooltip(document.body, {
-	selector: '[data-bs-toggle="tooltip"]',
+	selector: '[data-bs-toggle="tooltip"]:not([data-bs-custom-class~="info-tooltip"])',
+	container: 'body',
+	boundary: 'viewport',
+	html: false,
+	trigger: 'hover'
+});
+
+new bootstrap.Tooltip(document.body, {
+	selector: '[data-bs-toggle="tooltip"][data-bs-custom-class~="info-tooltip"]',
 	container: 'body',
 	boundary: 'viewport',
 	html: true,
 	trigger: 'hover',
-	sanitize: false
+	sanitize: true,
+	allowList: infoTooltipAllowList
 });
 
 document.addEventListener('show.bs.tooltip', ev=>{
