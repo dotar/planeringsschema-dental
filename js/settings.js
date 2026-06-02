@@ -142,7 +142,12 @@ function renderPersonGroups(){
 	wrap.querySelectorAll('button[data-action="del"]').forEach(b=>
 		b.addEventListener('click',()=>{
 			const id = parseEntityId(b.dataset.id);
-			DB.persons = DB.persons.filter(p=>p.id!==id);
+			withAssignmentHistoryAction('Ta bort person', ()=>{
+				removeAssignmentsWhere(a=>a.personId===id);
+				DB.training = DB.training.filter(t=>t.personId!==id);
+				DB.persons = DB.persons.filter(p=>p.id!==id);
+			});
+			validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
 			renderPersonGroups(); rebuildAll();
 		})
 	);
@@ -366,7 +371,12 @@ function renderStationsByGroup(){
 				okClass:'btn-danger'
 			});
 			if(!ok) return;
-			DB.stations=DB.stations.filter(s=>s.id!==id);
+			withAssignmentHistoryAction('Ta bort station', ()=>{
+				removeAssignmentsWhere(a=>a.stationId===id);
+				DB.training=DB.training.filter(t=>t.stationId!==id);
+				DB.stations=DB.stations.filter(s=>s.id!==id);
+			});
+			validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
 			renderStationsByGroup(); rebuildAll();
 		}));
 
@@ -438,7 +448,11 @@ function renderSlotEditor(){
 			okClass:'btn-danger'
 		});
 		if(!ok) return;
-		DB.timeSlots=DB.timeSlots.filter(s=>String(s.id)!==id);
+		withAssignmentHistoryAction('Ta bort tidsintervall', ()=>{
+			removeAssignmentsWhere(a=>String(a.timeSlotId)===String(id));
+			DB.timeSlots=DB.timeSlots.filter(s=>String(s.id)!==String(id));
+		});
+		validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
 		renderSlotEditor(); rebuildAll();
 	}));
 
