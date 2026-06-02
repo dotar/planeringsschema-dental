@@ -410,7 +410,7 @@ function getFirstRunTourSteps(){
 			placement:'left',
 			icon:'bi-gear',
 			title:'7. Justera inställningar',
-			body:'I Inställningar hanterar du personal, grupper, stationer, tidsintervall, samarbetsregler och allmänna beteenden. Du kan också visa introduktionen igen via Inställningar → Credits → Visa introduktion.',
+			body:'I Inställningar hanterar du personal, grupper, stationer, tidsintervall, samarbetsregler och allmänna beteenden. Du kan också visa introduktionen igen med knappen Visa introduktion i Inställningars modalhuvud.',
 			onEnter:()=>showTourModal('settingsModal',()=>renderSettings()),
 			onLeave:()=>hideTourModal('settingsModal')
 		}
