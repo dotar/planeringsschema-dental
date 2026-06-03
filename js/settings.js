@@ -19,6 +19,12 @@ function renderSettingsInfoTexts(){
 
 function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncViewerWarningsSettingInput();syncCoordAutoLogoutInput();renderSettingsInfoTexts();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
+function rebuildAfterSettingsMutation(context){
+	const diagnostics=validateDbShape(DB, { context, requireShiftData: true, shift: currentShift });
+	if(diagnostics && diagnostics.ok) rebuildAll();
+	return diagnostics;
+}
+
 function renderPersonGroups(){
 	const wrap = document.getElementById('personGroupsWrap');
 	wrap.innerHTML = '';
@@ -102,7 +108,7 @@ function renderPersonGroups(){
 				const person = DB.persons.find(x=>String(x.id)===String(id));
 				if(person && person.groupId===g.id) person.sort = idx+1;
 			});
-			renderPersonGroups(); rebuildAll();
+			renderPersonGroups(); rebuildAfterSettingsMutation('settings person reorder');
 		});
 
 		// allow moving INTO this group's list
@@ -117,11 +123,11 @@ function renderPersonGroups(){
 			if(!p) return;
 			if(el.dataset.bind==='name'){
 				p.name = el.value.trim();
-				rebuildAll();
+				rebuildAfterSettingsMutation('settings person edit');
 			}
 			if(el.dataset.bind==='present'){
 				p.present = el.checked;
-				rebuildAll();
+				rebuildAfterSettingsMutation('settings person edit');
 			}
 			if(el.dataset.bind==='groupId'){
 				const newG = parseEntityId(el.value);
@@ -131,7 +137,7 @@ function renderPersonGroups(){
 						.filter(x=>x.factoryId===currentFactoryId && x.groupId===newG && typeof x.sort==='number')
 						.map(x=>x.sort||0));
 					p.sort = maxSort + 1;
-					renderPersonGroups(); rebuildAll();
+					renderPersonGroups(); rebuildAfterSettingsMutation('settings person reorder');
 				}
 			}
 		});
@@ -147,8 +153,7 @@ function renderPersonGroups(){
 				DB.training = DB.training.filter(t=>t.personId!==id);
 				DB.persons = DB.persons.filter(p=>p.id!==id);
 			});
-			validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
-			renderPersonGroups(); rebuildAll();
+			renderPersonGroups(); rebuildAfterSettingsMutation('settings person delete');
 		})
 	);
 	wrap.querySelectorAll('button[data-action="add"]').forEach(b=>
@@ -160,6 +165,7 @@ function renderPersonGroups(){
 				.map(x=>x.sort||0));
 			DB.persons.push({ id, name:'Ny', factoryId:currentFactoryId, groupId:gid, isNight:(currentShift==='night'), present:true, sort:maxSort+1 });
 			renderPersonGroups();
+			rebuildAfterSettingsMutation('settings person add');
 			const inp = document.querySelector(`input[data-bind="name"][data-id="${escapeDataId(id)}"]`);
 			if(inp){ inp.focus(); inp.select(); }
 		})
@@ -195,7 +201,7 @@ function renderGroupTable(){
 	}
 	enableRowDragKeys(tb,(orderKeys)=>{
 		DB.groupDisplayOrder[currentFactoryId]=orderKeys.map(k=>k==='resurs'?'resurs':parseEntityId(k));
-		renderGroupTable();renderStationsByGroup();rebuildAll();
+		renderGroupTable();renderStationsByGroup();rebuildAfterSettingsMutation('settings group order');
 	});
 	tb.querySelectorAll('input[data-bind]').forEach(el=>{
 		el.addEventListener('change',()=>{
@@ -204,7 +210,7 @@ function renderGroupTable(){
 			if(el.dataset.bind==='title') g.title=el.value.trim();
 			if(el.dataset.bind==='color') g.color=el.value;
 			if(el.dataset.bind==='coord') g.coordinator=el.value.trim();
-			rebuildAll();
+			rebuildAfterSettingsMutation('settings group edit');
 		});
 	});
 	document.getElementById('addGroupBtn').onclick=()=>{
@@ -212,7 +218,7 @@ function renderGroupTable(){
 		DB.groups.push({id,factoryId:currentFactoryId,title:'Ny grupp',color:'#dddddd',coordinator:''});
 		const cur=DB.groupDisplayOrder[currentFactoryId]||[];
 		DB.groupDisplayOrder[currentFactoryId]=[...cur,id];
-		renderGroupTable();renderStationsByGroup();rebuildAll();
+		renderGroupTable();renderStationsByGroup();rebuildAfterSettingsMutation('settings group add');
 		const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 		if(inp){inp.focus();inp.select();}
 	};
@@ -224,7 +230,7 @@ function renderGroupTable(){
 		DB.stations.push({id:stationId,factoryId:currentFactoryId,groupId:groupId,title:'Resurs',defaultCapacity:1,operational:true,sort:1,isResurs:true});
 		const cur=DB.groupDisplayOrder[currentFactoryId]||[];
 		DB.groupDisplayOrder[currentFactoryId]=[...cur,groupId];
-		renderGroupTable();renderStationsByGroup();rebuildAll();
+		renderGroupTable();renderStationsByGroup();rebuildAfterSettingsMutation('settings resurs group add');
 	};
 
 	tb.querySelectorAll('button[data-action="delLegacyResurs"]').forEach(b => b.addEventListener('click', async () => {
@@ -244,7 +250,7 @@ function renderGroupTable(){
 		DB.groupDisplayOrder[currentFactoryId] = (DB.groupDisplayOrder[currentFactoryId] || []).filter(tok => tok !== 'resurs');
 		renderGroupTable();
 		renderStationsByGroup();
-		rebuildAll();
+		rebuildAfterSettingsMutation('settings resurs group delete');
 	}));
 
 	tb.querySelectorAll('button.btn-outline-danger:not([data-action])').forEach(b => b.addEventListener('click', async () => {
@@ -286,7 +292,7 @@ function renderGroupTable(){
 		renderGroupTable();
 		renderStationsByGroup();
 		renderPersonGroups();
-		rebuildAll();
+		rebuildAfterSettingsMutation('settings group delete');
 	}));
 
 
@@ -338,7 +344,7 @@ function renderStationsByGroup(){
 				s.sort=idx+1;
 			});
 			renderStationsByGroup();
-			rebuildAll();
+			rebuildAfterSettingsMutation('settings station reorder');
 		});
 
 		tb.querySelectorAll('input[data-bind]').forEach(el=>{
@@ -349,14 +355,14 @@ function renderStationsByGroup(){
 				if(el.dataset.bind==='defcap') s.defaultCapacity=parseInt(el.value,10)||1;
 				if(el.dataset.bind==='op') s.operational=el.checked;
 				if(el.dataset.bind==='resurs') s.isResurs=el.checked;
-				rebuildAll();
+				rebuildAfterSettingsMutation('settings station edit');
 			});
 		});
 		card.querySelectorAll('[data-action="addStation"]').forEach(addStationBtn=>addStationBtn.addEventListener('click',()=>{
 			const id=newId();
 			const isResursStation=addStationBtn.dataset.resurs==='1';
 			DB.stations.push({id,factoryId:currentFactoryId,groupId:tok,title:isResursStation?'Resurs':'Ny station',defaultCapacity:1,operational:true,sort:99,isResurs:isResursStation});
-			renderStationsByGroup();rebuildAll();
+			renderStationsByGroup();rebuildAfterSettingsMutation('settings station add');
 			const inp=document.querySelector(`input[data-bind="title"][data-id="${escapeDataId(id)}"]`);
 			if(inp){inp.focus();inp.select();}
 		}));
@@ -376,8 +382,7 @@ function renderStationsByGroup(){
 				DB.training=DB.training.filter(t=>t.stationId!==id);
 				DB.stations=DB.stations.filter(s=>s.id!==id);
 			});
-			validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
-			renderStationsByGroup(); rebuildAll();
+			renderStationsByGroup(); rebuildAfterSettingsMutation('settings station delete');
 		}));
 
 	}
@@ -407,7 +412,7 @@ function renderSlotEditor(){
 				s.sort=idx+1;
 			});
 			renderSlotEditor();
-			rebuildAll();
+			rebuildAfterSettingsMutation('settings slot reorder');
 		});
 
 		const addBtn=document.createElement('button');
@@ -416,7 +421,7 @@ function renderSlotEditor(){
 		addBtn.addEventListener('click',()=>{
 			const id=`${currentFactoryId}-${dt}-${Date.now()}`;
 			DB.timeSlots.push({id,factoryId:currentFactoryId,dayType:dt,start:'00:00',end:'',type:'Work',sort:99});
-			renderSlotEditor();rebuildAll();
+			renderSlotEditor();rebuildAfterSettingsMutation('settings slot add');
 			const inp=document.querySelector(`input[data-bind="start"][data-id="${escapeDataId(id)}"]`);
 			if(inp){inp.focus();inp.select();}
 		});
@@ -434,7 +439,7 @@ function renderSlotEditor(){
 			}else{
 				if(el.dataset.bind==='type') s.type=el.value;
 			}
-			rebuildAll();
+			rebuildAfterSettingsMutation('settings slot edit');
 		});
 	});
 	wrap.querySelectorAll('button.btn-outline-danger').forEach(b=>b.addEventListener('click',async()=>{
@@ -452,8 +457,7 @@ function renderSlotEditor(){
 			removeAssignmentsWhere(a=>String(a.timeSlotId)===String(id));
 			DB.timeSlots=DB.timeSlots.filter(s=>String(s.id)!==String(id));
 		});
-		validateDbShape(DB, { context: 'settings delete', requireShiftData: true, shift: currentShift });
-		renderSlotEditor(); rebuildAll();
+		renderSlotEditor(); rebuildAfterSettingsMutation('settings slot delete');
 	}));
 
 }
@@ -470,7 +474,8 @@ function renderConstraintTable(){
 	document.getElementById('addConstraintBtn').onclick=()=>{
 		DB.compatibility.push({a:null,b:null});
 		renderConstraintTable();
-		if(mode==='edit') validateBoard();
+		const diagnostics=rebuildAfterSettingsMutation('settings compatibility add');
+		if(diagnostics?.ok && mode==='edit') validateBoard();
 	};
 	tb.querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{
 		const row=sel.closest('tr');
@@ -482,7 +487,8 @@ function renderConstraintTable(){
 			b:s[1].value ? parseEntityId(s[1].value) : null
 		};
 		renderConstraintTable();
-		if(mode==='edit') validateBoard();
+		const diagnostics=rebuildAfterSettingsMutation('settings compatibility edit');
+		if(diagnostics?.ok && mode==='edit') validateBoard();
 	}));
 	tb.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',async()=>{
 		const tr=btn.closest('tr');
@@ -497,7 +503,8 @@ function renderConstraintTable(){
 
 		DB.compatibility.splice(i,1);
 		renderConstraintTable();
-		validateBoard();	// <- clears old warns/invalids and re-marks what still applies
+		const diagnostics=rebuildAfterSettingsMutation('settings compatibility delete');
+		if(diagnostics?.ok) validateBoard();	// <- clears old warns/invalids and re-marks what still applies
 
 		if(typeof showToast==='function'){ showToast('info','Regel borttagen','Färgvarningar uppdaterade.'); }
 	}));
@@ -729,7 +736,7 @@ function editTraining(personId){
 		});
 		m.hide();
 		dlg.addEventListener('hidden.bs.modal', () => dlg.remove());
-		rebuildAll();
+		rebuildAfterSettingsMutation('settings training edit');
 	});
 
 	// Cleanup: restore parent modal visuals
