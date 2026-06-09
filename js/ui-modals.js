@@ -822,13 +822,36 @@ function showToast(kind, title, msg, opts={}){
 	el.setAttribute('role','alert');
 	el.setAttribute('aria-live','assertive');
 	el.setAttribute('aria-atomic','true');
-	el.innerHTML=
-		`<div class="toast-header">
-			<i class="bi bi-${icon} me-2"></i>
-			<strong class="me-auto">${escapeHtml(title)}</strong>
-			<button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
-		</div>
-		<div class="toast-body">${msg}</div>`;
+
+	const header=document.createElement('div');
+	header.className='toast-header';
+
+	const iconEl=document.createElement('i');
+	iconEl.className=`bi bi-${icon} me-2`;
+	header.appendChild(iconEl);
+
+	const titleEl=document.createElement('strong');
+	titleEl.className='me-auto';
+	titleEl.textContent=title;
+	header.appendChild(titleEl);
+
+	const closeBtn=document.createElement('button');
+	closeBtn.type='button';
+	closeBtn.className='btn-close ms-2 mb-1';
+	closeBtn.setAttribute('data-bs-dismiss','toast');
+	closeBtn.setAttribute('aria-label','Close');
+	header.appendChild(closeBtn);
+
+	const body=document.createElement('div');
+	body.className='toast-body';
+	if(opts.html===true){
+		body.innerHTML=msg;
+	}else{
+		body.textContent=msg;
+	}
+
+	el.appendChild(header);
+	el.appendChild(body);
 	area.appendChild(el);
 
 	const t=new bootstrap.Toast(el,{delay:opts.delay??4500,autohide:true,animation:true});

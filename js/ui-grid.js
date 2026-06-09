@@ -439,7 +439,12 @@ function movePersonToGroupAtIndex(personId, srcGroupId, tgtGroupId, insertIndex)
 	const srcName=DB.groups.find(g=>g.id===srcGroupId)?.title||String(srcGroupId);
 	const tgtName=DB.groups.find(g=>g.id===tgtGroupId)?.title||String(tgtGroupId);
 	if(typeof showToast==='function'){
-		showToast('info','Flyttad', `<b>${p.name}</b> flyttades från grupp <b>${srcName}</b> till grupp <b>${tgtName}</b>`);
+		showToast(
+			'info',
+			'Flyttad',
+			`<b>${escapeHtml(p.name)}</b> flyttades från grupp <b>${escapeHtml(srcName)}</b> till grupp <b>${escapeHtml(tgtName)}</b>`,
+			{html:true}
+		);
 	}
 }
 
