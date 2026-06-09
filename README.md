@@ -17,23 +17,44 @@ The app is a lightweight frontend project (HTML, CSS, JavaScript) that uses Boot
 
 ## Architecture
 
-- `index.html`: main app shell, top navigation, settings/randomizer/report modals, and classic-script loader.
-- `css/app.css`: layout, grid styling, visual states, responsive behavior, modal styling, and theme refinements.
-- `js/mockdata.js`: mock domain data plus generated day/evening/night shift datasets for local/prototype operation.
-- `js/schema.js`: runtime schema assertions and diagnostics banner helpers for mock/settings data shape issues.
-- `js/state.js`: shared runtime state, viewer/coordinator settings, shift-data switching, persistence helpers for local UI preferences, and data access helpers.
-- `js/schedule-templates.js`: date controls, shift-template selection, labels, and default time-slot setup.
-- `js/history.js`: assignment undo/redo batching for edit-mode assignment changes.
-- `js/invalidation.js`: cell-level invalidation helpers used for partial validation after assignment mutations.
-- `js/ui-grid.js`: schedule grid rendering, assignment interactions, summaries, report metrics, and person pill UI state.
-- `js/validation.js`: training, compatibility, placement validation, warning rendering, and validation UI diffing.
-- `js/assignment-warnings.js`: auto-generation unassigned-person warning helpers.
-- `js/randomizer.js`: auto-generation controls, operational-station toggles, and assignment logic.
-- `js/ui-modals.js`: navigation mode handling, mock coordinator login, first-run tour, modals, toasts, inactivity handling, and responsive topbar helpers.
-- `js/settings.js`: settings panels, entity editors, training editor, collaboration-rule editor, and drag/drop helpers for settings tables.
-- `js/main.js`: app bootstrap, high-level event wiring, theme initialization, mock save hook, and global Bootstrap tooltip/popover setup.
-- `scripts/validate-mockdata.js`: Node-based mock-data integrity check for orphaned training references.
-- Runtime model: client-side only, no backend API, no real authentication, and no schedule persistence layer by default.
+At a high level, the app is a static browser mockup: `index.html` loads Bootstrap from CDN, creates the UI shell, then loads the local JavaScript files as classic scripts in dependency order. Runtime state lives in browser memory, while a few UI preferences are stored in `localStorage`; there is no backend API, real authentication, or durable schedule persistence.
+
+### Runtime flow
+
+1. `js/mockdata.js` builds the mock domain data and generated day/evening/night shift datasets.
+2. `js/schema.js` validates the data shape and can show a diagnostics banner if mock/settings data becomes inconsistent.
+3. `js/state.js` exposes shared state, shift switching, local UI settings, and data lookup helpers.
+4. Feature modules render and mutate the UI (`ui-grid`, `validation`, `randomizer`, `settings`, `ui-modals`).
+5. `js/main.js` bootstraps the app, wires top-level events, initializes theme/tooltips/popovers, and keeps the mock save flow as a console log.
+
+### Project tree
+
+~~~text
+planeringsschema-dental/
+├── index.html                 # App shell, top navigation, modal containers, schedule host, and classic-script loader.
+├── css/
+│   └── app.css                # Layout, grid styling, themes, responsive behavior, modal styling, and visual states.
+├── js/
+│   ├── mockdata.js            # Mock factories/personnel/stations/training plus generated day/evening/night datasets.
+│   ├── schema.js              # Runtime data-shape assertions and diagnostics banner helpers.
+│   ├── state.js               # Shared state, shift switching, local UI preferences, and data lookup helpers.
+│   ├── schedule-templates.js  # Date controls, shift-template labels, and default time-slot setup.
+│   ├── history.js             # Undo/redo batching for edit-mode assignment changes.
+│   ├── invalidation.js        # Cell-level invalidation keys for partial revalidation.
+│   ├── ui-grid.js             # Schedule grid, assignment interactions, summaries, report metrics, and person pills.
+│   ├── validation.js          # Placement checks, warning rendering, and validation UI diffing.
+│   ├── assignment-warnings.js # Auto-generation unassigned-person indicators.
+│   ├── randomizer.js          # Auto-generation controls, operational-station toggles, and assignment logic.
+│   ├── ui-modals.js           # Viewer/Coordinator mode, mock login, first-run tour, toasts, confirmations, and topbar behavior.
+│   ├── settings.js            # Entity editors, training editor, collaboration rules, and settings drag/drop behavior.
+│   └── main.js                # App bootstrap, top-level event wiring, theme/tooltips/popovers, and mock save hook.
+├── scripts/
+│   └── validate-mockdata.js   # Node check for orphaned training references and reconciliation behavior.
+├── favicon.svg
+├── logo.svg
+├── LICENSE
+└── README.md
+~~~
 
 ## Tech stack
 
