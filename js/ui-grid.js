@@ -1300,22 +1300,32 @@ function openAssignDropdownOverlay(cell, station, slot){
 		}
 	});
 
+	let closed=false;
+	let onDocDownAttached=false;
+	const onDocDown=ev=>{
+		if(!overlay.contains(ev.target)){
+			cleanup();
+		}
+	};
+
 	// outside click closes (mousedown so it beats focus changes)
 	setTimeout(()=>{
-		const onDocDown=ev=>{
-			if(!overlay.contains(ev.target)){
-				document.removeEventListener('mousedown', onDocDown);
-				cleanup();
-			}
-		};
+		if(closed) return;
 		document.addEventListener('mousedown', onDocDown);
+		onDocDownAttached=true;
 	},0);
 
 	// global Esc also closes
 	document.addEventListener('keydown', _onPickerKeydown, true);
 
 	function cleanup(){
+		if(closed) return;
+		closed=true;
 		window.removeEventListener('resize', position);
+		if(onDocDownAttached){
+			document.removeEventListener('mousedown', onDocDown);
+			onDocDownAttached=false;
+		}
 		document.removeEventListener('keydown', _onPickerKeydown, true);
 		cell.classList.remove('picker-target');
 		cell.removeAttribute('data-picker-open');
