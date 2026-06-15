@@ -264,12 +264,42 @@ body{ overflow:hidden; }
 
 /* Person pills slightly larger */
 .person-pill{
+	--person-pill-bg: color-mix(in srgb, var(--bs-primary-bg-subtle) 62%, var(--bs-body-bg) 38%);
+	--person-pill-color: var(--bs-primary-text-emphasis);
+	--person-pill-border: color-mix(in srgb, var(--bs-primary-border-subtle) 70%, var(--bs-body-bg) 30%);
 	display:inline-flex; align-items:center; gap:.25rem;
 	max-width:100%; min-width:0;
 	font-size:calc(11px*var(--font-comp));
 	line-height:1.15; padding:3px 8px; border-radius:.55rem;
-	color:var(--bs-gray-900) !important;
-	transition:gap var(--mode-transition-fast-ms) var(--mode-ease);
+	background:var(--person-pill-bg);
+	border:1px solid var(--person-pill-border);
+	color:var(--person-pill-color);
+	transition:
+		gap var(--mode-transition-fast-ms) var(--mode-ease),
+		background-color var(--mode-transition-fast-ms) var(--mode-ease),
+		border-color var(--mode-transition-fast-ms) var(--mode-ease),
+		color var(--mode-transition-fast-ms) var(--mode-ease);
+}
+.person-pill.text-bg-light,
+.person-pill.text-bg-dark,
+.person-pill.text-bg-warning,
+.person-pill.text-bg-danger{
+	color:var(--person-pill-color) !important;
+}
+.person-pill:hover,
+.person-pill:focus-visible{
+	background:color-mix(in srgb, var(--person-pill-bg) 88%, var(--bs-body-color) 12%);
+}
+.person-pill:focus-visible{
+	outline:2px solid var(--bs-focus-ring-color);
+	outline-offset:1px;
+}
+.person-pill.dragging,
+.person-pill[aria-selected="true"],
+.person-pill.is-selected{
+	background:color-mix(in srgb, var(--bs-primary) 24%, var(--person-pill-bg) 76%);
+	color:var(--bs-primary-text-emphasis);
+	box-shadow:0 0 0 .16rem rgba(var(--bs-primary-rgb), .25);
 }
 .person-pill .pill-name{
 	flex:1 1 auto;
@@ -709,10 +739,17 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 
 /* Person is under training on this station */
 .person-pill.under-training{
-	border:2px dashed var(--bs-orange) !important;
+	--person-pill-border: var(--bs-orange);
+	border:2px dashed var(--person-pill-border);
 }
 .person-pill.pill-warn{
-	box-shadow:inset 0 0 0 2px rgba(var(--bs-danger-rgb), .45);
+	--person-pill-border: color-mix(in srgb, var(--bs-danger) 68%, var(--bs-border-color) 32%);
+	background:color-mix(in srgb, var(--bs-danger-bg-subtle) 54%, var(--person-pill-bg) 46%);
+	color:var(--bs-danger-text-emphasis);
+	box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--person-pill-border) 78%, transparent);
+}
+.person-pill.under-training.pill-warn{
+	--person-pill-border: color-mix(in srgb, var(--bs-orange) 64%, var(--bs-danger) 36%);
 }
 
 /* Untrained (selectable) items appear grey */
