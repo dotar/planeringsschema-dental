@@ -847,7 +847,7 @@ function renderDerivedReport(){
 	document.getElementById('reportLoadSpread').textContent=String(totals.loadSpread||0);
 	document.getElementById('reportLoadStdDev').textContent=(Number(totals.stdDev||0)).toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2});
 	const renderLoadBadges=(rows,emptyText)=>rows.length>0
-		? rows.map(p=>`<span class="badge rounded-pill text-bg-light report-load-badge">${escapeHtml(p.personName)} <span class="text-muted">${p.assignedCount}/${report.workload.totalWorkSlots}</span></span>`).join(' ')
+		? rows.map(p=>`<span class="badge rounded-pill report-load-badge">${escapeHtml(p.personName)} <span class="report-load-badge-count">${p.assignedCount}/${report.workload.totalWorkSlots}</span></span>`).join(' ')
 		: escapeHtml(emptyText);
 	document.getElementById('reportTopLoaded').innerHTML=renderLoadBadges(report.workload.topLoaded,'Inga tilldelningar');
 	document.getElementById('reportLowLoaded').innerHTML=renderLoadBadges(report.workload.lowLoaded,'Ingen närvarande personal');

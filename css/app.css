@@ -1019,8 +1019,18 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	align-items:center;
 }
 #reportModal .report-load-badge{
-	border:1px solid color-mix(in srgb, var(--bs-primary) 14%, var(--bs-border-color));
+	--report-load-badge-bg:color-mix(in srgb, var(--bs-primary-bg-subtle) 48%, var(--bs-body-bg));
+	--report-load-badge-color:var(--bs-primary-text-emphasis);
+	--report-load-badge-border:color-mix(in srgb, var(--bs-primary-text-emphasis) 14%, var(--bs-border-color));
+	--report-load-badge-muted-color:color-mix(in srgb, var(--bs-secondary-color) 82%, var(--bs-body-bg));
+	background:var(--report-load-badge-bg);
+	color:var(--report-load-badge-color);
+	border:1px solid var(--report-load-badge-border);
 	font-weight:600;
+}
+#reportModal .report-load-badge .report-load-badge-count{
+	color:var(--report-load-badge-muted-color);
+	font-weight:500;
 }
 #reportModal .report-microcopy{
 	border-left:3px solid color-mix(in srgb, var(--bs-primary) 42%, transparent);
