@@ -1137,3 +1137,13 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	padding:.05rem .25rem;
 	border-radius:.25rem;
 }
+
+
+.navbar-brand .brand-logo{
+	width:48.188px;
+	height:48.188px;
+	flex:0 0 auto;
+	background-color:currentColor;
+	-webkit-mask:url("../logo.svg") center / contain no-repeat;
+	mask:url("../logo.svg") center / contain no-repeat;
+}
