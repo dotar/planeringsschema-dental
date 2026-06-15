@@ -388,6 +388,38 @@ function timeLess(hm,hm2){return hm.localeCompare(hm2)<0;}
 function getWeekdayCode(d){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];}
 function getNightCutoffFor(factoryId,date){const day=getWeekdayCode(date);const row=DB.weekdaySettings.find(r=>r.factoryId===factoryId&&r.day===day);return row?row.nightEarliest:'21:45';}
 function contrastColor(hex){hex=hex.replace('#','');if(hex.length===3){hex=hex.split('').map(x=>x+x).join('');}const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);const yiq=((r*299)+(g*587)+(b*114))/1000;return yiq>=128?'#000':'#fff';}
+function normalizeHexColor(hex, fallback='#cccccc'){
+	hex = String(hex || fallback).replace('#','').trim();
+	if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+	if(!/^[0-9a-f]{6}$/i.test(hex)) hex = fallback.replace('#','');
+	return `#${hex.toLowerCase()}`;
+}
+
+function mixHexColor(hex, targetHex, t){
+	hex = normalizeHexColor(hex).slice(1);
+	targetHex = normalizeHexColor(targetHex).slice(1);
+	t = Math.max(0, Math.min(1, Number(t) || 0));
+	const src = [0, 2, 4].map(i=>parseInt(hex.slice(i, i + 2), 16));
+	const target = [0, 2, 4].map(i=>parseInt(targetHex.slice(i, i + 2), 16));
+	return `rgb(${src.map((channel, i)=>Math.round(channel + (target[i] - channel) * t)).join(' ')})`;
+}
+
+function contrastColorForRgb(rgb){
+	const channels = String(rgb).match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
+	if(!channels || channels.length < 3) return contrastColor(rgb);
+	const [r, g, b] = channels;
+	const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+	return yiq >= 128 ? '#000' : '#fff';
+}
+
+function getEffectiveBootstrapTheme(){
+	const theme = document.documentElement.getAttribute('data-bs-theme') || 'auto';
+	if(theme === 'auto'){
+		return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+	}
+	return theme;
+}
+
 function lightenToWhite(hex, t){
 	// t in [0..1] — 0 = unchanged, 1 = white
 	hex = (hex||'#cccccc').replace('#','').trim();
@@ -398,6 +430,24 @@ function lightenToWhite(hex, t){
 	g = Math.round(g + (255 - g) * t);
 	b = Math.round(b + (255 - b) * t);
 	return `rgb(${r} ${g} ${b})`;
+}
+
+function getPersonPillPalette(groupColor){
+	const color = normalizeHexColor(groupColor);
+	if(getEffectiveBootstrapTheme() === 'dark'){
+		const background = mixHexColor(color, '#000000', 0.54);
+		return {
+			background,
+			border: mixHexColor(color, '#000000', 0.38),
+			foreground: contrastColorForRgb(background)
+		};
+	}
+	const background = lightenToWhite(color, 0.86);
+	return {
+		background,
+		border: lightenToWhite(color, 0.70),
+		foreground: contrastColorForRgb(background)
+	};
 }
 
 async function sha256(message){const msgUint8=new TextEncoder().encode(message);const hashBuffer=await crypto.subtle.digest('SHA-256',msgUint8);const hashArray=Array.from(new Uint8Array(hashBuffer));return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');}
