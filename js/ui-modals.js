@@ -401,7 +401,7 @@ function getFirstRunTourSteps(){
 			placement:'left',
 			icon:'bi-shuffle',
 			title:'6. Autogenerera planering',
-			body:'Autogenereringen använder valda personalgrupper, stationer och regler för att fylla schemat. Du kan behålla befintliga tilldelningar och prioritera utbildning eller kritiska stationer.',
+			body:'Autogenereringen använder valda personalgrupper, stationer och regler för att fylla schemat. Du kan behålla befintliga tilldelningar, prioritera utbildning eller kritiska stationer och markera valda stationer som prioriterade under autogenerering.',
 			onEnter:()=>openRandomizer(),
 			onLeave:()=>hideTourModal('randomizeModal')
 		},
