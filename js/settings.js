@@ -83,7 +83,7 @@ function renderPersonGroups(){
 				<td class="text-muted grip-col"><i class="bi bi-grip-vertical drag-handle"></i></td>
 				<td><input class="form-control form-control-sm" value="${escapeHtml(p.name)}" data-bind="name" data-id="${p.id}"></td>
 				<td>${groupSelect(p.groupId, p.id)}</td>
-				<td><input type="checkbox" ${p.present?'checked':''} data-bind="present" data-id="${p.id}"></td>
+				<td><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" ${p.present?'checked':''} data-bind="present" data-id="${p.id}" aria-label="Närvarande"></div></td>
 				<td><button class="btn btn-sm btn-outline-secondary" data-action="training" data-id="${p.id}"><i class="bi bi-1-circle"></i></button></td>
 				<td><button class="btn btn-sm btn-outline-danger" data-action="del" data-id="${p.id}"><i class="bi bi-trash"></i></button></td>
 			`;
@@ -325,7 +325,7 @@ function renderStationsByGroup(){
 		stations.forEach(s=>{
 			const tr=document.createElement('tr');tr.draggable=!isRes;tr.dataset.id=s.id;
 			const nameCell = `<div class="d-flex align-items-center gap-2"><input class="form-control form-control-sm" value="${escapeHtml(s.title)}" data-bind="title" data-id="${s.id}">${s.isResurs ? '<span class="badge text-bg-info">Resurs</span>' : ''}</div>`;
-			const opCell = `<input type="checkbox" ${s.operational?'checked':''} data-bind="op" data-role="station-op" data-station-id="${s.id}" data-id="${s.id}">`;
+			const opCell = `<div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" ${s.operational?'checked':''} data-bind="op" data-role="station-op" data-station-id="${s.id}" data-id="${s.id}" aria-label="Operativ"></div>`;
 			const deleteCell = isRes ? '<span class="text-muted">—</span>' : `<button class="btn btn-sm btn-outline-danger" data-id="${s.id}"><i class="bi bi-trash"></i></button>`;
 			tr.innerHTML = `
 				<td class="text-muted">${isRes ? '' : '<i class="bi bi-grip-vertical drag-handle"></i>'}</td>
