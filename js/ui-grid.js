@@ -953,8 +953,9 @@ function buildGrid(){
 		const sts=(grouped[g.id]||[]).sort((a,b)=>a.sort-b.sort);
 		if(sts.length===0)continue;
 		const gh = cellDiv('group-header header-row');
-		gh.style.background = g.color;
-		gh.style.color = contrastColor(g.color);
+		const palette = getGroupHeaderPalette(g.color);
+		gh.style.background = palette.background;
+		gh.style.color = palette.foreground;
 		gh.style.gridColumn = `span ${sts.length}`;
 		gh.innerHTML = `
 			<span class="gh-title">${escapeHtml(g.title)} grupp</span>

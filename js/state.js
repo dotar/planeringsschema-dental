@@ -450,6 +450,17 @@ function getPersonPillPalette(groupColor){
 	};
 }
 
+function getGroupHeaderPalette(groupColor){
+	const color = normalizeHexColor(groupColor);
+	const background = getEffectiveBootstrapTheme() === 'dark'
+		? mixHexColor(color, '#000000', 0.30)
+		: color;
+	return {
+		background,
+		foreground: contrastColorForRgb(background)
+	};
+}
+
 async function sha256(message){const msgUint8=new TextEncoder().encode(message);const hashBuffer=await crypto.subtle.digest('SHA-256',msgUint8);const hashArray=Array.from(new Uint8Array(hashBuffer));return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');}
 function normalize24(val){
 	val=(val||'').replace(/[^0-9]/g,'');
