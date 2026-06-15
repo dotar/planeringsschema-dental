@@ -1727,55 +1727,6 @@ function updatePersonPillTooltip(pill, opts={}){
 }
 
 
-function normalizeHexColor(hex, fallback='#cccccc'){
-	hex = String(hex || fallback).replace('#','').trim();
-	if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
-	if(!/^[0-9a-f]{6}$/i.test(hex)) hex = fallback.replace('#','');
-	return `#${hex.toLowerCase()}`;
-}
-
-function mixHexColor(hex, targetHex, t){
-	hex = normalizeHexColor(hex).slice(1);
-	targetHex = normalizeHexColor(targetHex).slice(1);
-	t = Math.max(0, Math.min(1, Number(t) || 0));
-	const src = [0, 2, 4].map(i=>parseInt(hex.slice(i, i + 2), 16));
-	const target = [0, 2, 4].map(i=>parseInt(targetHex.slice(i, i + 2), 16));
-	return `rgb(${src.map((channel, i)=>Math.round(channel + (target[i] - channel) * t)).join(' ')})`;
-}
-
-function contrastColorForRgb(rgb){
-	const channels = String(rgb).match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
-	if(!channels || channels.length < 3) return contrastColor(rgb);
-	const [r, g, b] = channels;
-	const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-	return yiq >= 128 ? '#000' : '#fff';
-}
-
-function getEffectiveBootstrapTheme(){
-	const theme = document.documentElement.getAttribute('data-bs-theme') || 'auto';
-	if(theme === 'auto'){
-		return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-	}
-	return theme;
-}
-
-function getPersonPillPalette(groupColor){
-	const color = normalizeHexColor(groupColor);
-	if(getEffectiveBootstrapTheme() === 'dark'){
-		const background = mixHexColor(color, '#000000', 0.54);
-		return {
-			background,
-			border: mixHexColor(color, '#000000', 0.38),
-			foreground: contrastColorForRgb(background)
-		};
-	}
-	const background = lightenToWhite(color, 0.86);
-	return {
-		background,
-		border: lightenToWhite(color, 0.70),
-		foreground: contrastColorForRgb(background)
-	};
-}
 
 function addPersonPill(cell, personId){
 	const p = getPlanningPersonById(personId) || { id:personId, name:`Person ${personId}`, groupId:null };
