@@ -114,6 +114,8 @@ function placeOneRandom(station, slot, opts={}){
 
 function roundRobinFill(stations, slot, opts = {}){
 	const dateStr = getSelectedDateStr();
+	const prioritizedStationIds = opts.prioritizedStationIds || new Set();
+	const getPriorityRank = (stationId)=>prioritizedStationIds.has(stationId) ? 0 : 1;
 	const getStationDayLoad = (stationId)=>DB.assignments.filter(a =>
 		a.date===dateStr &&
 		a.dayType===currentDayType &&
@@ -158,6 +160,8 @@ function roundRobinFill(stations, slot, opts = {}){
 
 	// 1) place specialists first
 	specialists.sort((a, b)=>{
+		const priorityDiff = getPriorityRank(a.s.id) - getPriorityRank(b.s.id);
+		if(priorityDiff!==0) return priorityDiff;
 		const loadDiff = getStationDayLoad(a.s.id) - getStationDayLoad(b.s.id);
 		if(loadDiff!==0) return loadDiff;
 		return (stationBaseOrder.get(a.s.id) ?? 0) - (stationBaseOrder.get(b.s.id) ?? 0);
@@ -175,6 +179,8 @@ function roundRobinFill(stations, slot, opts = {}){
 	while(progressed){
 		progressed = false;
 		const stationOrder = stations.slice().sort((a, b)=>{
+			const priorityDiff = getPriorityRank(a.id) - getPriorityRank(b.id);
+			if(priorityDiff!==0) return priorityDiff;
 			if(opts.preferCriticalCoverage !== false){
 				const aSupply = getStationCandidateSupply(a, slot, opts, takenThisSlot, remaining);
 				const bSupply = getStationCandidateSupply(b, slot, opts, takenThisSlot, remaining);
@@ -222,6 +228,8 @@ function roundRobinFill(stations, slot, opts = {}){
 	while(utilizationProgressed){
 		utilizationProgressed = false;
 		const stationOrder = stations.slice().sort((a, b)=>{
+			const priorityDiff = getPriorityRank(a.id) - getPriorityRank(b.id);
+			if(priorityDiff!==0) return priorityDiff;
 			if(opts.preferCriticalCoverage !== false){
 				const aSupply = getStationCandidateSupply(a, slot, {...opts, _skipNextSlotReserve:true}, takenThisSlot, remaining);
 				const bSupply = getStationCandidateSupply(b, slot, {...opts, _skipNextSlotReserve:true}, takenThisSlot, remaining);
@@ -429,6 +437,14 @@ function openRandomizer(){
 	wrapS.innerHTML='';
 
 	const {grouped}=orderedColumns();
+	const priorityStorageKey = `planning.prioritizedStations.${currentFactoryId}`;
+	let savedPriorityStationValues = [];
+	try{
+		savedPriorityStationValues = JSON.parse(localStorage.getItem(priorityStorageKey) || '[]');
+	}catch(_err){
+		savedPriorityStationValues = [];
+	}
+	const savedPrioritizedStationIds = new Set(savedPriorityStationValues.map(parseEntityId));
 	function renderStationSelectionBox({key,label,stations}){
 		if(!stations.length)return;
 
@@ -449,12 +465,22 @@ function openRandomizer(){
 		stations.forEach(s=>{
 			const col=document.createElement('div');
 			col.className='col';
+			const stationId = escapeHtml(s.id);
+			const stationInputId = escapeHtml(`rs${s.id}`);
+			const priorityInputId = escapeHtml(`rsp${s.id}`);
+			const priorityChecked = s.operational && savedPrioritizedStationIds.has(s.id);
 			col.innerHTML=`
 				<div class="form-check">
 					<input class="form-check-input" data-kind="station" data-role="station-op"
-						data-station-id="${s.id}" type="checkbox"
-						value="${escapeHtml(s.id)}" id="${escapeHtml(`rs${s.id}`)}" ${s.operational?'checked':''}>
-					<label class="form-check-label" for="${escapeHtml(`rs${s.id}`)}">${escapeHtml(s.title)}${s.isResurs?' <span class="badge text-bg-info">Resurs</span>':''}</label>
+						data-station-id="${stationId}" type="checkbox"
+						value="${stationId}" id="${stationInputId}" ${s.operational?'checked':''}>
+					<label class="form-check-label" for="${stationInputId}">${escapeHtml(s.title)}${s.isResurs?' <span class="badge text-bg-info">Resurs</span>':''}</label>
+				</div>
+				<div class="form-check ms-4 small text-muted">
+					<input class="form-check-input" data-kind="priority-station"
+						data-station-id="${stationId}" type="checkbox"
+						value="${stationId}" id="${priorityInputId}" ${priorityChecked?'checked':''} ${s.operational?'':'disabled'}>
+					<label class="form-check-label" for="${priorityInputId}">Prioritera</label>
 				</div>
 			`;
 
@@ -477,10 +503,20 @@ function openRandomizer(){
 				const sid=parseEntityId(c.dataset.stationId);
 				setStationOperational(sid, on); // updates DB + both UIs
 			});
+			syncPriorityControls();
 		});
 
-		childChecks.forEach(c=>c.addEventListener('change',syncGroupState));
+		function syncPriorityControls(){
+			box.querySelectorAll('.form-check-input[data-kind="priority-station"]').forEach(p=>{
+				const stationCheck = childChecks.find(c => c.dataset.stationId === p.dataset.stationId);
+				const stationOn = !!stationCheck?.checked;
+				p.disabled = !stationOn;
+				if(!stationOn) p.checked = false;
+			});
+		}
+		childChecks.forEach(c=>c.addEventListener('change',()=>{ syncGroupState(); syncPriorityControls(); }));
 		syncGroupState();
+		syncPriorityControls();
 	}
 
 	order.forEach(tok=>{
@@ -514,6 +550,12 @@ function runRandomizer(){
 	const selectedStationIds = new Set(
 		[...document.querySelectorAll('#randStations input[data-kind="station"]:checked')].map(i => parseEntityId(i.value))
 	);
+	const prioritizedStationIds = new Set(
+		[...document.querySelectorAll('#randStations input[data-kind="priority-station"]:checked')]
+			.map(i => parseEntityId(i.value))
+			.filter(id => selectedStationIds.has(id))
+	);
+	localStorage.setItem(`planning.prioritizedStations.${currentFactoryId}`, JSON.stringify([...prioritizedStationIds]));
 
 	// avoid consecutive toggle (persist)
 	const avoidConsecutive = document.getElementById('avoidConsecutive').checked;
@@ -542,19 +584,26 @@ function runRandomizer(){
 			));
 		}
 
-		// chosen stations: optionally place Resurs stations last
+		// chosen stations: prioritize selected stations while still allowing Resurs stations to run last.
 		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
-		const stationsFirst = fillResursLast ? chosen.filter(s => !s.isResurs) : chosen;
-		const resursStations = fillResursLast ? chosen.filter(s => s.isResurs) : [];
+		const prioritizedNormalStations = chosen.filter(s => !s.isResurs && prioritizedStationIds.has(s.id));
+		const normalStations = chosen.filter(s => !s.isResurs && !prioritizedStationIds.has(s.id));
+		const prioritizedResursStations = chosen.filter(s => s.isResurs && prioritizedStationIds.has(s.id));
+		const normalResursStations = chosen.filter(s => s.isResurs && !prioritizedStationIds.has(s.id));
+		const stationsFirst = fillResursLast
+			? [...prioritizedNormalStations, ...normalStations]
+			: [...prioritizedNormalStations, ...prioritizedResursStations, ...normalStations, ...normalResursStations];
+		const resursStations = fillResursLast ? [...prioritizedResursStations, ...normalResursStations] : [];
+		const randomizerOpts = {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage, prioritizedStationIds};
 
 		// per slot: round-robin across selected stations
 		for(const sl of slots){
-			roundRobinFill(stationsFirst, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+			roundRobinFill(stationsFirst, sl, randomizerOpts);
 		}
 		// then selected Resurs stations (if requested)
 		if(resursStations.length){
 			for(const sl of slots){
-				roundRobinFill(resursStations, sl, {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage});
+				roundRobinFill(resursStations, sl, randomizerOpts);
 			}
 		}
 	});
