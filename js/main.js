@@ -1,4 +1,13 @@
 // Application bootstrap, high-level event wiring, theme handling, and global Bootstrap setup.
+function applySavedTheme(){
+	const saved=localStorage.getItem('planning.theme');
+	if(saved){
+		document.documentElement.setAttribute('data-bs-theme',saved);
+	}
+}
+
+applySavedTheme();
+
 (function init(){
 	const qs=new URLSearchParams(location.search);
 	mode=qs.get('mode')==='edit'?'edit':'viewer';
@@ -218,7 +227,7 @@
 	});
 })();
 
-(function initTheme(){const saved=localStorage.getItem('planning.theme');if(saved){document.documentElement.setAttribute('data-bs-theme',saved);}document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
+(function initTheme(){document.getElementById('themeBtn').addEventListener('click',()=>{const cur=document.documentElement.getAttribute('data-bs-theme')||'auto';const nxt=cur==='light'?'dark':'light';document.documentElement.setAttribute('data-bs-theme',nxt);localStorage.setItem('planning.theme',nxt);rebuildAll();});})();
 
 async function saveAll(){
 	console.log('Saving assignments (mock):',DB.assignments.filter(a=>a.date===getSelectedDateStr()&&a.factoryId===currentFactoryId&&a.dayType===currentDayType));
