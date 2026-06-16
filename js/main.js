@@ -146,6 +146,8 @@
 	document.getElementById('dateInput').addEventListener('change',e=>{currentDate=new Date(e.target.value+'T00:00:00');syncDayChoiceFromDate();syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
 	document.getElementById('btnToday').addEventListener('click',()=>{dayChoice='today';setDateToOffset(0);syncViewerShiftIfNeeded();toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
 	document.getElementById('btnTomorrow').addEventListener('click',()=>{dayChoice='tomorrow';setDateToOffset(1);toggleDayButtons();suggestAndApplyTemplates();resetAssignmentHistory();rebuildAll();});
+	const printBtn=document.getElementById('printBtn');
+	printBtn?.addEventListener('click',()=>window.print());
 	const templateSel=document.getElementById('templateSel');
 	templateSel.classList.add('d-none');
 	templateSel.addEventListener('change',e=>{currentDayType=e.target.value;resetAssignmentHistory();rebuildAll();});
