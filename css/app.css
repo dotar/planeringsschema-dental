@@ -739,17 +739,13 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 
 /* Person is under training on this station */
 .person-pill.under-training{
-	--person-pill-border: var(--bs-orange);
-	border:2px dashed var(--person-pill-border);
+	border:2px dashed var(--bs-orange);
 }
 .person-pill.pill-warn{
 	--person-pill-border: color-mix(in srgb, var(--bs-danger) 68%, var(--bs-border-color) 32%);
 	background:color-mix(in srgb, var(--bs-danger-bg-subtle) 54%, var(--person-pill-bg) 46%);
 	color:var(--bs-danger-text-emphasis);
 	box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--person-pill-border) 78%, transparent);
-}
-.person-pill.under-training.pill-warn{
-	--person-pill-border: color-mix(in srgb, var(--bs-orange) 64%, var(--bs-danger) 36%);
 }
 
 /* Untrained (selectable) items appear grey */
