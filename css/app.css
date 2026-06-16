@@ -1157,13 +1157,13 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	:root{
 		--bs-body-bg:#fff;
 		--bs-body-color:#000;
-		--grid-min-col:minmax(0,1fr);
-		--time-col-w:9mm;
-		--hdr-group-h:5mm;
-		--hdr-station-h:6mm;
-		--row-h:18mm;
-		--row-extra:0px;
-		--font-comp:.62;
+		--grid-min-col:minmax(0,1fr) !important;
+		--time-col-w:8mm !important;
+		--hdr-group-h:4mm !important;
+		--hdr-station-h:5mm !important;
+		--row-h:15mm !important;
+		--row-extra:0px !important;
+		--font-comp:.55 !important;
 	}
 
 	*,*::before,*::after{
@@ -1201,7 +1201,12 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	.first-run-tour-overlay,
 	.btn,
 	.cell-tools,
-	.add-btn{
+	.add-btn,
+	.cell-cap,
+	.slot-unassigned-indicator,
+	.person-pill .pill-icon,
+	.person-pill .pill-remove,
+	.person-pill .pill-name-track{
 		display:none !important;
 	}
 
@@ -1304,6 +1309,7 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 		border:1px solid #999 !important;
 		box-shadow:none !important;
 		overflow:hidden !important;
+		outline:0 !important;
 		break-inside:avoid;
 		page-break-inside:avoid;
 	}
@@ -1331,12 +1337,13 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	}
 
 	.cell.warn,
+	.cell.invalid,
 	.time-cell.slot-unassigned-highlight{
-		background:#fff3cd !important;
+		background:#fff !important;
 	}
 
-	.cell.invalid{
-		background:#f8d7da !important;
+	.time-cell.slot-unassigned-highlight{
+		box-shadow:none !important;
 	}
 
 	.group-header.resurs-col,
@@ -1346,21 +1353,40 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	}
 
 	.person-list{
+		display:block !important;
 		height:auto !important;
-		max-height:14mm !important;
+		max-height:12mm !important;
 		overflow:hidden !important;
-		gap:.8mm !important;
 	}
 
-	.person-pill,
-	.badge{
-		border:1px solid #777 !important;
-		background:#fff !important;
+	.person-pill{
+		display:block !important;
+		max-width:100% !important;
+		padding:0 !important;
+		margin:0 0 .6mm 0 !important;
+		border:0 !important;
+		border-radius:0 !important;
+		background:transparent !important;
 		color:#000 !important;
-		font-size:6pt !important;
+		font-size:5.5pt !important;
+		line-height:1.05 !important;
 	}
 
-	.cell-cap,
+	.person-pill .pill-name,
+	.person-pill .pill-name-static{
+		display:block !important;
+		overflow:hidden !important;
+		text-overflow:ellipsis !important;
+		white-space:nowrap !important;
+	}
+
+	.badge{
+		border:0 !important;
+		background:transparent !important;
+		color:#000 !important;
+		font-size:5.5pt !important;
+	}
+
 	.time-cell .slot-kind{
 		font-size:5pt !important;
 	}
