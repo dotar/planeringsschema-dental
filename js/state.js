@@ -189,10 +189,14 @@ function formatHeaderDateContext(date, shift, dayType){
 }
 
 function updateHeaderContext(){
+	const text=formatHeaderDateContext(currentDate,currentShift,currentDayType);
 	const el=document.getElementById('headerContext');
-	if(!el) return;
-	const strong=el.querySelector('strong');
-	if(strong) strong.textContent=formatHeaderDateContext(currentDate,currentShift,currentDayType);
+	if(el){
+		const strong=el.querySelector('strong');
+		if(strong) strong.textContent=text;
+	}
+	const printEl=document.getElementById('printHeaderContext');
+	if(printEl) printEl.textContent=text;
 }
 
 function cloneDeep(v){
