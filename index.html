@@ -58,6 +58,7 @@
 								<button id="redoBtn" class="btn btn-outline-secondary" type="button" disabled title="Gör om (Ctrl/Cmd+Y / Ctrl/Cmd+Shift+Z)"><i class="bi bi-arrow-clockwise"></i> Gör om</button>
 							</div>
 							<button id="saveBtn" class="btn btn-sm btn-success hide-in-viewer"><i class="bi bi-cloud-upload"></i> Spara</button>
+							<button id="printBtn" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Skriv ut schema" title="Skriv ut schema"><i class="bi bi-printer"></i></button>
 							<button id="settingsBtn" class="btn btn-sm btn-outline-secondary hide-in-viewer" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear"></i> Inställningar</button>
 						</div>
 						<div id="secondaryActionsOverflow" class="dropdown hide-in-viewer">
@@ -74,6 +75,10 @@
 		</nav>
 
 		<div id="app" class="container-fluid">
+			<div id="printHeader" class="print-header" aria-hidden="true">
+				<div class="print-title">Planeringsschema Dental</div>
+				<div id="printHeaderContext" class="print-context"></div>
+			</div>
 			<div id="suggestionAlert" class="alert alert-info py-2 my-2 d-none"></div>
 			<div id="warnAlert" class="alert alert-warning py-2 my-2 d-none"></div>
 			<div id="summaryWarning" class="alert alert-warning py-2 my-2 summary-warning is-collapsed" aria-live="polite">
