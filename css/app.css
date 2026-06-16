@@ -1284,7 +1284,9 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 		position:relative !important;
 		width:100% !important;
 		max-width:100% !important;
-		height:auto !important;
+		height:calc(100vh - 12mm) !important;
+		grid-template-rows:var(--hdr-group-h) var(--hdr-station-h) !important;
+		grid-auto-rows:minmax(0,1fr) !important;
 		overflow:hidden !important;
 		background:#fff !important;
 		color:#000 !important;
@@ -1304,14 +1306,20 @@ html[data-mode="viewer"]:not(.mode-ready) .navbar .hide-in-viewer{
 	.station-header{
 		min-width:0 !important;
 		min-height:0 !important;
-		background:#fff !important;
 		color:#000 !important;
 		border:1px solid #999 !important;
+		border-radius:0 !important;
 		box-shadow:none !important;
 		overflow:hidden !important;
 		outline:0 !important;
 		break-inside:avoid;
 		page-break-inside:avoid;
+	}
+
+	.cell,
+	.time-cell,
+	.station-header{
+		background:#fff !important;
 	}
 
 	.group-header{
