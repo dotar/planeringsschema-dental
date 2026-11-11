@@ -74,10 +74,25 @@ function schemaCheckUniqueIds(rows, label, issues, pathPrefix){
 	return ids;
 }
 
-function schemaCheckEntityRows(data, issues, pathPrefix='DB'){
+function schemaBuildAssignmentPersonLookup(datasets){
+	const lookup=new Map();
+	for(const data of datasets){
+		if(!Array.isArray(data?.persons)) continue;
+		for(const person of data.persons){
+			if(!person || !schemaIsEntityId(person.id)) continue;
+			const key=String(person.id);
+			if(!lookup.has(key)) lookup.set(key,new Set());
+			lookup.get(key).add(String(person.factoryId));
+		}
+	}
+	return lookup;
+}
+
+function schemaCheckEntityRows(data, issues, pathPrefix='DB', assignmentPeople=schemaBuildAssignmentPersonLookup([data])){
 	const factoryIds=schemaCheckUniqueIds(data.factories,'factories',issues,`${pathPrefix}.factories`);
 	const stationIds=schemaCheckUniqueIds(data.stations,'stations',issues,`${pathPrefix}.stations`);
 	const personIds=schemaCheckUniqueIds(data.persons,'persons',issues,`${pathPrefix}.persons`);
+	const stationsById=new Map(data.stations.filter(Boolean).map(s=>[String(s.id),s]));
 
 	schemaCheckRequiredKeys(data.factories,['id','title'],issues,`${pathPrefix}.factories`);
 	schemaCheckRequiredKeys(data.stations,['id','factoryId','title','defaultCapacity','operational','sort'],issues,`${pathPrefix}.stations`);
@@ -111,11 +126,23 @@ function schemaCheckEntityRows(data, issues, pathPrefix='DB'){
 	}
 	if(Array.isArray(data.assignments)){
 		data.assignments.forEach((row,index)=>{
-			if(row && schemaIsEntityId(row.personId) && !personIds.has(String(row.personId))){
+			if(!row) return;
+			const rowPath=`${pathPrefix}.assignments[${index}]`;
+			if(schemaIsEntityId(row.factoryId) && !factoryIds.has(String(row.factoryId))){
+				schemaAddIssue(issues,'UNKNOWN_FACTORY',`${rowPath} pekar på okänd factoryId "${row.factoryId}".`,`${rowPath}.factoryId`,{factoryId:row.factoryId});
+			}
+			// Assignments may borrow known people from other shifts in this factory.
+			// Training remains local above; placement eligibility is checked by the UI.
+			const personFactories=assignmentPeople.get(String(row.personId));
+			if(schemaIsEntityId(row.personId) && !personFactories){
 				schemaAddIssue(issues,'UNKNOWN_PERSON',`${pathPrefix}.assignments[${index}] pekar på okänd personId "${row.personId}".`,`${pathPrefix}.assignments[${index}].personId`,{personId:row.personId});
+			}else if(personFactories && !personFactories.has(String(row.factoryId))){
+				schemaAddIssue(issues,'FACTORY_MISMATCH',`${rowPath} pekar på en person i en annan fabrik.`,`${rowPath}.personId`,{personId:row.personId,factoryId:row.factoryId});
 			}
 			if(row && schemaIsEntityId(row.stationId) && !stationIds.has(String(row.stationId))){
 				schemaAddIssue(issues,'UNKNOWN_STATION',`${pathPrefix}.assignments[${index}] pekar på okänd stationId "${row.stationId}".`,`${pathPrefix}.assignments[${index}].stationId`,{stationId:row.stationId});
+			}else if(stationsById.has(String(row.stationId)) && String(stationsById.get(String(row.stationId)).factoryId)!==String(row.factoryId)){
+				schemaAddIssue(issues,'FACTORY_MISMATCH',`${rowPath} pekar på en station i en annan fabrik.`,`${rowPath}.stationId`,{stationId:row.stationId,factoryId:row.factoryId});
 			}
 		});
 	}
@@ -126,8 +153,9 @@ function assertDbShape(data,{context='DB',requireShiftData=false,shift=null}={})
 	if(!data || typeof data!=='object' || Array.isArray(data)){
 		schemaAddIssue(issues,'INVALID_DB','DB måste vara ett objekt.','DB',{actual:schemaTypeOf(data)});
 	}else{
+		const assignmentPeople=schemaBuildAssignmentPersonLookup([data,...SCHEMA_SHIFTS.map(key=>data.shiftData?.[key])]);
 		for(const key of SCHEMA_TOP_ARRAYS) schemaAssertArray(data,key,issues,'DB');
-		if(SCHEMA_TOP_ARRAYS.every(key=>Array.isArray(data[key]))) schemaCheckEntityRows(data,issues,'DB');
+		if(SCHEMA_TOP_ARRAYS.every(key=>Array.isArray(data[key]))) schemaCheckEntityRows(data,issues,'DB',assignmentPeople);
 
 		if(requireShiftData || data.shiftData!==undefined){
 			if(!data.shiftData || typeof data.shiftData!=='object' || Array.isArray(data.shiftData)){
@@ -150,7 +178,7 @@ function assertDbShape(data,{context='DB',requireShiftData=false,shift=null}={})
 						assignments:shiftData.assignments
 					};
 					if(SCHEMA_SHIFT_ARRAYS.every(key=>Array.isArray(shiftData[key])) && Array.isArray(data.factories) && Array.isArray(data.stations)){
-						schemaCheckEntityRows(merged,issues,shiftPath);
+						schemaCheckEntityRows(merged,issues,shiftPath,assignmentPeople);
 					}
 				}
 			}

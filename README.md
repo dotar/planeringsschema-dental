@@ -145,11 +145,14 @@ Validate the raw mock data and reconciliation helper with Node:
 ~~~bash
 node scripts/validate-mockdata.js
 node --test scripts/scheduling-calculations.test.js
+node --test scripts/assignment-state.test.js
 ~~~
 
 The scheduling regression suite covers cross-shift qualifications, closed-station staffing, rotation across breaks, counting units, generation, and full/partial validation. No test dependencies are required.
 
 The mock-data check verifies that raw training rows do not reference missing people or stations, then confirms reconciliation remains clean.
+
+The assignment tests exercise real state, history, generation, deletion, and schema code with rendering stubbed out. Shift datasets own their arrays; runtime edits must mutate those arrays in place so the active `DB` aliases stay connected. Deleting a person, station, group, or time slot clears assignment undo/redo because that history cannot restore deleted settings. Shared-station deletions clean dependent assignments and training in every shift.
 
 ### Browser regression checklist
 
@@ -160,6 +163,9 @@ Serve the app locally and use Coordinator mode. Use temporary in-memory fixtures
 - Repeat a person/station across a break, then move or remove an assignment and undo/redo. The later cell and report event must update immediately; an intervening work period prevents a repetition.
 - Generate with training and rotation avoidance enabled, including retained future assignments. No closed station is filled and both work-period neighbors are checked.
 - Switch date, factory, shift, and day type; verify isolation and Viewer warning preferences. Check the console for errors.
+- Generate, remove a person, switch shifts and return using both header and settings selectors; verify the person stays removed. Repeat with picker placement, drag-and-drop, remove/add, and undo/redo. Context changes must clear history without reversing the final edit.
+- Generate with **Behåll befintliga tilldelningar** enabled and disabled; check another factory/date, Friday, and day/evening weekend overtime remain separate.
+- Save training and delete a person, station, group/resource group, and time slot. Confirm deletions clear history, cancellations preserve it, and shared-station references are cleaned across shifts.
 
 Acceptance fixture: one operational station with capacity one across two work periods, a qualified borrowed person in both periods, and one assignment at a closed station. Expect **2/2 assigned, 100% coverage, zero untrained assignments, one rotation event, and one separately flagged closed-station assignment**. Empty closed cells have no staffing warning. Summary counts remain unique affected cells; report counts retain their individual units.
 

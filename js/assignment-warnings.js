@@ -11,7 +11,8 @@ function formatUnassignedTooltipText(names){
 function getAutoGenerateUnassignedBySlot(){
 	if(!lastAutoGenerateContext) return null;
 	const dateStr=getSelectedDateStr();
-	if(lastAutoGenerateContext.factoryId!==currentFactoryId ||
+	if(lastAutoGenerateContext.shift!==currentShift ||
+		lastAutoGenerateContext.factoryId!==currentFactoryId ||
 		lastAutoGenerateContext.dayType!==currentDayType ||
 		lastAutoGenerateContext.date!==dateStr){
 		return null;
