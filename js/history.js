@@ -57,16 +57,7 @@ function addAssignmentRow(row,{record=true}={}){
 }
 
 function removeAssignmentsWhere(predicate,{record=true}={}){
-	const removed=[];
-	const kept=[];
-	for(const row of DB.assignments){
-		if(predicate(row)){
-			removed.push(row);
-		}else{
-			kept.push(row);
-		}
-	}
-	DB.assignments=kept;
+	const removed=removeRowsInPlace(DB.assignments,predicate);
 	if(record){
 		removed.forEach(row=>recordAssignmentDiff('removed', row));
 	}

@@ -203,6 +203,88 @@ function cloneDeep(v){
 	return JSON.parse(JSON.stringify(v));
 }
 
+// Shift datasets own their collections. Runtime edits must preserve their identity:
+// the top-level DB fields are aliases, rebound only by setShift() after setup.
+function removeRowsInPlace(rows, predicate){
+	const kept=[];
+	const removed=[];
+	for(const row of rows){
+		(predicate(row) ? removed : kept).push(row);
+	}
+	if(removed.length){
+		for(let i=0;i<kept.length;i++) rows[i]=kept[i];
+		rows.length=kept.length;
+	}
+	return removed;
+}
+
+// Structural cleanup is independent of the UI and assignment history. Settings
+// establishes a history boundary only after one of these helpers changes data.
+function removePlanningPersons(data, factoryId, personIds){
+	const removed=removeRowsInPlace(data.persons,p=>p.factoryId===factoryId && personIds.has(p.id));
+	if(!removed.length) return false;
+	const removedIds=new Set(removed.map(p=>p.id));
+	removeRowsInPlace(data.training,t=>removedIds.has(t.personId));
+	removeRowsInPlace(data.compatibility,c=>removedIds.has(c.a) || removedIds.has(c.b));
+	removeRowsInPlace(data.assignments,a=>a.factoryId===factoryId && removedIds.has(a.personId));
+	const datasets=Object.values(DB.shiftData);
+	const survivingIds=new Set(datasets.flatMap(d=>d.persons.filter(p=>p.factoryId===factoryId).map(p=>p.id)));
+	for(const other of datasets){
+		if(other===data) continue;
+		removeRowsInPlace(other.assignments,a=>a.factoryId===factoryId && removedIds.has(a.personId) && !survivingIds.has(a.personId));
+	}
+	return true;
+}
+
+function deletePlanningPerson(shift, factoryId, personId){
+	const data=DB.shiftData?.[shift];
+	return data ? removePlanningPersons(data,factoryId,new Set([personId])) : false;
+}
+
+function deletePlanningStations(factoryId, stationIds){
+	const requestedIds=new Set(stationIds);
+	const removed=removeRowsInPlace(DB.stations,s=>s.factoryId===factoryId && requestedIds.has(s.id));
+	if(!removed.length) return false;
+	const removedIds=new Set(removed.map(s=>s.id));
+	const hasLegacyResurs=DB.stations.some(s=>s.factoryId===factoryId && s.isResurs && s.groupId==null);
+	for(const data of Object.values(DB.shiftData)){
+		removeRowsInPlace(data.assignments,a=>a.factoryId===factoryId && removedIds.has(a.stationId));
+		removeRowsInPlace(data.training,t=>removedIds.has(t.stationId));
+		if(!hasLegacyResurs && Array.isArray(data.groupDisplayOrder[factoryId])){
+			removeRowsInPlace(data.groupDisplayOrder[factoryId],token=>token==='resurs');
+		}
+	}
+	return true;
+}
+
+function deletePlanningGroup(shift, factoryId, groupId){
+	const data=DB.shiftData?.[shift];
+	const group=data?.groups.find(g=>g.factoryId===factoryId && g.id===groupId);
+	if(!group) return false;
+	const stationIds=DB.stations
+		.filter(s=>s.factoryId===factoryId && s.groupId===groupId && (!group.isResursGroup || s.isResurs))
+		.map(s=>s.id);
+	if(!group.isResursGroup){
+		const personIds=new Set(data.persons.filter(p=>p.factoryId===factoryId && p.groupId===groupId).map(p=>p.id));
+		removePlanningPersons(data,factoryId,personIds);
+	}
+	deletePlanningStations(factoryId,stationIds);
+	removeRowsInPlace(data.groups,g=>g===group);
+	if(Array.isArray(data.groupDisplayOrder[factoryId])){
+		removeRowsInPlace(data.groupDisplayOrder[factoryId],token=>token===groupId);
+	}
+	return true;
+}
+
+function deletePlanningTimeSlot(shift, factoryId, timeSlotId){
+	const data=DB.shiftData?.[shift];
+	const slot=data?.timeSlots.find(s=>s.factoryId===factoryId && String(s.id)===String(timeSlotId));
+	if(!slot) return false;
+	removeRowsInPlace(data.timeSlots,s=>s===slot);
+	removeRowsInPlace(data.assignments,a=>a.factoryId===factoryId && a.dayType===slot.dayType && String(a.timeSlotId)===String(slot.id));
+	return true;
+}
+
 function buildShiftSpecificTimeSlots(baseTimeSlots, shift){
 	const slots=cloneDeep(baseTimeSlots||[]);
 	if(shift!=='evening') return slots;

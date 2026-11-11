@@ -602,6 +602,7 @@ function runRandomizer(){
 	});
 
 	lastAutoGenerateContext={
+		shift:currentShift,
 		factoryId:currentFactoryId,
 		dayType:currentDayType,
 		date:getSelectedDateStr(),

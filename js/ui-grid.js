@@ -1275,7 +1275,7 @@ function movePersonTo(cell, station, slot, personId){
 	withAssignmentHistoryAction('Flytta person', ()=>{
 		// Move semantics: remove existing assignment/pill for this person in this slot
 		const removed=removeAssignmentsWhere(a =>
-			(a.date===dateStr && a.personId===personId && String(a.timeSlotId)===String(slot.id) && a.dayType===currentDayType)
+			(a.factoryId===currentFactoryId && a.date===dateStr && a.personId===personId && String(a.timeSlotId)===String(slot.id) && a.dayType===currentDayType)
 		);
 		document.querySelectorAll(
 			`.cell[data-slot-id="${CSS.escape(String(slot.id))}"] .person-pill[data-person-id="${escapeDataId(personId)}"]`
@@ -1697,6 +1697,7 @@ function removePersonPill(cell,personId){
 		const slotId=cell.dataset.slotId;
 		const stationId=parseEntityId(cell.dataset.stationId);
 		const removed=removeAssignmentsWhere(a=>(
+			a.factoryId===currentFactoryId &&
 			a.date===dateStr &&
 			String(a.timeSlotId)===String(slotId) &&
 			a.stationId===stationId &&

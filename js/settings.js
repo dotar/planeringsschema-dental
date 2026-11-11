@@ -20,9 +20,19 @@ function renderSettingsInfoTexts(){
 function renderSettings(){syncInactivitySettingInput();syncViewerShiftLeadSettingInput();syncViewerEditSettingInput();syncViewerWarningsSettingInput();syncCoordAutoLogoutInput();renderSettingsInfoTexts();renderPersonGroups();renderGroupTable();renderStationsByGroup();renderSlotEditor();renderConstraintTable();}
 
 function rebuildAfterSettingsMutation(context){
-	const diagnostics=validateDbShape(DB, { context, requireShiftData: true, shift: currentShift });
+	const diagnostics=validateDbShape(DB, { context, requireShiftData: true });
 	if(diagnostics && diagnostics.ok) rebuildAll();
 	return diagnostics;
+}
+
+function finishSettingsDeletion(changed, context){
+	if(!changed) return false;
+	// Assignment-only history cannot restore deleted settings or their dependencies.
+	resetAssignmentHistory();
+	lastAutoGenerateContext=null;
+	renderSettings();
+	rebuildAfterSettingsMutation(context);
+	return true;
 }
 
 function renderPersonGroups(){
@@ -148,12 +158,7 @@ function renderPersonGroups(){
 	wrap.querySelectorAll('button[data-action="del"]').forEach(b=>
 		b.addEventListener('click',()=>{
 			const id = parseEntityId(b.dataset.id);
-			withAssignmentHistoryAction('Ta bort person', ()=>{
-				removeAssignmentsWhere(a=>a.personId===id);
-				DB.training = DB.training.filter(t=>t.personId!==id);
-				DB.persons = DB.persons.filter(p=>p.id!==id);
-			});
-			renderPersonGroups(); rebuildAfterSettingsMutation('settings person delete');
+			finishSettingsDeletion(deletePlanningPerson(currentShift,currentFactoryId,id),'settings person delete');
 		})
 	);
 	wrap.querySelectorAll('button[data-action="add"]').forEach(b=>
@@ -244,13 +249,7 @@ function renderGroupTable(){
 			okClass: 'btn-danger'
 		});
 		if(!ok) return;
-		DB.assignments = DB.assignments.filter(a => a.stationId !== station.id);
-		DB.training = DB.training.filter(t => t.stationId !== station.id);
-		DB.stations = DB.stations.filter(s => s.id !== station.id);
-		DB.groupDisplayOrder[currentFactoryId] = (DB.groupDisplayOrder[currentFactoryId] || []).filter(tok => tok !== 'resurs');
-		renderGroupTable();
-		renderStationsByGroup();
-		rebuildAfterSettingsMutation('settings resurs group delete');
+		finishSettingsDeletion(deletePlanningStations(currentFactoryId,[station.id]),'settings resurs group delete');
 	}));
 
 	tb.querySelectorAll('button.btn-outline-danger:not([data-action])').forEach(b => b.addEventListener('click', async () => {
@@ -270,29 +269,7 @@ function renderGroupTable(){
 			okClass: 'btn-danger'
 		});
 		if(!ok) return;
-
-		// collect ids for cleanup
-		const stationIds = new Set(stationsIn.map(s => s.id));
-		const personIds  = new Set(personsIn.map(p => p.id));
-
-		// remove assignments & training that reference them
-		DB.assignments = DB.assignments.filter(a => !(stationIds.has(a.stationId) || personIds.has(a.personId)));
-		DB.training    = DB.training.filter(t => !(stationIds.has(t.stationId) || personIds.has(t.personId)));
-
-		// remove stations & persons
-		DB.stations = DB.stations.filter(s => !stationIds.has(s.id));
-		DB.persons  = DB.persons.filter(p => !personIds.has(p.id));
-
-		// finally remove the group and from the display order
-		DB.groups = DB.groups.filter(gr => gr.id !== id);
-		DB.groupDisplayOrder[currentFactoryId] =
-			(DB.groupDisplayOrder[currentFactoryId] || []).filter(tok => tok === 'resurs' || tok !== id);
-
-		// refresh all affected UIs (this also fixes the stale "Personal" card)
-		renderGroupTable();
-		renderStationsByGroup();
-		renderPersonGroups();
-		rebuildAfterSettingsMutation('settings group delete');
+		finishSettingsDeletion(deletePlanningGroup(currentShift,currentFactoryId,id),'settings group delete');
 	}));
 
 
@@ -380,12 +357,7 @@ function renderStationsByGroup(){
 				okClass:'btn-danger'
 			});
 			if(!ok) return;
-			withAssignmentHistoryAction('Ta bort station', ()=>{
-				removeAssignmentsWhere(a=>a.stationId===id);
-				DB.training=DB.training.filter(t=>t.stationId!==id);
-				DB.stations=DB.stations.filter(s=>s.id!==id);
-			});
-			renderStationsByGroup(); rebuildAfterSettingsMutation('settings station delete');
+			finishSettingsDeletion(deletePlanningStations(currentFactoryId,[id]),'settings station delete');
 		}));
 
 	}
@@ -456,11 +428,7 @@ function renderSlotEditor(){
 			okClass:'btn-danger'
 		});
 		if(!ok) return;
-		withAssignmentHistoryAction('Ta bort tidsintervall', ()=>{
-			removeAssignmentsWhere(a=>String(a.timeSlotId)===String(id));
-			DB.timeSlots=DB.timeSlots.filter(s=>String(s.id)!==String(id));
-		});
-		renderSlotEditor(); rebuildAfterSettingsMutation('settings slot delete');
+		finishSettingsDeletion(deletePlanningTimeSlot(currentShift,currentFactoryId,id),'settings slot delete');
 	}));
 
 }
@@ -733,7 +701,7 @@ function editTraining(personId){
 
 	// Save handler
 	dlg.querySelector('.btn-primary').addEventListener('click', () => {
-		DB.training = DB.training.filter(t => t.personId !== personId);
+		removeRowsInPlace(DB.training,t=>t.personId===personId);
 		dlg.querySelectorAll('input[data-station-id]').forEach(ch => {
 			if(ch.checked) DB.training.push({ personId, stationId: parseEntityId(ch.dataset.stationId) });
 		});
