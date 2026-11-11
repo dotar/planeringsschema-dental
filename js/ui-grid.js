@@ -502,11 +502,9 @@ function orderedColumns(){const order=getNormalizedGroupOrder(currentFactoryId);
 
 function rebuildAll(){
 	return runMeasured('rebuildAll', ()=>{
-		buildGrid();
+		buildGrid(evaluateCurrentSchedule());
 		setupTooltips();
 		fitToViewport();
-		renderSummaryPanel();
-		renderDerivedReport();
 		window.addEventListener('resize', fitToViewport);
 	});
 }
@@ -521,57 +519,25 @@ function hideSummaryInfoTooltip(){
 	bootstrap.Tooltip.getInstance(btn)?.hide();
 }
 
-function computeSummaryMetrics(){
-	const dateStr=getSelectedDateStr();
-	const slots=DB.timeSlots
-		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType)
-		.sort((a,b)=>a.sort-b.sort);
-	const stationById=new Map(DB.stations.filter(s=>s.factoryId===currentFactoryId).map(s=>[String(s.id),s]));
-	const rows=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
-	const byCell=new Map();
-	rows.forEach(a=>{
-		const key=`${a.stationId}:${a.timeSlotId}`;
-		const arr=byCell.get(key)||[];
-		arr.push(a.personId);
-		byCell.set(key,arr);
+function computeSummaryMetrics(evaluation=evaluateCurrentSchedule()){
+	const details=evaluation.cells.map(cell=>{
+		const {station, slot}=cell;
+		const row={slotId:String(slot.id), slotLabel:`${slot.start}–${slot.end}`,
+			stationId:String(station.id), stationTitle:station.title, required:cell.required, assigned:cell.assigned,
+			untrainedAssigned:cell.untrainedRows.length, absentAssigned:cell.absentRows.length,
+			compatibilityConflicts:cell.compatibilityPairs.length, capacityIssue:cell.capacityIssue,
+			trainingIssue:cell.untrainedRows.length>0, compatibilityIssue:cell.compatibilityPairs.length>0,
+			absentIssue:cell.absentRows.length>0, rotationIssue:cell.rotationEvents.length>0,
+			nonoperationalIssue:cell.nonoperationalIssue};
+		row.hasIssue=row.capacityIssue || row.trainingIssue || row.compatibilityIssue || row.absentIssue || row.rotationIssue || row.nonoperationalIssue;
+		return row;
 	});
-	const details=[];
-	let totals={required:0,assigned:0,capacityCells:0,trainingCells:0,compatibilityCells:0,absentCells:0,absentAssignments:0,affectedCells:0};
-	for(const slot of slots){
-		for(const station of stationById.values()){
-			const required=slot.type==='Work' ? (station.defaultCapacity||1) : 0;
-			const people=(byCell.get(`${station.id}:${slot.id}`)||[]);
-			const assigned=people.length;
-			const untrainedAssigned=people.filter(pid=>!isPersonTrainedForStation(pid, station.id)).length;
-			const absentAssigned=people.filter(pid=>{
-				const person=getPlanningPersonById(pid, currentFactoryId);
-				return !!person && !person.present;
-			}).length;
-			let conflicts=0;
-			for(let i=0;i<people.length;i++){
-				for(let j=i+1;j<people.length;j++){
-					if(isIncompatible(people[i], people[j])) conflicts++;
-				}
-			}
-			const capacityIssue=assigned!==required;
-			const trainingIssue=assigned>0 && untrainedAssigned>0;
-			const compatibilityIssue=conflicts>0;
-			const absentIssue=absentAssigned>0;
-			const hasIssue=capacityIssue||trainingIssue||compatibilityIssue||absentIssue;
-			const row={slotId:String(slot.id),slotLabel:`${slot.start}–${slot.end}`,stationId:String(station.id),stationTitle:station.title,required,assigned,untrainedAssigned,absentAssigned,compatibilityConflicts:conflicts,capacityIssue,trainingIssue,compatibilityIssue,absentIssue,hasIssue};
-			details.push(row);
-			if(!hasIssue) continue;
-			totals.affectedCells++;
-			if(capacityIssue) totals.capacityCells++;
-			if(trainingIssue) totals.trainingCells++;
-			if(compatibilityIssue) totals.compatibilityCells++;
-			if(absentIssue) totals.absentCells++;
-			if(absentAssigned>0) totals.absentAssignments+=absentAssigned;
-		}
-	}
-	totals.required=details.reduce((s,x)=>s+x.required,0);
-	totals.assigned=details.reduce((s,x)=>s+x.assigned,0);
-	return {details,totals};
+	const count=flag=>details.filter(row=>row[flag]).length;
+	return {details, totals:{required:evaluation.coverage.required, assigned:evaluation.coverage.assigned,
+		capacityCells:count('capacityIssue'), trainingCells:count('trainingIssue'),
+		compatibilityCells:count('compatibilityIssue'), absentCells:count('absentIssue'),
+		rotationCells:count('rotationIssue'), nonoperationalCells:count('nonoperationalIssue'),
+		absentAssignments:details.reduce((sum,row)=>sum+row.absentAssigned,0), affectedCells:count('hasIssue')}};
 }
 
 function getSummaryMatches(metric){
@@ -581,6 +547,8 @@ function getSummaryMatches(metric){
 		if(metric==='training') return r.trainingIssue;
 		if(metric==='compatibility') return r.compatibilityIssue;
 		if(metric==='presence') return r.absentIssue;
+		if(metric==='rotation') return r.rotationIssue;
+		if(metric==='nonoperational') return r.nonoperationalIssue;
 		return r.hasIssue;
 	});
 }
@@ -615,7 +583,7 @@ function scheduleSummaryWarningRefit(durationMs=320){
 	summaryWarningRefitRafId=requestAnimationFrame(tick);
 }
 
-function renderSummaryPanel(){
+function renderSummaryPanel(evaluation=null){
 	return runMeasured('renderSummaryPanel', ()=>{
 	const warnBox=document.getElementById('summaryWarning');
 	const warnText=document.getElementById('summaryWarningText');
@@ -629,7 +597,7 @@ function renderSummaryPanel(){
 		hideSummaryInfoTooltip();
 		return;
 	}
-	summaryData=computeSummaryMetrics();
+	summaryData=computeSummaryMetrics(evaluation || evaluateCurrentSchedule());
 	const filterBar=document.getElementById('summaryFilterBar');
 	const totals=summaryData.totals;
 	const shouldHide=totals.affectedCells===0;
@@ -658,6 +626,8 @@ function renderSummaryPanel(){
 	if(totals.capacityCells>0) btns.push({metric:'capacity',label:`Kapacitet (${totals.capacityCells})`,cls:'btn-outline-danger'});
 	if(totals.trainingCells>0) btns.push({metric:'training',label:`Utbildning (${totals.trainingCells})`,cls:'btn-outline-warning'});
 	if(totals.compatibilityCells>0) btns.push({metric:'compatibility',label:`Kompatibilitet (${totals.compatibilityCells})`,cls:'btn-outline-info'});
+	if(totals.rotationCells>0) btns.push({metric:'rotation',label:`Dubbelpass (${totals.rotationCells})`,cls:'btn-outline-danger'});
+	if(totals.nonoperationalCells>0) btns.push({metric:'nonoperational',label:`Icke-operativ (${totals.nonoperationalCells})`,cls:'btn-outline-warning'});
 	if(totals.absentCells>0) btns.push({metric:'presence',label:`Frånvarande (${totals.absentCells})`,cls:'btn-outline-danger'});
 	filterBar.innerHTML=btns.map(x=>`<button type="button" class="btn btn-sm ${x.cls} summary-filter-btn" data-metric="${x.metric}">${x.label}</button>`).join('');
 	filterBar.querySelectorAll('.summary-filter-btn').forEach(btn=>{
@@ -668,122 +638,54 @@ function renderSummaryPanel(){
 	});
 }
 
-function computeDerivedReportMetrics(){
-	const dateStr=getSelectedDateStr();
-	const slots=DB.timeSlots
-		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
-		.sort((a,b)=>a.sort-b.sort);
-	const stations=DB.stations.filter(s=>s.factoryId===currentFactoryId&&s.operational!==false);
-	const groupsById=new Map(DB.groups.filter(g=>g.factoryId===currentFactoryId).map(g=>[String(g.id),g]));
+function computeDerivedReportMetrics(evaluation=evaluateCurrentSchedule()){
+	const {context, workSlots:slots}=evaluation;
+	const dateStr=context.date;
+	const groupsById=new Map(DB.groups.filter(g=>String(g.factoryId)===String(context.factoryId)).map(g=>[String(g.id),g]));
 	const totalWorkSlots=slots.length;
-	const assignments=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
-	const stationById=new Map(stations.map(s=>[String(s.id),s]));
-	const slotById=new Map(slots.map(s=>[String(s.id),s]));
-	const trainingSet=new Set((DB.training||[]).map(t=>`${t.personId}:${t.stationId}`));
-
-	const byStationSlot=new Map();
-	for(const row of assignments){
-		if(!stationById.has(String(row.stationId))) continue;
-		const key=`${row.stationId}:${row.timeSlotId}`;
-		const arr=byStationSlot.get(key)||[];
-		arr.push(row.personId);
-		byStationSlot.set(key,arr);
-	}
-
-	const stationStats=[];
-	let totalRequired=0;
-	let totalAssigned=0;
-	let untrainedAssignments=0;
-	let understaffedCellCount=0;
-	for(const station of stations){
-		let stationRequired=0;
-		let stationAssigned=0;
-		let stationUntrained=0;
-		let understaffedSlots=0;
-		for(const slot of slots){
-			const required=Math.max(0, Number(station.defaultCapacity||0));
-			const people=byStationSlot.get(`${station.id}:${slot.id}`)||[];
-			const assigned=people.length;
-			const untrained=people.filter(pid=>!trainingSet.has(`${pid}:${station.id}`)).length;
-			stationRequired+=required;
-			stationAssigned+=assigned;
-			stationUntrained+=untrained;
-			if(assigned<required){
-				understaffedSlots++;
-				understaffedCellCount++;
-			}
-		}
-		totalRequired+=stationRequired;
-		totalAssigned+=stationAssigned;
-		untrainedAssignments+=stationUntrained;
-		if(stationRequired>0 || stationAssigned>0){
-			stationStats.push({
-				stationId:String(station.id),
-				stationTitle:station.title,
-				groupTitle:groupsById.get(String(station.groupId))?.title || 'Övrigt',
-				required:stationRequired,
-				assigned:stationAssigned,
-				untrained:stationUntrained,
-				understaffedSlots,
-				totalWorkSlots,
-				coveragePct:stationRequired>0 ? (stationAssigned/stationRequired)*100 : 0
-			});
-		}
-	}
-
-	let conflictCount=0;
+	const workCells=evaluation.cells.filter(cell=>cell.slot.type==='Work');
+	const {assigned:totalAssigned, required:totalRequired}=evaluation.coverage;
+	const untrainedAssignments=workCells.reduce((sum,cell)=>sum+cell.untrainedRows.length,0);
+	const understaffedCellCount=workCells.filter(cell=>cell.understaffed).length;
+	const stationStats=evaluation.stations.filter(station=>station.operational!==false).map(station=>{
+		const cells=workCells.filter(cell=>String(cell.station.id)===String(station.id));
+		const required=cells.reduce((sum,cell)=>sum+cell.required,0);
+		const assigned=cells.reduce((sum,cell)=>sum+cell.assigned,0);
+		return {stationId:String(station.id), stationTitle:station.title,
+			groupTitle:groupsById.get(String(station.groupId))?.title || 'Övrigt', required, assigned,
+			untrained:cells.reduce((sum,cell)=>sum+cell.untrainedRows.length,0),
+			understaffedSlots:cells.filter(cell=>cell.understaffed).length, totalWorkSlots,
+			coveragePct:required>0 ? (assigned/required)*100 : 0};
+	}).filter(station=>station.required>0 || station.assigned>0);
+	const personName=personId=>evaluation.personById.get(String(personId))?.name || `Person ${personId}`;
 	const conflictDetails=[];
-
-	for(const slot of slots){
-		for(const station of stations){
-			const people=(byStationSlot.get(`${station.id}:${slot.id}`)||[]);
-			for(let i=0;i<people.length;i++){
-				for(let j=i+1;j<people.length;j++){
-					if(!isIncompatible(people[i], people[j])) continue;
-					const personA=getPlanningPersonById(people[i], currentFactoryId)?.name || `Person ${people[i]}`;
-					const personB=getPlanningPersonById(people[j], currentFactoryId)?.name || `Person ${people[j]}`;
-					conflictCount++;
-					conflictDetails.push({
-						type:'Samarbetsregel',
-						slotLabel:`${slot.start}–${slot.end}`,
-						stationTitle:station.title,
-						detail:`${personA} + ${personB}`
-					});
-				}
-			}
+	for(const cell of workCells){
+		for(const [a,b] of cell.compatibilityPairs){
+			conflictDetails.push({type:'Samarbetsregel', slotLabel:`${cell.slot.start}–${cell.slot.end}`,
+				stationTitle:cell.station.title, detail:`${personName(a)} + ${personName(b)}`});
 		}
-	}
-
-	const byPersonStation=new Map();
-	const assignmentsByPerson=new Map();
-	for(const row of assignments){
-		if(!slotById.has(String(row.timeSlotId))) continue;
-		assignmentsByPerson.set(String(row.personId),(assignmentsByPerson.get(String(row.personId))||0)+1);
-		const key=`${row.personId}:${row.stationId}`;
-		const arr=byPersonStation.get(key)||[];
-		arr.push(row);
-		byPersonStation.set(key,arr);
 	}
 	const consecutiveByPerson=new Map();
-	for(const rows of byPersonStation.values()){
-		rows.sort((a,b)=>(slotById.get(String(a.timeSlotId))?.sort||0)-(slotById.get(String(b.timeSlotId))?.sort||0));
-		for(let i=1;i<rows.length;i++){
-			const prev=slotById.get(String(rows[i-1].timeSlotId));
-			const cur=slotById.get(String(rows[i].timeSlotId));
-			if(!prev || !cur || cur.sort!==prev.sort+1) continue;
-			const personName=getPlanningPersonById(rows[i].personId, currentFactoryId)?.name || `Person ${rows[i].personId}`;
-			const stationTitle=stationById.get(String(rows[i].stationId))?.title || String(rows[i].stationId);
-			const personKey=String(rows[i].personId);
-			consecutiveByPerson.set(personKey,(consecutiveByPerson.get(personKey)||0)+1);
-			conflictCount++;
-			conflictDetails.push({
-				type:'Samma station i rad',
-				slotLabel:`${prev.start}–${prev.end} → ${cur.start}–${cur.end}`,
-				stationTitle,
-				detail:personName
-			});
+	for(const event of evaluation.rotationEvents){
+		const personId=String(event.personId);
+		consecutiveByPerson.set(personId,(consecutiveByPerson.get(personId)||0)+1);
+		conflictDetails.push({type:'Samma station i rad',
+			slotLabel:`${event.previousSlot.start}–${event.previousSlot.end} → ${event.slot.start}–${event.slot.end}`,
+			stationTitle:evaluation.stationById.get(String(event.stationId)).title, detail:personName(event.personId)});
+	}
+	const conflictCount=conflictDetails.length;
+	const assignmentsByPerson=new Map();
+	for(const cell of workCells){
+		for(const row of cell.assignedRows){
+			const personId=String(row.personId);
+			assignmentsByPerson.set(personId,(assignmentsByPerson.get(personId)||0)+1);
 		}
 	}
+	const nonoperationalAssignments=evaluation.nonoperationalAssignments.map(row=>{
+		const slot=evaluation.slotById.get(String(row.timeSlotId));
+		return {slotLabel:`${slot.start}–${slot.end}`, stationTitle:evaluation.stationById.get(String(row.stationId)).title,
+			personName:personName(row.personId)};
+	});
 
 	const coveragePct=totalRequired>0 ? (totalAssigned/totalRequired)*100 : 0;
 	const understaffedStations=stationStats.filter(s=>s.understaffedSlots>0).length;
@@ -823,19 +725,20 @@ function computeDerivedReportMetrics(){
 	conflictDetails.sort((a,b)=>a.type.localeCompare(b.type,'sv')||a.stationTitle.localeCompare(b.stationTitle,'sv'));
 
 	return {
-		context:{dateStr,factoryId:currentFactoryId,dayType:currentDayType},
+		context:{...context,dateStr},
 		totals:{coveragePct,totalRequired,totalAssigned,untrainedAssignments,understaffedStations,understaffedCellCount,conflictCount,loadSpread,stdDev},
 		stationStats,
 		conflictDetails,
+		nonoperationalAssignments,
 		workload:{workloadStats,topLoaded,lowLoaded,maxAssignments,minAssignments,meanAssignments,totalWorkSlots}
 	};
 }
 
-function renderDerivedReport(){
+function renderDerivedReport(evaluation=null){
 	return runMeasured('renderDerivedReport', ()=>{
 	const coverageEl=document.getElementById('reportCoveragePct');
 	if(!coverageEl) return;
-	const report=computeDerivedReportMetrics();
+	const report=computeDerivedReportMetrics(evaluation || evaluateCurrentSchedule());
 	const totals=report.totals;
 	const fmtPct=(n)=>`${Math.round((Number(n)||0)*10)/10}%`;
 	const imbalanceThreshold=Math.max(1, report.workload.meanAssignments*0.5);
@@ -852,6 +755,15 @@ function renderDerivedReport(){
 	document.getElementById('reportTopLoaded').innerHTML=renderLoadBadges(report.workload.topLoaded,'Inga tilldelningar');
 	document.getElementById('reportLowLoaded').innerHTML=renderLoadBadges(report.workload.lowLoaded,'Ingen närvarande personal');
 	document.getElementById('reportContextText').textContent=`Datum ${report.context.dateStr} · ${getCurrentFactoryTitle()} · ${labelFor(report.context.dayType)}`;
+
+
+	const nonoperationalSection=document.getElementById('reportNonoperationalSection');
+	if(nonoperationalSection){
+		nonoperationalSection.classList.toggle('d-none', report.nonoperationalAssignments.length===0);
+		document.getElementById('reportNonoperationalCount').textContent=String(report.nonoperationalAssignments.length);
+		document.getElementById('reportNonoperationalRows').innerHTML=report.nonoperationalAssignments.map(row=>
+			`<tr><td>${escapeHtml(row.slotLabel)}</td><td>${escapeHtml(row.stationTitle)}</td><td>${escapeHtml(row.personName)}</td></tr>`).join('');
+	}
 
 	const stationBody=document.getElementById('reportStationRows');
 	if(stationBody){
@@ -903,7 +815,7 @@ function renderDerivedReport(){
 	});
 }
 
-function buildGrid(){
+function buildGrid(evaluation=evaluateCurrentSchedule()){
 	const scaler=document.getElementById('gridScaler');
 	scaler.innerHTML='';
 	document.getElementById('warnAlert').classList.add('d-none');
@@ -1064,7 +976,7 @@ function buildGrid(){
 
 				const pid = draggingPersonId;
 				if(pid){
-					const person = DB.persons.find(p => p.id === pid);
+					const person = getPlanningPersonById(pid);
 
 					// 1) Strict check (training required)
 					const strictOk = isPersonAllowedFor(person, station, slot, { ignoreConflictForPersonId: pid });
@@ -1106,7 +1018,8 @@ function buildGrid(){
 	requestAnimationFrame(fitToViewport);
 	renderAssignments();
 	refreshAutoGenerateWarnings();
-	if(shouldValidateBoardForMode()) validateBoard();
+	if(shouldValidateBoardForMode()) validateBoard(evaluation);
+	else renderDependentSummaries(evaluation);
 
 
 }

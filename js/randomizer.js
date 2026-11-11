@@ -23,9 +23,10 @@ function _appendCellTooltip(cell, msg){
 	tip.setContent({ '.tooltip-inner': content });
 }
 
-function setStationOperational(stationId, on){
+function setStationOperational(stationId, on, {refresh=true}={}){
 	const s=DB.stations.find(x=>x.id===stationId&&x.factoryId===currentFactoryId);
 	if(!s) return;
+	const changed=s.operational!==!!on;
 	s.operational=!!on;
 
 	// reflect in any checkbox that represents this station (randomizer or settings)
@@ -43,6 +44,8 @@ function setStationOperational(stationId, on){
 		gChk.indeterminate=onCount>0&&onCount<total;
 		gChk.checked=onCount===total;
 	});
+	if(changed && refresh) rebuildAll();
+	return changed;
 }
 
 // one listener for both places
@@ -55,49 +58,52 @@ document.addEventListener('change',e=>{
 });
 
 
+function prepareGenerationOptions(opts){
+	return {...opts, workSlots:opts.workSlots || getCurrentWorkSlots(), trainingIndex:opts.trainingIndex || getCurrentTrainingIndex()};
+}
+
+function canGenerateAt(station, slot){
+	return station.operational!==false && slot.type==='Work' &&
+		String(station.factoryId)===String(currentFactoryId) && String(slot.factoryId)===String(currentFactoryId) &&
+		slot.dayType===currentDayType;
+}
+
+function generationWouldRepeat(personId, station, slot, opts){
+	return SchedulingCalculations.wouldRepeatStation(personId, station.id, slot.id,
+		DB.assignments, opts.workSlots, getSchedulingContext());
+}
+
 function placeOneRandom(station, slot, opts={}){
+	if(!canGenerateAt(station, slot)) return null;
+	opts=prepareGenerationOptions(opts);
 	const dateStr=getSelectedDateStr();
 	const avoidConsecutive = (opts.avoidConsecutive!==false);
 	const candidateGroups = opts.candidateGroupIds || null;
 	const takenThisSlot = opts.takenThisSlot || new Set();
+
+	const have=SchedulingCalculations.filterAssignments(DB.assignments, getSchedulingContext())
+		.filter(row=>String(row.stationId)===String(station.id) && String(row.timeSlotId)===String(slot.id)).length;
+	if(have>=SchedulingCalculations.getRequiredStaffing(station, slot)) return null;
 
 	// base pool: present, in selected groups, trained/allowed for this station+slot
 	let candidates = getPlanningPersons(currentFactoryId).filter(p =>
 		p.factoryId===currentFactoryId &&
 		p.present &&
 		(!candidateGroups || candidateGroups.has(p.groupId)) &&
-		isPersonAllowedFor(p, station, slot)
+		isPersonAllowedFor(p, station, slot, {trainingIndex:opts.trainingIndex, ignoreTraining:opts.requireTraining===false, forceTrainingForResurs:!!opts.requireTraining})
 	);
 
 	// exclude already assigned somewhere in this slot
 	candidates = candidates.filter(p => !takenThisSlot.has(p.id));
 
-	// optional: avoid consecutive on same station
 	if(avoidConsecutive){
-		const workSlots = DB.timeSlots
-			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-			.sort((a, b)=>a.sort-b.sort);
-		const idx = workSlots.findIndex(x => x.id===slot.id);
-		const adjacentSlots = [
-			idx>0 ? workSlots[idx-1] : null,
-			idx>=0 && idx<workSlots.length-1 ? workSlots[idx+1] : null
-		].filter(Boolean);
-		if(adjacentSlots.length){
-			const adjacentAss = DB.assignments
-				.filter(a =>
-					a.date===dateStr &&
-					a.dayType===currentDayType &&
-					a.stationId===station.id &&
-					adjacentSlots.some(adj => adj.id===a.timeSlotId)
-				)
-				.map(a => a.personId);
-			if(adjacentAss.length) candidates = candidates.filter(c => !adjacentAss.includes(c.id));
-		}
+		candidates=candidates.filter(person=>!generationWouldRepeat(person.id, station, slot, opts));
 	}
 
 	// avoid incompatible pairs inside this cell
 	const existingHere = DB.assignments
-		.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===slot.id)
+		.filter(a => a.date===dateStr && a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===slot.id)
 		.map(a => a.personId);
 	candidates = candidates.filter(c => !existingHere.some(e => isIncompatible(e, c.id)));
 
@@ -113,11 +119,14 @@ function placeOneRandom(station, slot, opts={}){
 }
 
 function roundRobinFill(stations, slot, opts = {}){
+	stations=stations.filter(station=>canGenerateAt(station, slot));
+	if(!stations.length) return;
+	opts=prepareGenerationOptions(opts);
 	const dateStr = getSelectedDateStr();
 	const prioritizedStationIds = opts.prioritizedStationIds || new Set();
 	const getPriorityRank = (stationId)=>prioritizedStationIds.has(stationId) ? 0 : 1;
 	const getStationDayLoad = (stationId)=>DB.assignments.filter(a =>
-		a.date===dateStr &&
+		a.date===dateStr && a.factoryId===currentFactoryId &&
 		a.dayType===currentDayType &&
 		a.stationId===stationId
 	).length;
@@ -125,15 +134,17 @@ function roundRobinFill(stations, slot, opts = {}){
 
 	const takenThisSlot = new Set(
 		DB.assignments
-			.filter(a => a.date===dateStr && a.dayType===currentDayType && a.timeSlotId===slot.id)
+			.filter(a => a.date===dateStr && a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType && a.timeSlotId===slot.id)
 			.map(a => a.personId)
 	);
 
 	const remaining = new Map();
 	stations.forEach(s => {
-		const cap = s.defaultCapacity || 1;
+		const cap = SchedulingCalculations.getRequiredStaffing(s, slot);
 		const have = DB.assignments
-			.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===s.id && a.timeSlotId===slot.id)
+			.filter(a => a.date===dateStr && a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType && a.stationId===s.id && a.timeSlotId===slot.id)
 			.length;
 		const rem = Math.max(0, cap - have);
 		if(rem > 0) remaining.set(s.id, rem);
@@ -306,53 +317,33 @@ function getStationCandidateSupply(station, slot, opts = {}, takenThisSlot, rema
 }
 
 function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
+	if(!canGenerateAt(station, slot)) return false;
+	opts=prepareGenerationOptions(opts);
 	const dateStr = getSelectedDateStr();
 	if(takenThisSlot.has(person.id)) return false;
 	if((remaining.get(station.id) || 0) <= 0) return false;
 	if(!isPersonAllowedFor(person, station, slot, {
 		ignoreTraining: opts.requireTraining===false,
+		trainingIndex:opts.trainingIndex,
 		forceTrainingForResurs: !!opts.requireTraining
 	})) return false;
 
-	if(opts.avoidConsecutive !== false){
-		const workSlots = DB.timeSlots
-			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-			.sort((a, b) => a.sort - b.sort);
-		const idx = workSlots.findIndex(x => x.id === slot.id);
-		const adjacentSlots = [
-			idx > 0 ? workSlots[idx-1] : null,
-			idx >= 0 && idx < workSlots.length - 1 ? workSlots[idx+1] : null
-		].filter(Boolean);
-		if(adjacentSlots.length){
-			const adjacentAss = DB.assignments
-				.filter(a =>
-					a.date===dateStr &&
-					a.dayType===currentDayType &&
-					a.stationId===station.id &&
-					adjacentSlots.some(adj => adj.id===a.timeSlotId)
-				)
-				.map(a => a.personId);
-			if(adjacentAss.includes(person.id)) return false;
-		}
-	}
+	if(opts.avoidConsecutive !== false && generationWouldRepeat(person.id, station, slot, opts)) return false;
 
 	const existingHere = DB.assignments
-		.filter(a => a.date===dateStr && a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===slot.id)
+		.filter(a => a.date===dateStr && a.factoryId===currentFactoryId &&
+			a.dayType===currentDayType && a.stationId===station.id && a.timeSlotId===slot.id)
 		.map(a => a.personId);
 	if(existingHere.some(e => isIncompatible(e, person.id))) return false;
 
 	// Keep scarce trained candidates available for the next slot when consecutive-rule is active.
 	// This avoids overfilling an early slot (up to max capacity) when it would create avoidable gaps next.
 	if(opts.avoidConsecutive !== false && !opts._skipNextSlotReserve){
-		const workSlots = DB.timeSlots
-			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-			.sort((a, b) => a.sort - b.sort);
-		const idx = workSlots.findIndex(x => x.id === slot.id);
-		const nextSlot = idx >= 0 && idx < workSlots.length - 1 ? workSlots[idx+1] : null;
+		const {next:nextSlot}=SchedulingCalculations.getAdjacentWorkSlots(opts.workSlots, slot.id);
 		if(nextSlot){
-			const nextCapacity = station.defaultCapacity || 1;
+			const nextCapacity = SchedulingCalculations.getRequiredStaffing(station, nextSlot);
 			const nextAssignments = DB.assignments.filter(a =>
-				a.date===dateStr &&
+				a.date===dateStr && a.factoryId===currentFactoryId &&
 				a.dayType===currentDayType &&
 				a.stationId===station.id &&
 				a.timeSlotId===nextSlot.id
@@ -363,6 +354,7 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 				const personCanTakeNext = !blockedByCurrent.has(person.id) &&
 					isPersonAllowedFor(person, station, nextSlot, {
 						ignoreTraining: opts.requireTraining===false,
+						trainingIndex:opts.trainingIndex,
 						forceTrainingForResurs: !!opts.requireTraining
 					}) &&
 					!nextAssignments.some(a => isIncompatible(a.personId, person.id));
@@ -375,6 +367,7 @@ function canPlace(person, station, slot, opts = {}, takenThisSlot, remaining){
 						!blockedByCurrent.has(p.id) &&
 						isPersonAllowedFor(p, station, nextSlot, {
 							ignoreTraining: opts.requireTraining===false,
+							trainingIndex:opts.trainingIndex,
 							forceTrainingForResurs: !!opts.requireTraining
 						}) &&
 						!nextAssignments.some(a => isIncompatible(a.personId, p.id))
@@ -499,11 +492,13 @@ function openRandomizer(){
 		gChk.addEventListener('change',()=>{
 			const on=gChk.checked;
 			const childs=[...box.querySelectorAll('.form-check-input[data-kind="station"]')];
+			let changed=false;
 			childs.forEach(c=>{
 				const sid=parseEntityId(c.dataset.stationId);
-				setStationOperational(sid, on); // updates DB + both UIs
+				changed=setStationOperational(sid, on, {refresh:false}) || changed;
 			});
 			syncPriorityControls();
+			if(changed) rebuildAll();
 		});
 
 		function syncPriorityControls(){
@@ -571,9 +566,7 @@ function runRandomizer(){
 
 	withAssignmentHistoryAction('Autogenerering', ()=>{
 		// ordered work slots
-		const slots = DB.timeSlots
-			.filter(ts => ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-			.sort((a, b)=>a.sort-b.sort);
+		const slots = getCurrentWorkSlots();
 
 		if(!keepPrefilled){
 			const dateStr=getSelectedDateStr();
@@ -585,7 +578,7 @@ function runRandomizer(){
 		}
 
 		// chosen stations: prioritize selected stations while still allowing Resurs stations to run last.
-		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && selectedStationIds.has(s.id));
+		const chosen = DB.stations.filter(s => s.factoryId===currentFactoryId && s.operational!==false && selectedStationIds.has(s.id));
 		const prioritizedNormalStations = chosen.filter(s => !s.isResurs && prioritizedStationIds.has(s.id));
 		const normalStations = chosen.filter(s => !s.isResurs && !prioritizedStationIds.has(s.id));
 		const prioritizedResursStations = chosen.filter(s => s.isResurs && prioritizedStationIds.has(s.id));
@@ -594,7 +587,7 @@ function runRandomizer(){
 			? [...prioritizedNormalStations, ...normalStations]
 			: [...prioritizedNormalStations, ...prioritizedResursStations, ...normalStations, ...normalResursStations];
 		const resursStations = fillResursLast ? [...prioritizedResursStations, ...normalResursStations] : [];
-		const randomizerOpts = {candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage, prioritizedStationIds};
+		const randomizerOpts = prepareGenerationOptions({candidateGroupIds:selectedGroupIds, avoidConsecutive, requireTraining:preferTrained, preferCriticalCoverage, prioritizedStationIds, workSlots:slots});
 
 		// per slot: round-robin across selected stations
 		for(const sl of slots){
@@ -620,10 +613,13 @@ function runRandomizer(){
 }
 
 function fillCellByRandom(station,slot,opts={}){
+	if(!canGenerateAt(station, slot)) return 0;
+	opts=prepareGenerationOptions(opts);
 	const dateStr=getSelectedDateStr();
 	const cell=findCell(station.id,slot.id);
-	const currentCount=cell.querySelectorAll('.person-pill').length;
-	const capacity=station.defaultCapacity||1;
+	const currentCount=SchedulingCalculations.filterAssignments(DB.assignments, getSchedulingContext())
+		.filter(row=>String(row.stationId)===String(station.id) && String(row.timeSlotId)===String(slot.id)).length;
+	const capacity=SchedulingCalculations.getRequiredStaffing(station, slot);
 	if(currentCount>=capacity) return 0;
 
 	const candidateGroups=opts.candidateGroupIds||null;
@@ -634,22 +630,11 @@ function fillCellByRandom(station,slot,opts={}){
 		p.factoryId===currentFactoryId &&
 		p.present &&
 		(!candidateGroups || candidateGroups.has(p.groupId)) &&
-		isPersonAllowedFor(p,station,slot)
+		isPersonAllowedFor(p,station,slot,{trainingIndex:opts.trainingIndex, ignoreTraining:opts.requireTraining===false, forceTrainingForResurs:!!opts.requireTraining})
 	);
 
-	// optional back-to-back filter on same station
 	if(avoidConsecutive){
-		const workSlots=DB.timeSlots
-			.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
-			.sort((a,b)=>a.sort-b.sort);
-		const slotIndex=workSlots.findIndex(x=>x.id===slot.id);
-		const prevSlot=slotIndex>0?workSlots[slotIndex-1]:null;
-		if(prevSlot){
-			const prevAss=DB.assignments
-				.filter(a=>a.date===dateStr&&a.stationId===station.id&&a.timeSlotId===prevSlot.id&&a.dayType===currentDayType)
-				.map(a=>a.personId);
-			candidates=candidates.filter(c=>!prevAss.includes(c.id));
-		}
+		candidates=candidates.filter(person=>!generationWouldRepeat(person.id, station, slot, opts));
 	}
 
 	shuffle(candidates);
@@ -658,13 +643,14 @@ function fillCellByRandom(station,slot,opts={}){
 	for(const cand of candidates){
 		// still avoid incompatible pairs inside the same cell
 		const existing=DB.assignments
-			.filter(a=>a.date===dateStr&&a.stationId===station.id&&a.timeSlotId===slot.id&&a.dayType===currentDayType)
+			.filter(a=>a.date===dateStr && a.factoryId===currentFactoryId &&
+			a.stationId===station.id&&a.timeSlotId===slot.id&&a.dayType===currentDayType)
 			.map(a=>a.personId);
 		if(existing.some(e=>isIncompatible(e,cand.id))) continue;
 
 		placePerson(cell,station,slot,cand.id);
 		placed++;
-		if(cell.querySelectorAll('.person-pill').length>=capacity) break;
+		if(currentCount+placed>=capacity) break;
 	}
 	return (currentCount+placed<capacity) ? (capacity-(currentCount+placed)) : 0;
 }

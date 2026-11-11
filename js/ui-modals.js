@@ -376,7 +376,7 @@ function getFirstRunTourSteps(){
 			placement:'bottom',
 			icon:'bi-exclamation-triangle',
 			title:'3. Följ varningssammanfattningen',
-			body:'Sammanfattningen räknar berörda celler och låter dig filtrera på kapacitet, utbildning, kompatibilitet och frånvaro. Knappen Rapport öppnar en mer detaljerad vy.'
+			body:'Sammanfattningen räknar berörda celler och låter dig filtrera på kapacitet, utbildning, kompatibilitet, frånvaro, dubbelpass och tilldelningar på icke-operativa stationer. Knappen Rapport öppnar en mer detaljerad vy.'
 		},
 		{
 			selector:'#reportModal .modal-content',

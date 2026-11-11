@@ -319,7 +319,7 @@ function renderStationsByGroup(){
 			${addStationButton}
 		</div>
 		<div class="card-body p-0"><table class="table table-sm align-middle mb-0">
-			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="info-tooltip" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
+			<thead><tr><th style="width:32px"></th><th>Namn</th><th>Kapacitet</th><th><span class="d-inline-flex align-items-center gap-1">Operativ <button type="button" class="settings-info-btn summary-info-btn small fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="info-tooltip" data-bs-html="true" data-bs-title="<strong>Aktiverad:</strong> Stationen kan väljas och fyllas vid autogenerering.<br><strong>Avaktiverad:</strong> Stationen exkluderas från autogenerering, bemanningsbehov och täckning. Befintliga tilldelningar visas med en separat varning."><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Info om Operativ</span></button></span></th><th></th></tr></thead>
 			<tbody></tbody></table></div>`;
 		const tb=card.querySelector('tbody');
 		stations.forEach(s=>{
@@ -353,7 +353,10 @@ function renderStationsByGroup(){
 				const s=DB.stations.find(x=>x.id===id);
 				if(el.dataset.bind==='title') s.title=el.value.trim();
 				if(el.dataset.bind==='defcap') s.defaultCapacity=parseInt(el.value,10)||1;
-				if(el.dataset.bind==='op') s.operational=el.checked;
+				if(el.dataset.bind==='op'){
+					setStationOperational(id, el.checked);
+					return;
+				}
 				if(el.dataset.bind==='resurs') s.isResurs=el.checked;
 				rebuildAfterSettingsMutation('settings station edit');
 			});
