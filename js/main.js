@@ -205,6 +205,9 @@ applySavedTheme();
 	updateHeaderContext();
 	rebuildAll();
 	maybeStartFirstRunTour();
+	// Navbar wrapping and alerts can resize the board without a window resize.
+	const gridResizeObserver=new ResizeObserver(fitToViewport);
+	gridResizeObserver.observe(document.getElementById('gridScroller'));
 	window.addEventListener('resize',fitToViewport);
 	window.addEventListener('resize',updateToastAreaPosition);
 	window.addEventListener('resize',relocateTopbarSecondaryActions);
