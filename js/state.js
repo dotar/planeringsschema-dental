@@ -320,28 +320,46 @@ function getPlanningPersonById(personId, factoryId=currentFactoryId){
 	return getPlanningPersons(factoryId).find(p=>p.id===personId) || DB.persons.find(p=>p.id===personId) || (DB.shiftData ? ['day','evening','night'].flatMap(k=>DB.shiftData[k]?.persons||[]).find(p=>p.id===personId) : null);
 }
 
-function isPersonTrainedForStation(personId, stationId){
-	if(!DB.shiftData){
-		return DB.training.some(t=>t.personId===personId && t.stationId===stationId);
-	}
-	if(currentDayType===DayType.OvertimeDay){
-		for(const shift of ['day','evening','night']){
-			if((DB.shiftData[shift]?.training||[]).some(t=>t.personId===personId && t.stationId===stationId)) return true;
+function getSchedulingContext(){
+	return {date:getSelectedDateStr(), factoryId:currentFactoryId, shift:currentShift, dayType:currentDayType};
+}
+
+function getSchedulingTrainingSources(){
+	// The active arrays may have been replaced by an editor. Do not read its old snapshot.
+	return [{persons:DB.persons, training:DB.training}, ...['day','evening','night']
+		.filter(shift=>shift!==currentShift && DB.shiftData?.[shift])
+		.map(shift=>DB.shiftData[shift])];
+}
+
+function getCurrentTrainingIndex(){
+	return SchedulingCalculations.buildTrainingIndex(getSchedulingTrainingSources(), DB.stations);
+}
+
+function isPersonTrainedForStation(personId, stationId, trainingIndex=null){
+	return SchedulingCalculations.isTrained(trainingIndex || getCurrentTrainingIndex(), personId, stationId);
+}
+
+function getCurrentSchedulingInput(){
+	const byId=new Map();
+	for(const source of getSchedulingTrainingSources()){
+		for(const person of source.persons || []){
+			if(!byId.has(String(person.id))) byId.set(String(person.id), person);
 		}
-		return false;
 	}
-	if(DB.training.some(t=>t.personId===personId && t.stationId===stationId)) return true;
-	if(currentShift==='evening' && (DB.shiftData.night?.persons||[]).some(p=>p.id===personId)){
-		return (DB.shiftData.night?.training||[]).some(t=>t.personId===personId && t.stationId===stationId);
-	}
-	return false;
+	// Preserve the existing person-aware lookup's precedence (including overtime).
+	for(const person of getPlanningPersons(currentFactoryId)) byId.set(String(person.id), person);
+	return {context:getSchedulingContext(), stations:DB.stations, timeSlots:DB.timeSlots,
+		assignments:DB.assignments, persons:[...byId.values()], trainingIndex:getCurrentTrainingIndex(),
+		compatibility:DB.compatibility || []};
+}
+
+function evaluateCurrentSchedule(){
+	return SchedulingCalculations.evaluateSchedule(getCurrentSchedulingInput());
 }
 
 function isLastEveningWorkSlot(slot){
 	if(currentShift!=='evening') return false;
-	const workSlots=DB.timeSlots
-		.filter(ts=>ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-		.sort((a,b)=>a.sort-b.sort);
+	const workSlots=SchedulingCalculations.getWorkSlots(DB.timeSlots, getSchedulingContext());
 	return workSlots.length>0 && workSlots[workSlots.length-1].id===slot.id;
 }
 

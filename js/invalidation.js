@@ -37,16 +37,12 @@ function getAssignmentInvalidationKey(row){
 }
 
 function getCurrentWorkSlots(){
-	return DB.timeSlots
-		.filter(ts=>ts.factoryId===currentFactoryId && ts.dayType===currentDayType && ts.type==='Work')
-		.sort((a,b)=>a.sort-b.sort);
+	return SchedulingCalculations.getWorkSlots(DB.timeSlots, getSchedulingContext());
 }
 
 function getAdjacentWorkSlotIds(slotId){
-	const slots=getCurrentWorkSlots();
-	const idx=slots.findIndex(s=>String(s.id)===String(slotId));
-	if(idx<0) return [];
-	return [slots[idx-1]?.id, slots[idx+1]?.id].filter(v=>v!==undefined && v!==null);
+	const {previous, next}=SchedulingCalculations.getAdjacentWorkSlots(getCurrentWorkSlots(), slotId);
+	return [previous, next].filter(Boolean).map(slot=>slot.id);
 }
 
 function addCurrentCellKey(target, slotId, stationId){

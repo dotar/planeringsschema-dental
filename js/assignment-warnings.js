@@ -18,9 +18,7 @@ function getAutoGenerateUnassignedBySlot(){
 	}
 	const candidateGroupIds=new Set(lastAutoGenerateContext.candidateGroupIds||[]);
 	const hasGroupFilter=Array.isArray(lastAutoGenerateContext.candidateGroupIds);
-	const workSlots=DB.timeSlots
-		.filter(ts=>ts.factoryId===currentFactoryId&&ts.dayType===currentDayType&&ts.type==='Work')
-		.sort((a,b)=>a.sort-b.sort);
+	const workSlots=getCurrentWorkSlots();
 	const rows=DB.assignments.filter(a=>a.date===dateStr&&a.factoryId===currentFactoryId&&a.dayType===currentDayType);
 	const bySlot=new Map();
 	for(const slot of workSlots){

@@ -38,6 +38,7 @@ planeringsschema-dental/
 │   ├── mockdata.js            # Mock factories/personnel/stations/training plus generated day/evening/night datasets.
 │   ├── schema.js              # Runtime data-shape assertions and diagnostics banner helpers.
 │   ├── state.js               # Shared state, shift switching, local UI preferences, and data lookup helpers.
+│   ├── scheduling-calculations.js # Shared, DOM-independent training, staffing, and work-period rules.
 │   ├── schedule-templates.js  # Date controls, shift-template labels, and default time-slot setup.
 │   ├── history.js             # Undo/redo batching for edit-mode assignment changes.
 │   ├── invalidation.js        # Cell-level invalidation keys for partial revalidation.
@@ -49,7 +50,8 @@ planeringsschema-dental/
 │   ├── settings.js            # Entity editors, training editor, collaboration rules, and settings drag/drop behavior.
 │   └── main.js                # App bootstrap, top-level event wiring, theme/tooltips/popovers, and mock save hook.
 ├── scripts/
-│   └── validate-mockdata.js   # Node check for orphaned training references and reconciliation behavior.
+│   ├── validate-mockdata.js   # Node check for orphaned training references and reconciliation behavior.
+│   └── scheduling-calculations.test.js # Node regression tests for shared rules and classic-script consumers.
 ├── favicon.svg
 ├── logo.svg
 ├── LICENSE
@@ -69,11 +71,16 @@ planeringsschema-dental/
 The coordinator warning summary uses **unique grid cells** as its counting unit.
 
 - **Alla**: number of unique cells with at least one issue.
-- **Kapacitet**: cells where `assigned !== required capacity` (both under and over capacity).
+- **Kapacitet**: operational cells where `assigned !== required capacity` (both under and over capacity). Breaks require zero staff; assignments remaining on breaks retain their warning but do not contribute to coverage.
 - **Utbildning**: cells that have assigned personnel and at least one assigned person is not trained for that station.
 - **Kompatibilitet**: cells with at least one incompatible person pair assigned together.
+- **Dubbelpass**: later cells containing the same person on the same station in consecutive work periods. Intervening breaks are skipped.
+- **Icke-operativ**: cells with assignments on nonoperational stations. Empty nonoperational cells generate no staffing warning.
+- **Frånvarande**: cells with assigned absent personnel.
 
-The text `Kapacitet x/y tilldelade` in the summary describes total assigned capacity (`x`) versus total required capacity (`y`) across the visible planning grid.
+Each category counts unique cells. **Alla** counts their union, so a cell with several issues is counted once.
+
+The text `Kapacitet x/y tilldelade` in the summary describes total assigned capacity (`x`) versus total required capacity (`y`) across operational stations and work periods only. Assignments on nonoperational stations stay visible and can be edited manually, but contribute to neither coverage total.
 
 
 ## Derived report metrics
@@ -81,10 +88,13 @@ The text `Kapacitet x/y tilldelade` in the summary describes total assigned capa
 The **Rapport** button in the top navigation opens a modal with derived KPIs for the active date/factory/template context.
 
 - **Coverage %**: `assigned / required` across all operational stations and work slots in the visible context.
-- **Untrained assignments**: assigned rows where `DB.training` lacks the `personId + stationId` mapping.
+- **Untrained assignments**: work-period assignment rows lacking a valid `personId + stationId` qualification across all shift datasets, including supplemental night staff and overtime personnel. The active shift uses live training data; other shifts supply additional qualifications. Training belongs to the person ID, not the selected shift or displayed name.
 - **Understaffed stations**: unique stations that have one or more work slots with `assigned < defaultCapacity`.
-- **Conflict count**: currently counts report rule issues for same-station compatibility conflicts and direct consecutive same-person/same-station assignments.
+- **Conflict count**: individual incompatible-pair events plus consecutive same-person/same-station work-period events, skipping breaks. Repetitions are compared only within the selected date, factory, shift dataset, and day type. Three consecutive work periods produce two rotation events.
+- **Nonoperational assignments**: shown in a separate section with slot, station, and person. Closure warnings do not increase the conflict count. Training, compatibility, and rotation checks still include assigned work on these stations.
 - **Workload distribution**: assignment counts per present person, including top-loaded/low-loaded people, spread, mean, and standard deviation.
+
+Report counts need not equal summary counts: two untrained assignments in one cell count as two report assignments and one summary cell. The station coverage breakdown includes operational stations only; workload population and assignment counting are unchanged.
 
 The modal also includes station-level breakdown, workload rows, and conflict/rule details to help prioritize manual fixes.
 
@@ -134,9 +144,24 @@ Validate the raw mock data and reconciliation helper with Node:
 
 ~~~bash
 node scripts/validate-mockdata.js
+node --test scripts/scheduling-calculations.test.js
 ~~~
 
-This check verifies that raw training rows do not reference missing people or stations, then confirms reconciliation remains clean.
+The scheduling regression suite covers cross-shift qualifications, closed-station staffing, rotation across breaks, counting units, generation, and full/partial validation. No test dependencies are required.
+
+The mock-data check verifies that raw training rows do not reference missing people or stations, then confirms reconciliation remains clean.
+
+### Browser regression checklist
+
+Serve the app locally and use Coordinator mode. Use temporary in-memory fixtures rather than changing production mock data.
+
+- Place qualified night staff in the final evening period, then personnel from each shift during weekend overtime. Picker styling, pill borders, summary, and report must recognize their qualifications.
+- Toggle an occupied station off and on in both settings and auto-generation controls. Assignments must remain visible; closed stations contribute to neither staffing total and have a separate summary filter and report section. Group toggles refresh once.
+- Repeat a person/station across a break, then move or remove an assignment and undo/redo. The later cell and report event must update immediately; an intervening work period prevents a repetition.
+- Generate with training and rotation avoidance enabled, including retained future assignments. No closed station is filled and both work-period neighbors are checked.
+- Switch date, factory, shift, and day type; verify isolation and Viewer warning preferences. Check the console for errors.
+
+Acceptance fixture: one operational station with capacity one across two work periods, a qualified borrowed person in both periods, and one assignment at a closed station. Expect **2/2 assigned, 100% coverage, zero untrained assignments, one rotation event, and one separately flagged closed-station assignment**. Empty closed cells have no staffing warning. Summary counts remain unique affected cells; report counts retain their individual units.
 
 ## License
 
